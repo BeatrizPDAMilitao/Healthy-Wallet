@@ -15,7 +15,7 @@ import com.example.ethktprototype.data.GraphQLResponse
 import com.example.ethktprototype.data.NftValue
 import com.example.ethktprototype.data.PortfolioData
 import com.example.ethktprototype.data.TokenBalance
-import io.sentry.Sentry
+//import io.sentry.Sentry
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.encodeToString
@@ -161,7 +161,8 @@ class WalletRepository(private val application: Application) : IWalletRepository
         walletAddress: String,
         selectedNetwork: Network
     ): List<NftValue> {
-        val envVars = EnvVars()
+        //val envVars = EnvVars()
+        val zapperApiKey = "MY_API_KEY"
         val currentTime = System.currentTimeMillis() / 1000
         val sharedPreferences = getBalancesSharedPreferences(application)
         val cacheExpirationTime = getNftCacheExpirationTime(sharedPreferences)
@@ -180,7 +181,7 @@ class WalletRepository(private val application: Application) : IWalletRepository
 
             val request = Request.Builder()
                 .url("https://public.zapper.xyz/graphql")
-                .header("x-zapper-api-key", envVars.zapperApiKey)
+                .header("x-zapper-api-key", zapperApiKey)
                 .post(requestBody.toString().toRequestBody("application/json; charset=utf-8".toMediaType()))
                 .build()
 
@@ -224,7 +225,8 @@ class WalletRepository(private val application: Application) : IWalletRepository
         val cacheExpirationTime = getCacheExpirationTime(sharedPreferences)
         val cachedBalances = getUserBalances(application)
         val cachedTotalBalance = getTotalBalanceUSD(application)
-        val envVars = EnvVars()
+        //val envVars = EnvVars()
+        val zapperApiKey = "MY_API_KEY"
 
         if (cachedBalances.isNotEmpty() && cacheExpirationTime > currentTime) {
             return Pair(cachedTotalBalance, cachedBalances)
@@ -239,7 +241,7 @@ class WalletRepository(private val application: Application) : IWalletRepository
         val requestBody = json.toString().toRequestBody("application/json; charset=utf-8".toMediaType())
         val request = Request.Builder()
             .url("https://public.zapper.xyz/graphql")
-            .header("x-zapper-api-key", envVars.zapperApiKey)
+            .header("x-zapper-api-key", zapperApiKey)
             .post(requestBody)
             .build()
 
@@ -394,7 +396,7 @@ class WalletRepository(private val application: Application) : IWalletRepository
 
             } catch (e: Exception) {
                 Log.e("send", "transaction failed: ${e.message}")
-                Sentry.captureException(e)
+                //Sentry.captureException(e)
                 throw e
             }
         }

@@ -22,7 +22,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavHostController
 import com.example.ethktprototype.WalletViewModel
-import io.sentry.Sentry
+//import io.sentry.Sentry
 import utils.isValidMnemonic
 import utils.loadBip44Credentials
 
@@ -90,7 +90,7 @@ fun ImportWallet(
                             viewModel.storeMnemonic(mnemonic)
                         } catch (e: Exception) {
                             errorMessage = "Failed to import wallet: ${e.message}"
-                            Sentry.captureException(e)
+                            //Sentry.captureException(e)
                         }
                     } else {
                         errorMessage = "Invalid mnemonic"
