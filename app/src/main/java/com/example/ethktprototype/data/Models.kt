@@ -4,6 +4,13 @@ import kotlinx.serialization.Contextual
 import kotlinx.serialization.Serializable
 
 @Serializable
+data class Transaction(
+    val id: String,
+    val date: String,
+    val status: String // "pending", "accepted" or "denied"
+)
+
+@Serializable
 data class GraphQLData(
     val nftUsersTokens: NftUsersTokens?
 )

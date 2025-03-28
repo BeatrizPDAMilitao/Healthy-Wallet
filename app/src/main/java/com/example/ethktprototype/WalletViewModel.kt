@@ -5,6 +5,7 @@ import android.content.Context
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.ethktprototype.data.TokenBalance
+import com.example.ethktprototype.data.Transaction
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -41,6 +42,9 @@ class WalletViewModel(application: Application) : AndroidViewModel(application) 
 
         loadMnemonicFromPrefs()
         getTokenBlocklist()
+
+        //Add sample transactions for testing
+        addSampleTransactions()
     }
 
     private fun updateUiState(update: (WalletUiState) -> WalletUiState) {
@@ -228,6 +232,36 @@ class WalletViewModel(application: Application) : AndroidViewModel(application) 
                 // Handle errors
             }
         }
+    }
+
+    fun addTransaction(transaction: Transaction) {
+        val updatedTransactions = uiState.value.transactions + transaction
+        updateUiState { it.copy(transactions = updatedTransactions) }
+    }
+
+    fun addTransactions(transactions: List<Transaction>) {
+        val updatedTransactions = uiState.value.transactions + transactions
+        updateUiState { it.copy(transactions = updatedTransactions) }
+    }
+
+    fun addSampleTransactions() {
+        val sampleTransactions = listOf(
+            Transaction(id = "1", date = "2023-10-01", status = "completed"),
+            Transaction(id = "2", date = "2023-10-02", status = "pending"),
+            Transaction(id = "3", date = "2023-10-03", status = "denied")
+        )
+        addTransactions(sampleTransactions)
+    }
+
+    fun updateTransactionStatus(transactionId: String, newStatus: String) {
+        val updatedTransactions = uiState.value.transactions.map { transaction ->
+            if (transaction.id == transactionId) {
+                transaction.copy(status = newStatus)
+            } else {
+                transaction
+            }
+        }
+        updateUiState { it.copy(transactions = updatedTransactions) }
     }
 }
 

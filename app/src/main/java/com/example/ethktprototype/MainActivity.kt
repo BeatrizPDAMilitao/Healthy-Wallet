@@ -11,6 +11,7 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
+import com.example.ethktprototype.screens.ActivityScreen
 import com.example.ethktprototype.screens.ImportWalletScreen
 import com.example.ethktprototype.screens.SettingsScreen
 import com.example.ethktprototype.screens.TokenListScreen
@@ -43,6 +44,9 @@ class MainActivity : ComponentActivity() {
                         }
                         composable("settingsScreen") {
                             SettingsScreen(navController = navController, viewModel = viewModel)
+                        }
+                        composable("activity") {
+                            ActivityScreen(navController = navController, viewModel = viewModel)
                         }
                     }
                 }
