@@ -1,5 +1,6 @@
 package com.example.ethktprototype.screens
 
+import android.util.Log
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -53,13 +54,24 @@ import com.example.ethktprototype.composables.SuccessDialogModal
 import java.text.DecimalFormat
 import androidx.compose.ui.graphics.Color
 import com.example.ethktprototype.data.Transaction
+import androidx.compose.ui.platform.LocalContext
+import com.example.ethktprototype.simulateTransactionReceived
 
+/**
+ * ActivityScreen is a Composable function that displays the activity screen of the wallet application.
+ *
+ * @param navController The NavHostController used for navigation.
+ * @param viewModel The WalletViewModel that holds the UI state and business logic.
+ */
 @Composable
 fun ActivityScreen(
     navController: NavHostController,
     viewModel: WalletViewModel,
 ) {
+    Log.d("ViewModel", "Act: $viewModel")
     val uiState by viewModel.uiState.collectAsState()
+    Log.d("Notifications", "Recomposing with transactions: ${uiState.transactions}")
+    val context = LocalContext.current
     val decimalFormatBalance = DecimalFormat("#.##")
     val showDialog = remember { mutableStateOf(false) }
     val selectedTransaction = remember { mutableStateOf<Transaction?>(null) }
@@ -123,7 +135,7 @@ fun ActivityScreen(
             }
 
             Spacer(modifier = Modifier.height(16.dp))
-            //TODO: Create list of transactions
+
             Column(
                 modifier = Modifier
                     .fillMaxSize()
@@ -136,6 +148,18 @@ fun ActivityScreen(
                     fontWeight = FontWeight.Bold,
                     modifier = Modifier.padding(bottom = 16.dp)
                 )
+                Spacer(modifier = Modifier.height(8.dp))
+
+                Button(
+                    onClick = {
+                        simulateTransactionReceived(context, viewModel)},
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(MaterialTheme.colorScheme.primary, shape = RoundedCornerShape(8.dp)),
+                    shape = RoundedCornerShape(8.dp)
+                ) {
+                    Text("Simulate New Transaction")
+                }
                 Divider(color = Color.Gray, thickness = 1.dp)
                 Spacer(modifier = Modifier.height(8.dp))
 
@@ -151,7 +175,6 @@ fun ActivityScreen(
                 }
             }
         }
-
 
         BottomNavigation(
             modifier = Modifier.align(Alignment.BottomCenter)
@@ -209,7 +232,7 @@ fun ActivityScreen(
             confirmButton = {
                 if (selectedTransaction.value?.status == "pending") {
                     Row {
-                        Button(onClick = { /* Handle accept */ }) {
+                        Button(onClick = { /*TODO: Handle accept*/ }) {
                             Text("Accept")
                         }
                         Spacer(modifier = Modifier.width(8.dp))
@@ -222,10 +245,6 @@ fun ActivityScreen(
                         }) {
                             Text("Deny")
                         }
-                        //Spacer(modifier = Modifier.width(8.dp))
-                        //Button(onClick = { showDialog.value = false }) {
-                        //    Text("Cancel")
-                        //}
                     }
                 } else {
                     Button(onClick = { showDialog.value = false }) {
@@ -237,6 +256,12 @@ fun ActivityScreen(
     }
 }
 
+/**
+ * TransactionItem is a Composable function that displays a single transaction item.
+ *
+ * @param transaction The transaction data to display.
+ * @param onClick The callback to invoke when the item is clicked.
+ */
 @Composable
 fun TransactionItem(transaction: Transaction, onClick: () -> Unit) {
     Box(

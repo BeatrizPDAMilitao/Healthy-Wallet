@@ -2,6 +2,7 @@ package com.example.ethktprototype
 
 import android.app.Application
 import android.content.Context
+import android.util.Log
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.ethktprototype.data.TokenBalance
@@ -17,7 +18,16 @@ import utils.addressToEnsResolver
 import utils.ensResolver
 import utils.loadBip44Credentials
 import java.math.BigDecimal
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 
+
+/**
+ * ViewModel to manage the wallet state.
+ *
+ * @param application The application associated with this ViewModel.
+ */
 
 class WalletViewModel(application: Application) : AndroidViewModel(application) {
     private val walletRepository = WalletRepository(application)
@@ -27,6 +37,9 @@ class WalletViewModel(application: Application) : AndroidViewModel(application) 
 
     private val _uiState = MutableStateFlow(WalletUiState())
     val uiState: StateFlow<WalletUiState> = _uiState.asStateFlow()
+
+    private var nextTransactionId = 1
+    private var nextNotificationId = 1
 
     init {
         val savedWalletAddress = sharedPreferences.getString(walletAddressKey, "") ?: ""
@@ -47,40 +60,74 @@ class WalletViewModel(application: Application) : AndroidViewModel(application) 
         addSampleTransactions()
     }
 
+    /**
+     * Updates the UI state with the provided function.
+     *
+     * @param update Function that defines the updates to the UI state.
+     */
     private fun updateUiState(update: (WalletUiState) -> WalletUiState) {
         _uiState.update(update)
     }
 
+    /**
+     * Gets the stored mnemonic.
+     *
+     * @return The mnemonic or null if not available.
+     */
     private fun getMnemonic(): String? {
         return walletRepository.getMnemonic()
     }
 
+    /**
+     * Updates the wallet address in the repository and UI state.
+     *
+     * @param walletAddress The wallet address to store.
+     */
     fun storeWallet(walletAddress: String) {
         walletRepository.storeWallet(walletAddress)
         updateUiState { it.copy(walletAddress = walletAddress) }
     }
 
+    /**
+     * Updates the mnemonic in the repository and UI state.
+     *
+     * @param mnemonic The mnemonic to store.
+     */
     fun storeMnemonic(mnemonic: String) {
         walletRepository.storeMnemonic(mnemonic)
         updateUiState { it.copy(mnemonicLoaded = true) }
     }
 
+    /**
+     * Loads the mnemonic from shared preferences and updates the UI state.
+     */
     private fun loadMnemonicFromPrefs() {
         val storedMnemonic = walletRepository.loadMnemonicFromPrefs()
         updateUiState { it.copy(mnemonicLoaded = storedMnemonic != null) }
     }
 
+    /**
+     * Updates the token blocklist in the repository and UI state.
+     *
+     * @param token The token to add to the blocklist.
+     */
     fun updateTokenBlockList(token:TokenBalance) {
         val updatedBlocklist = uiState.value.tokenBlocklist + token
         walletRepository.updateTokenBlockList(tokenBlocklist = updatedBlocklist)
         updateUiState { it.copy(tokenBlocklist = updatedBlocklist) }
     }
 
+    /**
+     * Loads the token blocklist from the repository and updates the UI state.
+     */
     private fun getTokenBlocklist() {
         val blockList = walletRepository.getTokenBlocklist()
         updateUiState { it.copy(tokenBlocklist = blockList) }
     }
 
+    /**
+     * Fetches the balances for the wallet address and updates the UI state.
+     */
     fun getBalances() {
         updateUiState { it.copy(isTokensLoading = true) }
         val walletAddress = uiState.value.walletAddress
@@ -128,6 +175,9 @@ class WalletViewModel(application: Application) : AndroidViewModel(application) 
         }
     }
 
+    /**
+     * Removes all wallet data from the repository and resets the UI state.
+     */
     fun removeAllWalletData() {
         walletRepository.removeAllWalletData()
         updateUiState {
@@ -135,6 +185,9 @@ class WalletViewModel(application: Application) : AndroidViewModel(application) 
         }
     }
 
+    /**
+     * Clears the token blocklist in the repository and updates the UI state.
+     */
     fun clearTokenBlocklist() {
         val emptyBlocklist = walletRepository.clearTokenBlocklist()
         updateUiState { it.copy(tokenBlocklist = emptyBlocklist) }
@@ -152,26 +205,58 @@ class WalletViewModel(application: Application) : AndroidViewModel(application) 
         updateUiState { it.copy(selectedToken = token) }
     }
 
+    /**
+     * Sets the ShowPayDialog state in the UI.
+     *
+     * @param show Boolean indicating whether to show the pay dialog.
+     */
     fun setShowPayDialog(show: Boolean) {
         updateUiState { it.copy(showPayDialog = show) }
     }
 
+    /**
+     * Sets the ShowTokenBottomSheet state in the UI.
+     *
+     * @param show Boolean indicating whether to show the token bottom sheet.
+     */
     fun setShowTokenBottomSheet(show: Boolean) {
         updateUiState { it.copy(showTokenBottomSheet = show) }
     }
 
+    /**
+     * Sets the ShowWalletModal state in the UI.
+     *
+     * @param show Boolean indicating whether to show the wallet modal.
+     */
     fun setShowWalletModal(show: Boolean) {
         updateUiState { it.copy(showWalletModal = show) }
     }
 
+    /**
+     * Sets the HashValue in the UI.
+     *
+     * @param value The hash value to set.
+     */
     fun setHashValue(value: String) {
         updateUiState { it.copy(hash = value) }
     }
 
+    /**
+     * Sets the ShowSuccessModal state in the UI.
+     *
+     * @param show Boolean indicating whether to show the success modal.
+     */
     fun setShowSuccessModal(show: Boolean) {
         updateUiState { it.copy(showSuccessModal = show) }
     }
 
+    /**
+     * Handles the confirmation of a payment.
+     *
+     * @param address The address to send the payment to.
+     * @param amount The amount to send.
+     * @param contractAddress The contract address of the token.
+     */
     fun onPayConfirmed(address: String, amount: Double, contractAddress: String) {
         val mnemonic = getMnemonic()
 
@@ -218,6 +303,11 @@ class WalletViewModel(application: Application) : AndroidViewModel(application) 
         }
     }
 
+    /**
+     * Checks for an ENS name for the given wallet address and updates the UI state.
+     *
+     * @param walletAddress The wallet address to check for an ENS name.
+     */
     private fun checkForEnsName(walletAddress: String?) {
         if (walletAddress.isNullOrEmpty()) return
 
@@ -234,25 +324,81 @@ class WalletViewModel(application: Application) : AndroidViewModel(application) 
         }
     }
 
+    /**
+     * Gets the next notification ID and increments the counter.
+     *
+     * @return The next notification ID.
+     */
+    fun getAndIncrementNotificationId(): Int {
+        return nextNotificationId++
+    }
+
+    /**
+     * Gets the next transaction ID and increments the counter.
+     *
+     * @return The next transaction ID.
+     */
+    fun getAndIncrementTransactionId(): Int {
+        return nextTransactionId++
+    }
+
+    /**
+     * Handles the notification received for a transaction.
+     *
+     * @param transaction The transaction associated with the notification.
+     */
+    fun onNotificationReceived(transaction: Transaction) {
+        addTransaction(transaction)
+    }
+
+    /**
+     * Gets the current date in the format "yyyy-MM-dd".
+     *
+     * @return The current date as a string.
+     */
+    fun getCurrentDate(): String {
+        val dateFormat = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
+        return dateFormat.format(Date())
+    }
+
+    /**
+     * Adds a transaction to the UI state.
+     *
+     * @param transaction The transaction to add.
+     */
     fun addTransaction(transaction: Transaction) {
         val updatedTransactions = uiState.value.transactions + transaction
         updateUiState { it.copy(transactions = updatedTransactions) }
     }
 
+    /**
+     * Adds a list of transactions to the UI state.
+     *
+     * @param transactions The list of transactions to add.
+     */
     fun addTransactions(transactions: List<Transaction>) {
         val updatedTransactions = uiState.value.transactions + transactions
         updateUiState { it.copy(transactions = updatedTransactions) }
     }
 
+    /**
+     * Adds sample transactions to the UI state for testing purposes.
+     */
     fun addSampleTransactions() {
         val sampleTransactions = listOf(
-            Transaction(id = "1", date = "2023-10-01", status = "completed"),
-            Transaction(id = "2", date = "2023-10-02", status = "pending"),
-            Transaction(id = "3", date = "2023-10-03", status = "denied")
+            Transaction(id = "122", date = "2023-10-01", status = "completed"),
+            Transaction(id = "222", date = "2023-10-02", status = "pending"),
+            Transaction(id = "322", date = "2023-10-03", status = "denied")
         )
         addTransactions(sampleTransactions)
     }
 
+    /**
+     * Updates the status of a transaction in the UI state.
+     *
+     * @param transactionId The ID of the transaction to update.
+     * @param newStatus The new status to set for the transaction.
+     */
     fun updateTransactionStatus(transactionId: String, newStatus: String) {
         val updatedTransactions = uiState.value.transactions.map { transaction ->
             if (transaction.id == transactionId) {

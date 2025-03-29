@@ -1,5 +1,6 @@
 package com.example.ethktprototype
 
+import android.Manifest
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -16,14 +17,49 @@ import com.example.ethktprototype.screens.ImportWalletScreen
 import com.example.ethktprototype.screens.SettingsScreen
 import com.example.ethktprototype.screens.TokenListScreen
 import com.example.ethktprototype.ui.theme.EthKtPrototypeTheme
+import android.content.pm.PackageManager
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.core.content.ContextCompat
 
-
+/**
+ * MainActivity.kt
+ * This is the main activity of the application. It sets up the navigation and handles the
+ * permission request for notifications.
+ *
+ * @author Beatriz Militão
+ * @version 1.0
+ */
 class MainActivity : ComponentActivity() {
     private lateinit var viewModel: WalletViewModel
 
+    private val requestPermissionLauncher = registerForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { isGranted: Boolean ->
+        if (isGranted) {
+            // Permission granted, you can send notifications
+        } else {
+            // Permission denied, notify the user
+        }
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        viewModel = ViewModelProvider(this)[WalletViewModel::class.java]
+        val application = applicationContext as HealthyWalletApplication
+        val factory = WalletViewModelFactory(application)
+        viewModel = ViewModelProvider(this, factory)[WalletViewModel::class.java]
+
+        when {
+            ContextCompat.checkSelfPermission(
+                this,
+                Manifest.permission.POST_NOTIFICATIONS
+            ) == PackageManager.PERMISSION_GRANTED -> {
+                // Permissão já concedida, você pode enviar notificações
+            }
+            else -> {
+                // Solicite a permissão
+                requestPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+            }
+        }
 
         setContent {
             val navController = rememberNavController()
@@ -54,7 +90,3 @@ class MainActivity : ComponentActivity() {
         }
     }
 }
-
-
-
-

@@ -59,6 +59,9 @@ dependencies {
     implementation 'androidx.appcompat:appcompat:1.7.0'
     def nav_version = "2.8.8"
 
+    implementation 'androidx.core:core:1.15.0'
+    implementation 'androidx.core:core-ktx:1.15.0'
+
 
     implementation 'org.web3j:core:4.9.7'
     implementation("androidx.navigation:navigation-compose:$nav_version")
