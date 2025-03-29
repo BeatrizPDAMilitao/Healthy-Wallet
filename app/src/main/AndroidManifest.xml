@@ -29,8 +29,6 @@
         <!--<meta-data android:name="io.sentry.traces.profiling.sample-rate" android:value="0.01" /-->
 
 
-        <receiver android:name=".TransactionReceiver" />
-
         <activity
             android:name=".MainActivity"
             android:exported="true"

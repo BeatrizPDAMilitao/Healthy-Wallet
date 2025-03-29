@@ -71,16 +71,6 @@ fun sendNotification(context: Context, viewModel: WalletViewModel, title: String
     }
 }
 
-/*fun simulateTransactionNotification(context: Context, viewModel: WalletViewModel) {
-    val newTransaction = Transaction(
-        id = "",
-        date = "",
-        status = "pending"
-    )
-    sendNotification(context, "New Transaction", "You have a new transaction pending.")
-    viewModel.onNotificationReceived(newTransaction)
-}*/
-
 /**
  * This function simulates the reception of a transaction notification.
  * It creates a new transaction and sends a broadcast to the TransactionReceiver.
@@ -96,14 +86,7 @@ fun simulateTransactionReceived(context: Context, viewModel: WalletViewModel) {
         status = "pending"
     )
 
-    // Send a broadcast of the new transaction
-    val intent = Intent(context, TransactionReceiver::class.java).apply {
-        putExtra("transactionId", newTransaction.id)
-        putExtra("transactionDate", newTransaction.date)
-        putExtra("transactionStatus", newTransaction.status)
-    }
-    context.sendBroadcast(intent)
-    // should not be done here
+    sendNotification(context, viewModel, "New Transaction", "You have a new transaction pending. With ID: ${newTransaction.id}")
     viewModel.onNotificationReceived(newTransaction)
 }
 
