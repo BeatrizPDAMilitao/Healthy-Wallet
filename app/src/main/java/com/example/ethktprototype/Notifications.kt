@@ -48,7 +48,7 @@ fun sendNotification(context: Context, viewModel: WalletViewModel, title: String
  * @param title The title of the notification.
  * @param message The message of the notification.
  */
-fun sendNotification(context: Context, viewModel: WalletViewModel, title: String, message: String) {
+fun sendNotification(context: Context, viewModel: WalletViewModel, title: String, message: String, transactionId: String) {
     if (ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED) {
         val channelId = "transaction_channel"
         val channelName = "Transaction Notifications"
@@ -61,11 +61,20 @@ fun sendNotification(context: Context, viewModel: WalletViewModel, title: String
             notificationManager.createNotificationChannel(channel)
         }
 
+        val intent = Intent(context, MainActivity::class.java).apply {
+            putExtra("transactionId", transactionId)
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
+        }
+        val pendingIntent = PendingIntent.getActivity(context, 0, intent, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
+
+
         val notification = NotificationCompat.Builder(context, channelId)
             .setSmallIcon(R.drawable.ic_launcher_background)
             .setContentTitle(title)
             .setContentText(message)
             .setPriority(NotificationCompat.PRIORITY_DEFAULT)
+            .setContentIntent(pendingIntent)
+            .setAutoCancel(true)
             .build()
 
         NotificationManagerCompat.from(context).notify(viewModel.getAndIncrementNotificationId(), notification)
@@ -79,15 +88,14 @@ fun sendNotification(context: Context, viewModel: WalletViewModel, title: String
  * @param context The context from which the notification is sent.
  * @param viewModel The ViewModel instance to manage the notification state.
  */
-fun simulateTransactionReceived(context: Context, viewModel: WalletViewModel) {
+suspend fun simulateTransactionReceived(context: Context, viewModel: WalletViewModel) {
     Log.d("ViewModel", "Before: $viewModel")
     val newTransaction = Transaction(
-        id = viewModel.getAndIncrementTransactionId().toString(),
+        id = viewModel.getTransactionId().toString(),
         date = viewModel.getCurrentDate(),
         status = "pending"
     )
-
-    sendNotification(context, viewModel, "New Transaction", "You have a new transaction pending. With ID: ${newTransaction.id}")
-    viewModel.onNotificationReceived(newTransaction)
+    viewModel.onNotificationReceived(newTransaction) //Modifies the viewModel state, so needs to be called first
+    sendNotification(context, viewModel, "New Transaction", "You have a new transaction pending. With ID: ${newTransaction.id}", newTransaction.id)
 }
 
