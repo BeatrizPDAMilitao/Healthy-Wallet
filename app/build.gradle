@@ -3,6 +3,7 @@ plugins {
     id 'org.jetbrains.kotlin.android'
     id 'org.jetbrains.kotlin.plugin.serialization'
     //id "io.sentry.android.gradle" version "3.5.0"
+    id 'kotlin-kapt'
 }
 
 Properties properties = new Properties()
@@ -62,6 +63,9 @@ dependencies {
     implementation 'androidx.core:core:1.15.0'
     implementation 'androidx.core:core-ktx:1.15.0'
 
+    implementation "androidx.room:room-runtime:2.6.1"
+    kapt "androidx.room:room-compiler:2.6.1"
+    implementation "androidx.room:room-ktx:2.6.1"
 
     implementation 'org.web3j:core:4.9.7'
     implementation("androidx.navigation:navigation-compose:$nav_version")

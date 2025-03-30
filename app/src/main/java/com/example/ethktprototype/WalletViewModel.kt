@@ -5,8 +5,11 @@ import android.content.Context
 import android.util.Log
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.ethktprototype.data.AppDatabase
 import com.example.ethktprototype.data.TokenBalance
 import com.example.ethktprototype.data.Transaction
+import com.example.ethktprototype.data.TransactionEntity
+import com.example.ethktprototype.data.toTransaction
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -30,6 +33,8 @@ import java.util.Locale
  */
 
 class WalletViewModel(application: Application) : AndroidViewModel(application) {
+    private val transactionDao = AppDatabase.getDatabase(application).transactionDao()
+
     private val walletRepository = WalletRepository(application)
     private val sharedPreferences =
         application.getSharedPreferences("WalletPrefs", Context.MODE_PRIVATE)
@@ -42,6 +47,9 @@ class WalletViewModel(application: Application) : AndroidViewModel(application) 
     private var nextNotificationId = 1
 
     init {
+        // Delete all transactions for testing purposes
+        //deleteAllTransactions()
+
         val savedWalletAddress = sharedPreferences.getString(walletAddressKey, "") ?: ""
         updateUiState { it.copy(walletAddress = savedWalletAddress) }
 
@@ -338,8 +346,8 @@ class WalletViewModel(application: Application) : AndroidViewModel(application) 
      *
      * @return The next transaction ID.
      */
-    fun getAndIncrementTransactionId(): Int {
-        return nextTransactionId++
+    suspend fun getTransactionId(): Int { //TODO: Move to repository (SharedPreferences)
+        return transactionDao.countTransactions() + 1
     }
 
     /**
@@ -362,13 +370,64 @@ class WalletViewModel(application: Application) : AndroidViewModel(application) 
     }
 
     /**
+     * Gets a transaction by its ID.
+     *
+     * @param transactionId The ID of the transaction to retrieve.
+     * @return The transaction with the specified ID, or null if not found.
+     */
+    suspend fun getTransactionById(transactionId: String): Transaction? {
+        return withContext(Dispatchers.IO) {
+            transactionDao.getById(transactionId)?.toTransaction()
+        }
+    }
+
+    /**
+     * Gets all transactions from the database.
+     *
+     * @return A list of all transactions.
+     */
+    fun getTransactions(): List<Transaction> {
+        updateTransactions()
+        return uiState.value.transactions
+    }
+
+    fun updateTransactions() {
+        viewModelScope.launch {
+            val transactions = withContext(Dispatchers.IO) {
+                transactionDao.getAllTransactions().map { it.toTransaction() }
+            }
+            updateUiState { it.copy(transactions = transactions) }
+            Log.d("ExampleTestSample", "getTransactions: $transactions")
+        }
+    }
+
+    /**
      * Adds a transaction to the UI state.
      *
      * @param transaction The transaction to add.
      */
-    fun addTransaction(transaction: Transaction) {
+    fun addTransactionOld(transaction: Transaction) {
         val updatedTransactions = uiState.value.transactions + transaction
         updateUiState { it.copy(transactions = updatedTransactions) }
+    }
+
+    fun addTransaction(transaction: Transaction) {
+        val transactionEntity = TransactionEntity(
+            id = transaction.id,
+            date = transaction.date,
+            status = transaction.status
+        )
+        viewModelScope.launch {
+            if (transactionDao.transactionExists(transaction.id) == 0) {
+                Log.d("ExampleTestSample", "Adding transaction: ${transactionEntity.id}")
+                transactionDao.insertTransaction(transactionEntity)
+            } else {
+                // Handle the case where the transaction already exists, if needed
+                Log.d("ExampleTestSample", "Transaction already exists: ${transactionEntity.id}")
+            }
+            val updatedTransactions = transactionDao.getAllTransactions()
+            updateUiState { it.copy(transactions = updatedTransactions.map { it.toTransaction() }) }
+        }
     }
 
     /**
@@ -377,8 +436,9 @@ class WalletViewModel(application: Application) : AndroidViewModel(application) 
      * @param transactions The list of transactions to add.
      */
     fun addTransactions(transactions: List<Transaction>) {
-        val updatedTransactions = uiState.value.transactions + transactions
-        updateUiState { it.copy(transactions = updatedTransactions) }
+        //val updatedTransactions = uiState.value.transactions + transactions
+        //updateUiState { it.copy(transactions = updatedTransactions) }
+        transactions.forEach { addTransaction(it) }
     }
 
     /**
@@ -390,7 +450,11 @@ class WalletViewModel(application: Application) : AndroidViewModel(application) 
             Transaction(id = "222", date = "2023-10-02", status = "pending"),
             Transaction(id = "322", date = "2023-10-03", status = "denied")
         )
-        addTransactions(sampleTransactions)
+        viewModelScope.launch {
+            sampleTransactions.forEach { transaction ->
+                addTransaction(transaction)
+            }
+        }
     }
 
     /**
@@ -399,7 +463,7 @@ class WalletViewModel(application: Application) : AndroidViewModel(application) 
      * @param transactionId The ID of the transaction to update.
      * @param newStatus The new status to set for the transaction.
      */
-    fun updateTransactionStatus(transactionId: String, newStatus: String) {
+    fun updateTransactionStatusOld(transactionId: String, newStatus: String) {
         val updatedTransactions = uiState.value.transactions.map { transaction ->
             if (transaction.id == transactionId) {
                 transaction.copy(status = newStatus)
@@ -408,6 +472,26 @@ class WalletViewModel(application: Application) : AndroidViewModel(application) 
             }
         }
         updateUiState { it.copy(transactions = updatedTransactions) }
+    }
+    fun updateTransactionStatus(transactionId: String, newStatus: String) {
+        viewModelScope.launch {
+            withContext(Dispatchers.IO) {
+                transactionDao.updateTransactionStatus(transactionId, newStatus)
+                val updatedTransactions = transactionDao.getAllTransactions().map { it.toTransaction() }
+                withContext(Dispatchers.Main) {
+                    updateUiState { it.copy(transactions = updatedTransactions) }
+                }
+            }
+        }
+    }
+
+    fun deleteAllTransactions() {
+        viewModelScope.launch {
+            withContext(Dispatchers.IO) {
+                transactionDao.deleteAllTransactions()
+            }
+            updateUiState { it.copy(transactions = emptyList()) }
+        }
     }
 }
 

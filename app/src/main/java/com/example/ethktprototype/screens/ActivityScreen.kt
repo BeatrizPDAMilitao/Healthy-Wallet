@@ -55,7 +55,9 @@ import java.text.DecimalFormat
 import androidx.compose.ui.graphics.Color
 import com.example.ethktprototype.data.Transaction
 import androidx.compose.ui.platform.LocalContext
+import androidx.lifecycle.viewModelScope
 import com.example.ethktprototype.simulateTransactionReceived
+import kotlinx.coroutines.launch
 
 /**
  * ActivityScreen is a Composable function that displays the activity screen of the wallet application.
@@ -70,7 +72,7 @@ fun ActivityScreen(
 ) {
     Log.d("ViewModel", "Act: $viewModel")
     val uiState by viewModel.uiState.collectAsState()
-    Log.d("Notifications", "Recomposing with transactions: ${uiState.transactions}")
+    Log.d("Notifications", "Recomposing with transactions: ${viewModel.getTransactions()}")
     val context = LocalContext.current
     val decimalFormatBalance = DecimalFormat("#.##")
     val showDialog = remember { mutableStateOf(false) }
@@ -90,6 +92,9 @@ fun ActivityScreen(
     LaunchedEffect(uiState.selectedNetwork) {
         viewModel.getBalances()
         viewModel.getNftBalances()
+    }
+    LaunchedEffect(uiState.transactions) {
+        viewModel.getTransactions()
     }
 
     Box(
@@ -152,7 +157,10 @@ fun ActivityScreen(
 
                 Button(
                     onClick = {
-                        simulateTransactionReceived(context, viewModel)},
+                        viewModel.viewModelScope.launch {
+                            simulateTransactionReceived(context, viewModel)
+                        }
+                    },
                     modifier = Modifier
                         .fillMaxWidth()
                         .background(MaterialTheme.colorScheme.primary, shape = RoundedCornerShape(8.dp)),
@@ -166,11 +174,8 @@ fun ActivityScreen(
                 LazyColumn(
                     modifier = Modifier.fillMaxSize()
                 ) {
-                    items(uiState.transactions) { transaction ->
-                        TransactionItem(transaction) {
-                            selectedTransaction.value = transaction
-                            showDialog.value = true
-                        }
+                    items(viewModel.getTransactions()) { transaction ->
+                        TransactionItem(transaction, navController)
                     }
                 }
             }
@@ -263,7 +268,7 @@ fun ActivityScreen(
  * @param onClick The callback to invoke when the item is clicked.
  */
 @Composable
-fun TransactionItem(transaction: Transaction, onClick: () -> Unit) {
+fun TransactionItem(transaction: Transaction, navController: NavHostController) {
     Box(
         modifier = Modifier
             .fillMaxWidth()
@@ -271,7 +276,9 @@ fun TransactionItem(transaction: Transaction, onClick: () -> Unit) {
             .border(1.dp, Color.Gray, shape = RoundedCornerShape(8.dp))
             .background(Color.DarkGray, shape = RoundedCornerShape(8.dp))
             .padding(8.dp)
-            .clickable { onClick() }
+            .clickable {
+                navController.navigate("transaction/${transaction.id}")
+            }
     ) {
         Row(
             modifier = Modifier.fillMaxWidth(),

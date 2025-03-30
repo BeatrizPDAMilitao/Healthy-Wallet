@@ -18,8 +18,11 @@ import com.example.ethktprototype.screens.SettingsScreen
 import com.example.ethktprototype.screens.TokenListScreen
 import com.example.ethktprototype.ui.theme.EthKtPrototypeTheme
 import android.content.pm.PackageManager
+import android.util.Log
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.runtime.LaunchedEffect
 import androidx.core.content.ContextCompat
+import com.example.ethktprototype.screens.TransactionScreen
 
 /**
  * MainActivity.kt
@@ -53,10 +56,10 @@ class MainActivity : ComponentActivity() {
                 this,
                 Manifest.permission.POST_NOTIFICATIONS
             ) == PackageManager.PERMISSION_GRANTED -> {
-                // Permissão já concedida, você pode enviar notificações
+                // Permission granted, you can send notifications
             }
             else -> {
-                // Solicite a permissão
+                // Request permission
                 requestPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
             }
         }
@@ -84,7 +87,22 @@ class MainActivity : ComponentActivity() {
                         composable("activity") {
                             ActivityScreen(navController = navController, viewModel = viewModel)
                         }
+                        composable("transaction/{transactionId}") { backStackEntry ->
+                            val transactionId = backStackEntry.arguments?.getString("transactionId")
+                            TransactionScreen(
+                                navController = navController,
+                                viewModel = viewModel,
+                                transactionId = transactionId
+                            )
+                        }
                     }
+                }
+            }
+
+            LaunchedEffect(navController) {
+                intent?.getStringExtra("transactionId")?.let { transactionId ->
+                    Log.d("MainActivityTransactionID", "Transaction ID: $transactionId")
+                    navController.navigate("transaction/$transactionId")
                 }
             }
         }
