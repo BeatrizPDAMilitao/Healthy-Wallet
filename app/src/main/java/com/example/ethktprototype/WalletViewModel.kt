@@ -415,7 +415,15 @@ class WalletViewModel(application: Application) : AndroidViewModel(application) 
         val transactionEntity = TransactionEntity(
             id = transaction.id,
             date = transaction.date,
-            status = transaction.status
+            status = transaction.status,
+            type = "",
+            patientId = "",
+            practitionerId = "",
+            documentReferenceId = "",
+            medicationRequestId = "",
+            conditionId = "",
+            encounterId = "",
+            observationId = ""
         )
         viewModelScope.launch {
             if (transactionDao.transactionExists(transaction.id) == 0) {

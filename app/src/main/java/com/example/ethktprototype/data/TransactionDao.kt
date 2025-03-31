@@ -27,4 +27,10 @@ interface TransactionDao {
     @Query("SELECT COUNT(*) FROM transactions")
     suspend fun countTransactions(): Int
 
+    @Query("SELECT * FROM transactions WHERE id = :transactionId")
+    suspend fun getTransactionWithDetails(transactionId: String): TransactionWithDetails?
+
+    @Insert
+    suspend fun insertPatient(patient: PatientEntity)
+
 }

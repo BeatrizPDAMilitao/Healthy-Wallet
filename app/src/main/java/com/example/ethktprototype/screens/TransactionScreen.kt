@@ -1,6 +1,7 @@
 package com.example.ethktprototype.screens
 
 import android.util.Log
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -16,6 +17,7 @@ import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.layout.wrapContentHeight
+import androidx.compose.foundation.shape.RoundedCornerShape
 
 import androidx.compose.material.BottomNavigation
 import androidx.compose.material.BottomNavigationItem
@@ -24,6 +26,7 @@ import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Wallet
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -36,6 +39,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -78,13 +82,12 @@ fun TransactionScreen(
         Modifier
             .fillMaxSize()
             .windowInsetsPadding(WindowInsets.statusBars)
+            .background(MaterialTheme.colorScheme.background)
     ) {
         Column(
             Modifier
                 .fillMaxSize()
-                .fillMaxHeight()
                 .padding(vertical = 8.dp, horizontal = 16.dp)
-                .windowInsetsPadding(WindowInsets.statusBars)
         ) {
             Row(
                 modifier = Modifier
@@ -95,9 +98,7 @@ fun TransactionScreen(
             ) {
                 Text(
                     text = uiState.ens.ifEmpty {
-                        uiState.walletAddress.take(5) + "..." + uiState.walletAddress.takeLast(
-                            4
-                        )
+                        uiState.walletAddress.take(5) + "..." + uiState.walletAddress.takeLast(4)
                     },
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurface,
@@ -111,7 +112,7 @@ fun TransactionScreen(
                 ) {
                     Icon(
                         Icons.Filled.Settings,
-                        "contentDescription",
+                        contentDescription = "Settings",
                     )
                 }
             }
@@ -123,36 +124,71 @@ fun TransactionScreen(
                     modifier = Modifier
                         .fillMaxSize()
                         .padding(16.dp)
+                        .background(MaterialTheme.colorScheme.surface, shape = RoundedCornerShape(8.dp))
+                        .padding(16.dp)
                 ) {
-                    Text(text = "Transaction ID: ${transaction.value!!.id}")
-                    Text(text = "Date: ${transaction.value!!.date}")
-                    Text(text = "Status: ${transaction.value!!.status}")
+                    Text(
+                        text = "Transaction ID: ${transaction.value!!.id}",
+                        style = MaterialTheme.typography.bodyLarge,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        text = "Date: ${transaction.value!!.date}",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        text = "Status: ${transaction.value!!.status}",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = when (transaction.value!!.status) {
+                            "denied" -> Color(0xFFD32F2F)
+                            "completed" -> Color(0xFF388E3C)
+                            "pending" -> Color(0xFF1976D2)
+                            else -> MaterialTheme.colorScheme.onSurface
+                        }
+                    )
 
                     if (transaction.value!!.status == "pending") {
+                        Spacer(modifier = Modifier.height(16.dp))
                         Row {
-                            Button(onClick = { /*TODO: Handle accept*/ }) {
+                            Button(
+                                onClick = { /*TODO: Handle accept*/ },
+                                modifier = Modifier.weight(1f),
+                                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF03A9F4))
+                            ) {
                                 Text("Accept")
                             }
                             Spacer(modifier = Modifier.width(8.dp))
-                            Button(onClick = {
-                                // Handle deny
-                                transaction.let { transaction ->
-                                    viewModel.updateTransactionStatus(transaction.value!!.id, "denied")
-                                }
-                            }) {
+                            Button(
+                                onClick = {
+                                    // Handle deny
+                                    transaction.let { transaction ->
+                                        viewModel.updateTransactionStatus(transaction.value!!.id, "denied")
+                                    }
+                                },
+                                modifier = Modifier.weight(1f),
+                                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF03A9F4))
+
+                            ) {
                                 Text("Deny")
                             }
                         }
                     }
                 }
             } else {
-                Text(text = "Transaction not found")
+                Text(
+                    text = "Transaction not found",
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
             }
         }
 
         BottomNavigation(
-            modifier = Modifier.align(Alignment.BottomCenter)
-                .fillMaxWidth(),
+            modifier = Modifier.align(Alignment.BottomCenter).fillMaxWidth(),
             backgroundColor = MaterialTheme.colorScheme.inverseOnSurface,
         ) {
             BottomNavigationItem(

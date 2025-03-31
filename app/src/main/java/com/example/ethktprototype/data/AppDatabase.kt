@@ -5,7 +5,19 @@ import androidx.room.Room
 import androidx.room.RoomDatabase
 import android.content.Context
 
-@Database(entities = [TransactionEntity::class], version = 1)
+@Database(
+    entities = [
+        TransactionEntity::class,
+        PatientEntity::class,
+        PractitionerEntity::class,
+        DocumentReferenceEntity::class,
+        MedicationRequestEntity::class,
+        ConditionEntity::class,
+        EncounterEntity::class,
+        ObservationEntity::class
+               ],
+    version = 1
+)
 abstract class AppDatabase : RoomDatabase() {
     abstract fun transactionDao(): TransactionDao
 
