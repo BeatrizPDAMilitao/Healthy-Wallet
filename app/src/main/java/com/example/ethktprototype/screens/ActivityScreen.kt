@@ -163,6 +163,7 @@ fun ActivityScreen(
                     },
                     modifier = Modifier
                         .fillMaxWidth()
+                        .padding(8.dp)
                         .background(MaterialTheme.colorScheme.primary, shape = RoundedCornerShape(8.dp)),
                     shape = RoundedCornerShape(8.dp)
                 ) {
@@ -176,6 +177,7 @@ fun ActivityScreen(
                 ) {
                     items(viewModel.getTransactions()) { transaction ->
                         TransactionItem(transaction, navController)
+                        Spacer(modifier = Modifier.height(6.dp))
                     }
                 }
             }
@@ -273,7 +275,6 @@ fun TransactionItem(transaction: Transaction, navController: NavHostController) 
         modifier = Modifier
             .fillMaxWidth()
             .padding(8.dp)
-            .border(1.dp, Color.Gray, shape = RoundedCornerShape(8.dp))
             .background(Color.DarkGray, shape = RoundedCornerShape(8.dp))
             .padding(8.dp)
             .clickable {
@@ -287,15 +288,18 @@ fun TransactionItem(transaction: Transaction, navController: NavHostController) 
             Column(
                 modifier = Modifier.weight(1f)
             ) {
+                Spacer(modifier = Modifier.height(8.dp))
                 Text(
                     text = "ID: ${transaction.id}",
-                    style = MaterialTheme.typography.bodyMedium,
+                    style = MaterialTheme.typography.bodyLarge,
                     fontWeight = FontWeight.Bold
                 )
+                Spacer(modifier = Modifier.height(8.dp))
                 Text(
                     text = "Date: ${transaction.date}",
                     style = MaterialTheme.typography.bodyMedium
                 )
+                Spacer(modifier = Modifier.height(8.dp))
             }
             Text(
                 text = transaction.status,
