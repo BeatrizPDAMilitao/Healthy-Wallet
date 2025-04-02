@@ -47,9 +47,6 @@ class WalletViewModel(application: Application) : AndroidViewModel(application) 
     private var nextNotificationId = 1
 
     init {
-        // Delete all transactions for testing purposes
-        //deleteAllTransactions()
-
         val savedWalletAddress = sharedPreferences.getString(walletAddressKey, "") ?: ""
         updateUiState { it.copy(walletAddress = savedWalletAddress) }
 
