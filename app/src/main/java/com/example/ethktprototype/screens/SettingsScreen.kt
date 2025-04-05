@@ -17,6 +17,7 @@ import androidx.compose.ui.unit.dp
 import androidx.navigation.NavHostController
 import com.example.ethktprototype.WalletViewModel
 import com.example.ethktprototype.composables.ClearBlocklist
+import com.example.ethktprototype.composables.RemoveTransactions
 import com.example.ethktprototype.composables.RemoveWallet
 
 @Composable
@@ -37,6 +38,8 @@ fun SettingsScreen(navController: NavHostController, viewModel: WalletViewModel)
         RemoveWallet(viewModel = viewModel)
         Spacer(modifier = Modifier.height(8.dp))
         ClearBlocklist(viewModel = viewModel)
+        Spacer(modifier = Modifier.height(8.dp))
+        RemoveTransactions(viewModel = viewModel)
 
     }
 }

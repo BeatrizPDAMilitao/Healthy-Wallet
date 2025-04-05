@@ -1,6 +1,7 @@
 package com.example.ethktprototype.screens
 
 import android.app.Application
+import android.util.Log
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -57,6 +58,7 @@ fun TokenListScreen(
     viewModel: WalletViewModel,
     application: Application,
 ) {
+    Log.d("ViewModel", "home: $viewModel")
     val uiState by viewModel.uiState.collectAsState()
     val clipboardManager = LocalClipboardManager.current
     val decimalFormatBalance = DecimalFormat("#.##")
