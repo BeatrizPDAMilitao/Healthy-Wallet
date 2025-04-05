@@ -1,6 +1,8 @@
 package com.example.ethktprototype.screens
 
 import android.app.Application
+import android.util.Log
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -14,8 +16,12 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.layout.wrapContentHeight
+import androidx.compose.material.BottomNavigation
+import androidx.compose.material.BottomNavigationItem
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.Wallet
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -52,6 +58,7 @@ fun TokenListScreen(
     viewModel: WalletViewModel,
     application: Application,
 ) {
+    Log.d("ViewModel", "home: $viewModel")
     val uiState by viewModel.uiState.collectAsState()
     val clipboardManager = LocalClipboardManager.current
     val decimalFormatBalance = DecimalFormat("#.##")
@@ -72,113 +79,140 @@ fun TokenListScreen(
         viewModel.getNftBalances()
     }
 
-
-    Column(
+    Box(
         Modifier
             .fillMaxSize()
-            .fillMaxHeight()
-            .padding(vertical = 8.dp, horizontal = 16.dp)
             .windowInsetsPadding(WindowInsets.statusBars)
     ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp, 0.dp)
-                .wrapContentHeight(),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Text(
-                text = uiState.ens.ifEmpty {
-                    uiState.walletAddress.take(5) + "..." + uiState.walletAddress.takeLast(
-                        4
-                    )
-                },
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurface,
-                fontWeight = FontWeight.Medium,
-                fontSize = 18.sp
-            )
-            Spacer(modifier = Modifier.weight(1f))
-            IconButton(
-                modifier = Modifier.size(30.dp),
-                onClick = { navController.navigate("settingsScreen") }
-            ) {
-                Icon(
-                    Icons.Filled.Settings,
-                    "contentDescription",
-                )
-            }
-        }
-
         Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
+            Modifier
+                .fillMaxSize()
+                .fillMaxHeight()
+                .padding(vertical = 8.dp, horizontal = 16.dp)
+                .windowInsetsPadding(WindowInsets.statusBars)
         ) {
-            Text(
-                text = "$${uiState.totalBalanceUSD.let { decimalFormatBalance.format(it) } ?: "0.00"}",
-                style = MaterialTheme.typography.headlineLarge,
-                color = MaterialTheme.colorScheme.primary,
-                fontWeight = FontWeight.Bold,
-                fontSize = 50.sp
-            )
-//            Spacer(modifier = Modifier.height(8.dp))
-        }
-
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 16.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-        }
-
-        Spacer(modifier = Modifier.height(8.dp))
-
-//        NetworkDropdown(
-//            networks = networks,
-//            selectedNetwork = viewModel.selectedNetwork,
-//            updateSelectedNetwork = { viewModel.updateSelectedNetwork(it) }
-//        )
-
-        Spacer(modifier = Modifier.height(8.dp))
-
-        MyRow(
-            setShowPayDialog = { viewModel.setShowPayDialog(it) },
-            setShowWalletModal = { viewModel.setShowWalletModal(it) }
-        )
-
-        Spacer(modifier = Modifier.height(8.dp))
-
-        val titles = listOf("Tokens", "NFTs")
-        var state by remember { mutableIntStateOf(0) }
-
-        TabRow(selectedTabIndex = state, containerColor = MaterialTheme.colorScheme.background) {
-            titles.forEachIndexed { index, title ->
-                Tab(
-                    selected = state == index,
-                    onClick = { state = index },
-                    text = { Text(text = title, maxLines = 2, overflow = TextOverflow.Ellipsis) }
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp, 0.dp)
+                    .wrapContentHeight(),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = uiState.ens.ifEmpty {
+                        uiState.walletAddress.take(5) + "..." + uiState.walletAddress.takeLast(
+                            4
+                        )
+                    },
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    fontWeight = FontWeight.Medium,
+                    fontSize = 18.sp
                 )
+                Spacer(modifier = Modifier.weight(1f))
+                IconButton(
+                    modifier = Modifier.size(30.dp),
+                    onClick = { navController.navigate("settingsScreen") }
+                ) {
+                    Icon(
+                        Icons.Filled.Settings,
+                        "contentDescription",
+                    )
+                }
+            }
+
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Text(
+                    text = "$${uiState.totalBalanceUSD.let { decimalFormatBalance.format(it) } ?: "0.00"}",
+                    style = MaterialTheme.typography.headlineLarge,
+                    color = MaterialTheme.colorScheme.primary,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 50.sp
+                )
+    //            Spacer(modifier = Modifier.height(8.dp))
+            }
+
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+            }
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+    //        NetworkDropdown(
+    //            networks = networks,
+    //            selectedNetwork = viewModel.selectedNetwork,
+    //            updateSelectedNetwork = { viewModel.updateSelectedNetwork(it) }
+    //        )
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            MyRow(
+                setShowPayDialog = { viewModel.setShowPayDialog(it) },
+                setShowWalletModal = { viewModel.setShowWalletModal(it) }
+            )
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            val titles = listOf("Tokens", "NFTs")
+            var state by remember { mutableIntStateOf(0) }
+
+            TabRow(selectedTabIndex = state, containerColor = MaterialTheme.colorScheme.background) {
+                titles.forEachIndexed { index, title ->
+                    Tab(
+                        selected = state == index,
+                        onClick = { state = index },
+                        text = { Text(text = title, maxLines = 2, overflow = TextOverflow.Ellipsis) }
+                    )
+                }
+            }
+
+            when (state) {
+                0 -> TokenList(
+                    selectedNetwork = uiState.selectedNetwork,
+                    viewModel = viewModel,
+                    tokens = uiState.tokens,
+                    tokenBlocklist = uiState.tokenBlocklist,
+                    isTokensLoading = uiState.isTokensLoading,
+                    showTokenBottomSheet = uiState.showTokenBottomSheet,
+                    selectedToken = uiState.selectedToken,
+                    onTokenSelected = { token ->
+                        viewModel.updateSelectedToken(token)
+                    }
+                )
+
+                1 -> NftList(nfts = uiState.nfts, viewModel = viewModel)
             }
         }
-
-        when (state) {
-            0 -> TokenList(
-                selectedNetwork = uiState.selectedNetwork,
-                viewModel = viewModel,
-                tokens = uiState.tokens,
-                tokenBlocklist = uiState.tokenBlocklist,
-                isTokensLoading = uiState.isTokensLoading,
-                showTokenBottomSheet = uiState.showTokenBottomSheet,
-                selectedToken = uiState.selectedToken,
-                onTokenSelected = { token ->
-                    viewModel.updateSelectedToken(token)
+        BottomNavigation(
+            modifier = Modifier.align(Alignment.BottomCenter)
+                .fillMaxWidth(),
+            backgroundColor = MaterialTheme.colorScheme.inverseOnSurface,
+        ) {
+            BottomNavigationItem(
+                icon = { Icon(Icons.Filled.Wallet, contentDescription = "Wallet") },
+                label = { Text("Wallet") },
+                selected = true,
+                onClick = {
+                    //Do nothing. Current screen
                 }
             )
-
-            1 -> NftList(nfts = uiState.nfts, viewModel = viewModel)
+            BottomNavigationItem(
+                icon = { Icon(Icons.Filled.History, contentDescription = "Activity") },
+                label = { Text("Activity") },
+                selected = false,
+                onClick = {
+                    navController.navigate("activity")
+                }
+            )
         }
     }
 

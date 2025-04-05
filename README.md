@@ -1,15 +1,19 @@
-# Simple Android Wallet 🔐💸
-
-[![GitHub stars](https://img.shields.io/github/stars/devldm/simpleandroidwallet?style=social)](https://github.com/devldm/simpleandroidwallet/stargazers)
-[![GitHub issues](https://img.shields.io/github/issues/devldm/simpleandroidwallet)](https://github.com/devldm/simpleandroidwallet/issues)
+# Healthy Wallet🩺💉🏥 🔐
 
 A lightweight, native Android wallet for Ethereum and Polygon networks, focused on simplicity and performance.
 
-## 🎯 Project Goals
+A secure digital wallet tailored for the healthcare industry. The wallet will allow patients, medical staff, and authorized stakeholders to manage, view, and share Electronic Health Records with ease.
 
-- **Native Performance**: Create a fast, efficient Android Ethereum wallet
-- **Simplicity First**: Prioritize user trust and core functionality
-- **Minimal Overhead**: Keep the app small and responsive
+## 🎯 Project Objectives
+
+- **O1**: The design and development of a wallet for a mobile device to store and share EHRs;
+- **O2**: Secure key management and user authentication in order to protect private keys and credentials;
+- **O3**: Ensuring data privacy and control, empowering users to maintain full authority over their personal
+  information;
+- **O4**: Promote interoperability and data sharing across platforms and institutions;
+- **O5**: Resilience against attacks, ensuring robust defenses against potential threats to maintain trust and reliability;
+- **O6**: Usability and user experience, ensuring that the system is accessible, intuitive, and easy to navigate for all users.
+
 
 ## ✨ Features
 
@@ -21,19 +25,6 @@ A lightweight, native Android wallet for Ethereum and Polygon networks, focused 
 - 🖼️ Token icon display
 - 🗑️ Easy wallet removal
 
-## 📱 Screenshots
-
-<img src="https://github.com/user-attachments/assets/77785d01-b9fc-4219-80c4-84d31f7f0867" alt="Wallet Home" width="250" height="600">
-<img src="https://github.com/user-attachments/assets/c3b0a0d6-479a-4649-a5bb-13d1afee3ff1" alt="Token Details" width="250" height="600">
-<img src="https://github.com/user-attachments/assets/1b0bc2ae-099a-4f27-870b-ce729d045747" alt="Send Transaction" width="250" height="600">
-
-## 🚀 Upcoming Features
-
-- [ ] Support for additional networks
-- [ ] Enhanced transaction history
-- [ ] Improved security features
-- [ ] Token charts and price history
-
 ## 🛠️ Tech Stack
 
 - Kotlin
@@ -41,15 +32,4 @@ A lightweight, native Android wallet for Ethereum and Polygon networks, focused 
 - Web3j
 
 ## 📚 Documentation
-documentation in progress at: https://simple-wallet-docs.vercel.app/
-
-## 🎓 Personal Learning Journey
-
-This project is a personal exploration of:
-- Native Android app & Jetpack Compose development
-- Ethereum
-- Kotlin and modern Android development practices
-
-## 🌟 Show Your Support
-
-Give a ⭐️ if this project helped you!
+documentation for Simple Android Wallet is in progress at: https://simple-wallet-docs.vercel.app/

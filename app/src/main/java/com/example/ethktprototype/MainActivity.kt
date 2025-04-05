@@ -1,5 +1,6 @@
 package com.example.ethktprototype
 
+import android.Manifest
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -11,18 +12,57 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
+import com.example.ethktprototype.screens.ActivityScreen
 import com.example.ethktprototype.screens.ImportWalletScreen
 import com.example.ethktprototype.screens.SettingsScreen
 import com.example.ethktprototype.screens.TokenListScreen
 import com.example.ethktprototype.ui.theme.EthKtPrototypeTheme
+import android.content.pm.PackageManager
+import android.util.Log
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.runtime.LaunchedEffect
+import androidx.core.content.ContextCompat
+import com.example.ethktprototype.screens.TransactionScreen
 
-
+/**
+ * MainActivity.kt
+ * This is the main activity of the application. It sets up the navigation and handles the
+ * permission request for notifications.
+ *
+ * @author Beatriz Militão
+ * @version 1.0
+ */
 class MainActivity : ComponentActivity() {
     private lateinit var viewModel: WalletViewModel
 
+    private val requestPermissionLauncher = registerForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { isGranted: Boolean ->
+        if (isGranted) {
+            // Permission granted, you can send notifications
+        } else {
+            // Permission denied, notify the user
+        }
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        viewModel = ViewModelProvider(this)[WalletViewModel::class.java]
+        val application = applicationContext as HealthyWalletApplication
+        val factory = WalletViewModelFactory(application)
+        viewModel = ViewModelProvider(this, factory)[WalletViewModel::class.java]
+
+        when {
+            ContextCompat.checkSelfPermission(
+                this,
+                Manifest.permission.POST_NOTIFICATIONS
+            ) == PackageManager.PERMISSION_GRANTED -> {
+                // Permission granted, you can send notifications
+            }
+            else -> {
+                // Request permission
+                requestPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+            }
+        }
 
         setContent {
             val navController = rememberNavController()
@@ -44,13 +84,27 @@ class MainActivity : ComponentActivity() {
                         composable("settingsScreen") {
                             SettingsScreen(navController = navController, viewModel = viewModel)
                         }
+                        composable("activity") {
+                            ActivityScreen(navController = navController, viewModel = viewModel)
+                        }
+                        composable("transaction/{transactionId}") { backStackEntry ->
+                            val transactionId = backStackEntry.arguments?.getString("transactionId")
+                            TransactionScreen(
+                                navController = navController,
+                                viewModel = viewModel,
+                                transactionId = transactionId
+                            )
+                        }
                     }
+                }
+            }
+
+            LaunchedEffect(navController) {
+                intent?.getStringExtra("transactionId")?.let { transactionId ->
+                    Log.d("MainActivityTransactionID", "Transaction ID: $transactionId")
+                    navController.navigate("transaction/$transactionId")
                 }
             }
         }
     }
 }
-
-
-
-

@@ -2,6 +2,7 @@ package com.example.ethktprototype
 
 import com.example.ethktprototype.data.NftValue
 import com.example.ethktprototype.data.TokenBalance
+import com.example.ethktprototype.data.Transaction
 
 data class WalletUiState(
     val walletAddress: String = "",
@@ -26,5 +27,6 @@ data class WalletUiState(
     val hash: String = "",
     val ens: String = "",
     val mnemonicLoaded: Boolean = false,
-    val tokensBlocked: List<TokenBalance> = emptyList()
+    val tokensBlocked: List<TokenBalance> = emptyList(),
+    val transactions: List<Transaction> = emptyList()
 )
