@@ -12,6 +12,7 @@
         android:label="Healthy Wallet"
         android:supportsRtl="true"
         android:theme="@style/Theme.EthKtPrototype"
+        android:networkSecurityConfig="@xml/network_security_config"
         tools:targetApi="31">
         <!-- Required: set your sentry.io project identifier (DSN) -->
         <!--<meta-data android:name="io.sentry.dsn" android:value="${sentryDsn}" /-->

@@ -28,5 +28,7 @@ data class WalletUiState(
     val ens: String = "",
     val mnemonicLoaded: Boolean = false,
     val tokensBlocked: List<TokenBalance> = emptyList(),
-    val transactions: List<Transaction> = emptyList()
+    val transactions: List<Transaction> = emptyList(),
+    val showRecordDialog: Boolean = false,
+    val showDenyDialog: Boolean = false
 )

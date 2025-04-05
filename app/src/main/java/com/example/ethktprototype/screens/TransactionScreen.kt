@@ -18,6 +18,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.AlertDialog
 
 import androidx.compose.material.BottomNavigation
 import androidx.compose.material.BottomNavigationItem
@@ -166,7 +167,10 @@ fun TransactionScreen(
                                 onClick = {
                                     // Handle deny
                                     transaction.let { transaction ->
-                                        viewModel.updateTransactionStatus(transaction.value!!.id, "denied")
+                                        val recordId =
+                                            transaction.value!!.id // Supondo que o ID da transação seja o recordId
+                                        val requester = uiState.walletAddress // TODO: Should be transaction.practitionerId
+                                        viewModel.callDenyContract(recordId, requester)
                                     }
                                 },
                                 modifier = Modifier.weight(1f),
@@ -206,6 +210,26 @@ fun TransactionScreen(
                 onClick = {
                     // Do nothing. This is the current screen.
                 }
+            )
+        }
+        if (uiState.showDenyDialog) {
+            // Show the deny dialog
+            AlertDialog(
+                onDismissRequest = { viewModel.setShowDenyDialog(false) },
+                title = { Text("Transaction Details") },
+                text = {
+                    Column {
+                        Text("Hash: ${uiState.transactionHash}")
+                        //Text("Date: ${uiState.transactionHash}")
+                        //Text("Status: ${uiState.transactionHash}")
+                    }
+                },
+                confirmButton = {
+                    Button(onClick = { viewModel.setShowDenyDialog(false) }) {
+                        Text("OK")
+                    }
+                },
+                backgroundColor = MaterialTheme.colorScheme.background,
             )
         }
     }

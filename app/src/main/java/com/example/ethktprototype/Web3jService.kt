@@ -22,6 +22,12 @@ enum class Network(
     val chainId: Long,
     val covalentChainName: String
 ) {
+    QUORUM(
+        "Quorum",
+        "http://192.168.1.248:8545", //192.168.1.76    172.26.146.19
+        1337, // TODO: confirm this chain ID
+        covalentChainName = "quorum"
+    ),
     POLYGON_MAINNET(
         "Polygon",
         "https://polygon-mainnet.infura.io/v3/$INFURA_API_KEY",

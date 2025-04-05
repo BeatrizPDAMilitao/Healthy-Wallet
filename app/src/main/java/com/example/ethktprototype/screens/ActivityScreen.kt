@@ -158,6 +158,23 @@ fun ActivityScreen(
                 Button(
                     onClick = {
                         viewModel.viewModelScope.launch {
+                            viewModel.callMedSkyContract()
+                            viewModel.setShowRecordDialog(true)
+                        }
+                    },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(8.dp)
+                        .background(MaterialTheme.colorScheme.primary, shape = RoundedCornerShape(8.dp)),
+                    shape = RoundedCornerShape(8.dp)
+                ) {
+                    Text("Call contract")
+                }
+                Spacer(modifier = Modifier.height(8.dp))
+
+                Button(
+                    onClick = {
+                        viewModel.viewModelScope.launch {
                             simulateTransactionReceived(context, viewModel)
                         }
                     },
@@ -205,6 +222,25 @@ fun ActivityScreen(
                 }
             )
         }
+    }
+    if (uiState.showRecordDialog) {
+        AlertDialog(
+            onDismissRequest = { viewModel.setShowRecordDialog(false) },
+            title = { Text("Transaction Details") },
+            text = {
+                Column {
+                    Text("ID: ${uiState.transactionHash}")
+                    //Text("Date: ${uiState.transactionHash}")
+                    //Text("Status: ${uiState.transactionHash}")
+                }
+            },
+            confirmButton = {
+                Button(onClick = { viewModel.setShowRecordDialog(false) }) {
+                    Text("OK")
+                }
+            },
+            containerColor = MaterialTheme.colorScheme.background,
+        )
     }
 
     if (uiState.showWalletModal) {

@@ -9,6 +9,8 @@ import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.mutableStateOf
 import androidx.core.content.edit
 import androidx.lifecycle.MutableLiveData
+import com.example.ethktprototype.contracts.MedicalRecordAccess
+import com.example.ethktprototype.contracts.MedskyContract
 import com.example.ethktprototype.data.GraphQLData
 import com.example.ethktprototype.data.GraphQLQueries
 import com.example.ethktprototype.data.GraphQLResponse
@@ -34,6 +36,7 @@ import org.web3j.crypto.RawTransaction
 import org.web3j.crypto.TransactionEncoder
 import org.web3j.protocol.core.DefaultBlockParameterName
 import org.web3j.protocol.core.methods.request.Transaction
+import org.web3j.protocol.core.methods.response.TransactionReceipt
 import org.web3j.tx.Transfer
 import org.web3j.tx.gas.DefaultGasProvider
 import org.web3j.utils.Convert
@@ -42,6 +45,7 @@ import java.math.BigDecimal
 import java.math.BigInteger
 import java.net.HttpURLConnection
 import java.net.URL
+import kotlinx.coroutines.delay
 
 object JsonUtils {
     val json = Json {
@@ -57,7 +61,7 @@ class WalletRepository(private val application: Application) : IWalletRepository
     private val sharedPreferences =
         context.getSharedPreferences("WalletPrefs", Context.MODE_PRIVATE)
     private val walletAddressKey = "wallet_address"
-    private val _selectedNetwork = mutableStateOf(Network.MUMBAI_TESTNET)
+    private val _selectedNetwork = mutableStateOf(Network.QUORUM)
     private val selectedNetwork: MutableState<Network> = _selectedNetwork
     private val mnemonicLoaded = MutableLiveData<Boolean>()
 
@@ -401,4 +405,115 @@ class WalletRepository(private val application: Application) : IWalletRepository
             }
         }
     }
+    //TODO: Add functions that interact with the healthyWallet contract
+    private val medskyAdress = "0xBca0fDc68d9b21b5bfB16D784389807017B2bbbc"
+    private lateinit var medskyContract: MedskyContract
+
+    private val healthyWalletAdress = "0x9A8ea6736DF00Af70D1cD70b1Daf3619C8c0D7F4"
+    private lateinit var healthyContract: MedicalRecordAccess
+
+    val web3jService = Web3jService.build(selectedNetwork.value)
+
+    fun loadMedSkyContract(credentials: Credentials) {
+        medskyContract = MedskyContract.load(medskyAdress, web3jService, credentials, DefaultGasProvider())
+    }
+
+    suspend fun createRecord(recordId: String, hash: String): TransactionReceipt {
+        return medskyContract.createRecord(recordId, hash).send()
+    }
+
+    suspend fun deleteRecord(recordId: String, actionId: String): TransactionReceipt {
+        return medskyContract.deleteRecord(recordId, actionId).send()
+    }
+
+    suspend fun recordExists(recordId: String): Boolean {
+        return medskyContract.recordExists(recordId).send()
+    }
+
+    suspend fun readRecords(recordIds: List<String>): List<MedskyContract.Record> {
+        return medskyContract.readRecords(recordIds).send() as List<MedskyContract.Record>
+    }
+
+    fun accessExists(accessId: String): Boolean {
+        return medskyContract.accessExists(accessId).send()
+    }
+
+
+
+    fun loadHealthyContract(credentials: Credentials) {
+        healthyContract = MedicalRecordAccess.load(healthyWalletAdress, web3jService, credentials, DefaultGasProvider())
+    }
+
+    // Fetch next 3 logs (sync batch)
+    suspend fun getNextAccessLogs(): TransactionReceipt {
+        return healthyContract.getNextAccessLogs().send()
+    }
+
+    // Preview logs before syncing
+    suspend fun previewNextAccessLogs(): List<MedicalRecordAccess.MedicalAccessLog> {
+        return healthyContract.previewNextAccessLogs().send() as List<MedicalRecordAccess.MedicalAccessLog>
+    }
+
+    // Log access to a record (simulate doctor accessing a patient record)
+    suspend fun logAccess(doctor: String, patient: String, recordType: String): TransactionReceipt {
+        return healthyContract.logAccess(doctor, patient, recordType).send()
+    }
+
+    // Approve access to a record
+    suspend fun approveAccess(recordId: String, requester: String): TransactionReceipt {
+        return healthyContract.approveAccess(recordId, requester).send()
+    }
+
+    // Deny access to a record
+    suspend fun denyAccess2(recordId: String, requester: String): TransactionReceipt {
+        return healthyContract.denyAccess(recordId, requester).send()
+    }
+
+    suspend fun denyAccess(recordId: String, requester: String, credentials: Credentials): TransactionReceipt {
+        val nonce = web3jService.ethGetTransactionCount(credentials.address, DefaultBlockParameterName.LATEST).send().transactionCount
+        val gasPrice = web3jService.ethGasPrice().send().gasPrice
+        val gasLimit = BigInteger.valueOf(3000000) // Ajuste conforme necessário
+
+        val function = Function(
+            "denyAccess",
+            listOf(Address(recordId), Address(requester)),
+            emptyList()
+        )
+        val encodedFunction = FunctionEncoder.encode(function)
+
+        val rawTransaction = RawTransaction.createTransaction(
+            nonce,
+            gasPrice,
+            gasLimit,
+            healthyWalletAdress,
+            encodedFunction
+        )
+
+        val signedMessage = TransactionEncoder.signMessage(rawTransaction, selectedNetwork.value.chainId, credentials)
+        val hexValue = Numeric.toHexString(signedMessage)
+
+        val transactionResponse = web3jService.ethSendRawTransaction(hexValue).send()
+
+        if (transactionResponse.hasError()) {
+            throw RuntimeException("Transaction failed: ${transactionResponse.error.message}")
+        }
+
+        // Tentar obter o recibo da transação várias vezes
+        repeat(10) {
+            val receipt = web3jService.ethGetTransactionReceipt(transactionResponse.transactionHash).send().transactionReceipt
+            if (receipt.isPresent) {
+                return receipt.get()
+            }
+            // Esperar um pouco antes de tentar novamente
+            delay(1000)
+        }
+
+        throw RuntimeException("Transaction receipt not generated after sending transaction")
+    }
+
+    // Reset the sync pointer (e.g. for testing)
+    suspend fun resetSyncPointer(): TransactionReceipt {
+        return healthyContract.resetSyncPointer().send()
+    }
+
 }

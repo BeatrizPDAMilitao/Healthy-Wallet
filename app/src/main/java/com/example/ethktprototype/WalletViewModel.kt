@@ -65,6 +65,106 @@ class WalletViewModel(application: Application) : AndroidViewModel(application) 
         addSampleTransactions()
     }
 
+    fun callMedSkyContract2() {
+        //loadContract()
+        viewModelScope.launch {
+            try {
+                val exists = walletRepository.recordExists("sampleRecordId")
+                Log.d("MedskyContract", "Record exists: $exists")
+                // Handle the result as needed
+            } catch (e: Exception) {
+                // Handle errors
+                Log.e("MedskyContract", "Exception caught", e)
+            }
+        }
+    }
+
+    fun callDenyContract(recordId: String, requester: String) {
+        val mnemonic = getMnemonic()
+        viewModelScope.launch {
+            try {
+                if (!mnemonic.isNullOrEmpty()) {
+                    val credentials = loadBip44Credentials(mnemonic)
+                    credentials.let {
+                        val hash = withContext(Dispatchers.IO) {
+                            walletRepository.loadHealthyContract(credentials)
+                        }
+                    }
+                    try {
+                        val receipt = withContext(Dispatchers.IO) {
+                            walletRepository.denyAccess(recordId, requester, credentials)
+                        }
+                        Log.d("DenyContract", "Access denied: ${receipt.transactionHash}")
+                        // Handle the result as needed
+                        updateUiState { state ->
+                            state.copy(
+                                transactionHash = receipt.transactionHash,
+                                showPayDialog = false,
+                                showDenyDialog = true,
+                                showSuccessModal = false,
+                                showWalletModal = false,
+                            )
+                        }
+                        updateTransactionStatus(recordId, "denied")
+                    } catch (e: Exception) {
+                        // Handle errors
+                        Log.e("DenyContract", "Exception caught", e)
+                    }
+                }
+            } catch (e: Exception) {
+                // Handle errors
+                //updateUiState { it.copy(showPayDialog = false) }
+                Log.d("DenyContract", "Error loading contract: ${e.message}")
+            }
+        }
+    }
+
+    fun callMedSkyContract() {
+        val mnemonic = getMnemonic()
+        viewModelScope.launch {
+            try {
+                if (!mnemonic.isNullOrEmpty()) {
+                    val credentials = loadBip44Credentials(mnemonic)
+                    credentials.let {
+                        val hash = withContext(Dispatchers.IO) {
+                            walletRepository.loadMedSkyContract(credentials)
+                        }
+
+                        /*updateUiState { state ->
+                            state.copy(
+                                transactionHash = hash.toString(),
+                                showPayDialog = false,
+                                showSuccessModal = true
+                            )
+                        }*/
+                    }
+                    try {
+                        val exists = withContext(Dispatchers.IO) {
+                            walletRepository.recordExists("sampleRecordId")
+                        }
+                        Log.d("MedskyContract", "Record exists: $exists")
+                        // Handle the result as needed
+                    } catch (e: Exception) {
+                        // Handle errors
+                        Log.e("MedskyContract", "Exception caught", e)
+                    }
+                }
+            } catch (e: Exception) {
+                // Handle errors
+                //updateUiState { it.copy(showPayDialog = false) }
+                Log.d("MedskyContract", "Error loading contract: ${e.message}")
+            }
+        }
+    }
+
+    fun setShowRecordDialog(show: Boolean) {
+        updateUiState { it.copy(showRecordDialog = show) }
+    }
+
+    fun setShowDenyDialog(show: Boolean) {
+        updateUiState { it.copy(showDenyDialog = show) }
+    }
+
     /**
      * Updates the UI state with the provided function.
      *
