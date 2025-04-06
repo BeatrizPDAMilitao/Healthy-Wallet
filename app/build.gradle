@@ -68,6 +68,8 @@ dependencies {
     kapt "androidx.room:room-compiler:2.6.1"
     implementation "androidx.room:room-ktx:2.6.1"
 
+    implementation 'org.web3j:quorum:4.9.0'
+
     implementation 'org.web3j:core:4.9.7'
     implementation("androidx.navigation:navigation-compose:$nav_version")
     implementation 'com.google.guava:guava:32.0.1-jre'

@@ -37,6 +37,7 @@ import org.web3j.crypto.TransactionEncoder
 import org.web3j.protocol.core.DefaultBlockParameterName
 import org.web3j.protocol.core.methods.request.Transaction
 import org.web3j.protocol.core.methods.response.TransactionReceipt
+import org.web3j.quorum.Quorum
 import org.web3j.tx.Transfer
 import org.web3j.tx.gas.DefaultGasProvider
 import org.web3j.utils.Convert
@@ -46,6 +47,12 @@ import java.math.BigInteger
 import java.net.HttpURLConnection
 import java.net.URL
 import kotlinx.coroutines.delay
+import org.web3j.quorum.PrivacyFlag
+import org.web3j.quorum.enclave.Enclave
+import org.web3j.quorum.tx.QuorumTransactionManager
+import utils.loadBip44Credentials
+import org.web3j.quorum.enclave.Tessera
+import org.web3j.quorum.enclave.protocol.EnclaveService
 
 object JsonUtils {
     val json = Json {
@@ -64,6 +71,30 @@ class WalletRepository(private val application: Application) : IWalletRepository
     private val _selectedNetwork = mutableStateOf(Network.QUORUM)
     private val selectedNetwork: MutableState<Network> = _selectedNetwork
     private val mnemonicLoaded = MutableLiveData<Boolean>()
+
+    private lateinit var quorum: Quorum
+    private lateinit var credentials: Credentials
+    val tesseraUrl = "http://192.168.1.2" // Your PC's local IP and Tessera port
+    val enclaveService = EnclaveService(tesseraUrl, 9085)
+    val enclave: Enclave
+
+    init {
+        quorum = Web3jService.build(selectedNetwork.value)
+        credentials = loadBip44Credentials(getMnemonic() ?: "")
+        enclave = Tessera(enclaveService, quorum)
+    }
+
+    val privateFor = listOf("uTRQQSI+BKnGyOjbWZdAFu7qt6RczEC2LrYGxSFo1E0=") // example recipient Tessera public key
+
+    val transactionManager = QuorumTransactionManager(
+        quorum,                      // Quorum instance (web3j)
+        enclave,                     // the Tessera instance, used as Enclave
+        credentials,                 // Ethereum credentials
+        "FD1shKqVkRZkE4tbRDTpCSDFkf9BfwV3U77ljAa0OAA=",   // Public key of sender
+        privateFor // Private for
+    )
+
+
 
     override fun storeMnemonic(mnemonic: String) {
         encryptMnemonic(context, mnemonic)
@@ -470,8 +501,8 @@ class WalletRepository(private val application: Application) : IWalletRepository
     }
 
     suspend fun denyAccess(recordId: String, requester: String, credentials: Credentials): TransactionReceipt {
-        val nonce = web3jService.ethGetTransactionCount(credentials.address, DefaultBlockParameterName.LATEST).send().transactionCount
-        val gasPrice = web3jService.ethGasPrice().send().gasPrice
+        val nonce = quorum.ethGetTransactionCount(credentials.address, DefaultBlockParameterName.LATEST).send().transactionCount
+        val gasPrice = quorum.ethGasPrice().send().gasPrice
         val gasLimit = BigInteger.valueOf(3000000) // Ajuste conforme necessário
 
         val function = Function(
@@ -492,7 +523,13 @@ class WalletRepository(private val application: Application) : IWalletRepository
         val signedMessage = TransactionEncoder.signMessage(rawTransaction, selectedNetwork.value.chainId, credentials)
         val hexValue = Numeric.toHexString(signedMessage)
 
-        val transactionResponse = web3jService.ethSendRawTransaction(hexValue).send()
+        val transactionResponse = transactionManager.sendTransaction(
+            gasPrice,
+            gasLimit,
+            healthyWalletAdress,
+            encodedFunction,
+            BigInteger.ZERO  // or null for value
+        )
 
         if (transactionResponse.hasError()) {
             throw RuntimeException("Transaction failed: ${transactionResponse.error.message}")
@@ -500,7 +537,7 @@ class WalletRepository(private val application: Application) : IWalletRepository
 
         // Tentar obter o recibo da transação várias vezes
         repeat(10) {
-            val receipt = web3jService.ethGetTransactionReceipt(transactionResponse.transactionHash).send().transactionReceipt
+            val receipt = quorum.ethGetTransactionReceipt(transactionResponse.transactionHash).send().transactionReceipt
             if (receipt.isPresent) {
                 return receipt.get()
             }

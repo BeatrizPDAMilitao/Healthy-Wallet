@@ -3,6 +3,7 @@ package com.example.ethktprototype
 //import com.example.ethktprototype.Web3jService.env
 import org.web3j.protocol.Web3j
 import org.web3j.protocol.http.HttpService
+import org.web3j.quorum.Quorum
 
 const val INFURA_API_KEY = "MY_INFURA_API_KEY"
 
@@ -10,8 +11,8 @@ object Web3jService {
 
     //val env = EnvVars()
 
-    fun build(selectedNetwork: Network): Web3j {
-        return Web3j.build(HttpService(selectedNetwork.url))
+    fun build(selectedNetwork: Network): Quorum {
+        return Quorum.build(HttpService(selectedNetwork.url))
     }
 
 }
@@ -24,8 +25,8 @@ enum class Network(
 ) {
     QUORUM(
         "Quorum",
-        "http://192.168.1.248:8545", //192.168.1.76    172.26.146.19
-        1337, // TODO: confirm this chain ID
+        "http://192.168.1.2:22000", //192.168.1.76    172.26.146.19
+        1337,
         covalentChainName = "quorum"
     ),
     POLYGON_MAINNET(
