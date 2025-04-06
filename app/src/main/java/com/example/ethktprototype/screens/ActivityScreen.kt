@@ -153,13 +153,29 @@ fun ActivityScreen(
                     fontWeight = FontWeight.Bold,
                     modifier = Modifier.padding(bottom = 16.dp)
                 )
-                Spacer(modifier = Modifier.height(8.dp))
+                Spacer(modifier = Modifier.height(2.dp))
 
                 Button(
                     onClick = {
                         viewModel.viewModelScope.launch {
+                            viewModel.syncTransactionWithHealthyContract()
+                        }
+                    },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(8.dp)
+                        .background(MaterialTheme.colorScheme.primary, shape = RoundedCornerShape(8.dp)),
+                    shape = RoundedCornerShape(8.dp)
+                ) {
+                    Text("Sync Transactions")
+                }
+
+                Spacer(modifier = Modifier.height(2.dp))
+
+                /*Button(
+                    onClick = {
+                        viewModel.viewModelScope.launch {
                             viewModel.callMedSkyContract()
-                            viewModel.setShowRecordDialog(true)
                         }
                     },
                     modifier = Modifier
@@ -170,7 +186,7 @@ fun ActivityScreen(
                 ) {
                     Text("Call contract")
                 }
-                Spacer(modifier = Modifier.height(8.dp))
+                Spacer(modifier = Modifier.height(2.dp))*/
 
                 Button(
                     onClick = {
@@ -250,7 +266,7 @@ fun ActivityScreen(
         )
     }
 
-    if (uiState.showSuccessModal) {
+    /*if (uiState.showSuccessModal) {
         SuccessDialogModal(
             value = decimalFormatBalance.format(uiState.sentAmount).toString(),
             network = uiState.selectedNetwork,
@@ -259,42 +275,32 @@ fun ActivityScreen(
             sentCurrency = uiState.sentCurrency,
             onDismiss = { viewModel.setShowSuccessModal(false); viewModel.setHashValue("") }
         )
-    }
-
-    if (showDialog.value) {
+    }*/
+    if (uiState.showSyncSuccessDialog) {
         AlertDialog(
-            onDismissRequest = { showDialog.value = false },
-            title = { Text("Transaction Details") },
-            text = {
-                Column {
-                    Text("ID: ${selectedTransaction.value?.id}")
-                    Text("Date: ${selectedTransaction.value?.date}")
-                    Text("Status: ${selectedTransaction.value?.status}")
+            onDismissRequest = { viewModel.setShowSyncSuccessDialog(false) },
+            title = { Text("Sync successful") },
+            text = { Text("Transactions were successfully synchronized.") },
+            confirmButton = {
+                Button(onClick = { viewModel.setShowSyncSuccessDialog(false) }) {
+                    Text("OK")
                 }
             },
+            containerColor = MaterialTheme.colorScheme.background,
+        )
+    }
+
+    if (uiState.showSyncErrorDialog) {
+        AlertDialog(
+            onDismissRequest = { viewModel.setShowSyncErrorDialog(false) },
+            title = { Text("Not able to sync") },
+            text = { Text("An error occurred while doing sync.") },
             confirmButton = {
-                if (selectedTransaction.value?.status == "pending") {
-                    Row {
-                        Button(onClick = { /*TODO: Handle accept*/ }) {
-                            Text("Accept")
-                        }
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Button(onClick = {
-                            // Handle deny
-                            selectedTransaction.value?.let { transaction ->
-                                viewModel.updateTransactionStatus(transaction.id, "denied")
-                            }
-                            showDialog.value = false
-                        }) {
-                            Text("Deny")
-                        }
-                    }
-                } else {
-                    Button(onClick = { showDialog.value = false }) {
-                        Text("OK")
-                    }
+                Button(onClick = { viewModel.setShowSyncErrorDialog(false) }) {
+                    Text("OK")
                 }
-            }
+            },
+            containerColor = MaterialTheme.colorScheme.background,
         )
     }
 }
@@ -326,7 +332,7 @@ fun TransactionItem(transaction: Transaction, navController: NavHostController) 
             ) {
                 Spacer(modifier = Modifier.height(8.dp))
                 Text(
-                    text = "ID: ${transaction.id}",
+                    text = "Request to access ${transaction.type}",
                     style = MaterialTheme.typography.bodyLarge,
                     fontWeight = FontWeight.Bold
                 )
@@ -342,7 +348,7 @@ fun TransactionItem(transaction: Transaction, navController: NavHostController) 
                 style = MaterialTheme.typography.bodyMedium,
                 color = when (transaction.status) {
                     "denied" -> Color(0xFFD32F2F)
-                    "completed" -> Color(0xFF388E3C)
+                    "accepted" -> Color(0xFF388E3C)
                     "pending" -> Color(0xFF1976D2)
                     else -> MaterialTheme.colorScheme.onSurface
                 }

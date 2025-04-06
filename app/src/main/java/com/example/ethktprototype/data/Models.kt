@@ -7,7 +7,9 @@ import kotlinx.serialization.Serializable
 data class Transaction(
     val id: String,
     val date: String,
-    val status: String // "pending", "accepted" or "denied"
+    val status: String, // "pending", "accepted" or "denied"
+    val practitionerId: String,
+    val type: String, // "MRI" or "XRay" and so on. TODO: add more types and convert to enum
 )
 
 @Serializable

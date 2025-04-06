@@ -511,6 +511,100 @@ class WalletRepository(private val application: Application) : IWalletRepository
         throw RuntimeException("Transaction receipt not generated after sending transaction")
     }
 
+    suspend fun acceptAccess(recordId: String, requester: String, credentials: Credentials): TransactionReceipt {
+        val nonce = web3jService.ethGetTransactionCount(credentials.address, DefaultBlockParameterName.LATEST).send().transactionCount
+        val gasPrice = web3jService.ethGasPrice().send().gasPrice
+        val gasLimit = BigInteger.valueOf(3000000) // Ajuste conforme necessário
+
+        val function = Function(
+            "approveAccess",
+            listOf(Address(recordId), Address(requester)),
+            emptyList()
+        )
+        val encodedFunction = FunctionEncoder.encode(function)
+
+        val rawTransaction = RawTransaction.createTransaction(
+            nonce,
+            gasPrice,
+            gasLimit,
+            healthyWalletAdress,
+            encodedFunction
+        )
+
+        val signedMessage = TransactionEncoder.signMessage(rawTransaction, selectedNetwork.value.chainId, credentials)
+        val hexValue = Numeric.toHexString(signedMessage)
+
+        val transactionResponse = web3jService.ethSendRawTransaction(hexValue).send()
+
+        if (transactionResponse.hasError()) {
+            throw RuntimeException("Transaction failed: ${transactionResponse.error.message}")
+        }
+
+        // Tentar obter o recibo da transação várias vezes
+        repeat(10) {
+            val receipt = web3jService.ethGetTransactionReceipt(transactionResponse.transactionHash).send().transactionReceipt
+            if (receipt.isPresent) {
+                return receipt.get()
+            }
+            // Esperar um pouco antes de tentar novamente
+            delay(1000)
+        }
+
+        throw RuntimeException("Transaction receipt not generated after sending transaction")
+    }
+
+    suspend fun syncTransactionWithHealthyContract(credentials: Credentials): List<MedicalRecordAccess.RecordAccessedEventResponse> {
+        val previewLogs = healthyContract.previewNextAccessLogs().send() as List<MedicalRecordAccess.MedicalAccessLog>
+
+        if (previewLogs.isEmpty()) {
+            return emptyList()
+        }
+
+        val nonce = web3jService.ethGetTransactionCount(credentials.address, DefaultBlockParameterName.LATEST).send().transactionCount
+        val gasPrice = web3jService.ethGasPrice().send().gasPrice
+        val gasLimit = BigInteger.valueOf(3000000)
+
+        val function = Function("getNextAccessLogs", emptyList(), emptyList())
+        val encodedFunction = FunctionEncoder.encode(function)
+
+        val rawTransaction = RawTransaction.createTransaction(
+            nonce,
+            gasPrice,
+            gasLimit,
+            healthyWalletAdress,
+            encodedFunction
+        )
+
+        val signedMessage = TransactionEncoder.signMessage(rawTransaction, selectedNetwork.value.chainId, credentials)
+        val hexValue = Numeric.toHexString(signedMessage)
+
+        val transactionResponse = web3jService.ethSendRawTransaction(hexValue).send()
+
+        if (transactionResponse.hasError()) {
+            throw RuntimeException("Transaction failed: ${transactionResponse.error.message}")
+        }
+
+        val txHash = transactionResponse.transactionHash
+
+        // Poll for the transaction receipt
+        repeat(10) {
+            val receiptResp = web3jService.ethGetTransactionReceipt(txHash).send()
+            if (receiptResp.transactionReceipt.isPresent) {
+                return previewLogs.map { log ->
+                    MedicalRecordAccess.RecordAccessedEventResponse().apply {
+                        this.doctor = log.doctor
+                        this.patient = log.patient
+                        this.recordType = log.recordType
+                        this.timestamp = log.timestamp
+                    }
+                }
+            }
+            delay(1000)
+        }
+
+        throw RuntimeException("Transaction receipt not generated after sending transaction")
+    }
+
     // Reset the sync pointer (e.g. for testing)
     suspend fun resetSyncPointer(): TransactionReceipt {
         return healthyContract.resetSyncPointer().send()

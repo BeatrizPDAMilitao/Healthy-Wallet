@@ -30,5 +30,8 @@ data class WalletUiState(
     val tokensBlocked: List<TokenBalance> = emptyList(),
     val transactions: List<Transaction> = emptyList(),
     val showRecordDialog: Boolean = false,
-    val showDenyDialog: Boolean = false
-)
+    val showDenyDialog: Boolean = false,
+    val showSyncSuccessDialog: Boolean = false,
+    val showSyncErrorDialog: Boolean = false,
+    var isTransactionProcessing: Boolean = false,
+    )

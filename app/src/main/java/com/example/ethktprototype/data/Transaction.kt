@@ -19,5 +19,6 @@ data class TransactionEntity(
 )
 
 fun TransactionEntity.toTransaction(): Transaction {
-    return Transaction(id = this.id, date = this.date, status = this.status)
+    return Transaction(id = this.id, date = this.date, status = this.status,
+        practitionerId = this.practitionerId, type = this.type)
 }

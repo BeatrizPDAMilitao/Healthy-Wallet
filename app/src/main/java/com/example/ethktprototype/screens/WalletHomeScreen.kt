@@ -240,7 +240,7 @@ fun TokenListScreen(
         )
     }
 
-    if (uiState.showSuccessModal) {
+    /*if (uiState.showSuccessModal) {
         SuccessDialogModal(
             value = decimalFormatBalance.format(uiState.sentAmount).toString(),
             network = uiState.selectedNetwork,
@@ -249,5 +249,5 @@ fun TokenListScreen(
             sentCurrency = uiState.sentCurrency,
             onDismiss = { viewModel.setShowSuccessModal(false); viewModel.setHashValue("") }
         )
-    }
+    }*/
 }

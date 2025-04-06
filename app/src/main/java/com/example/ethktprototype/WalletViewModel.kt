@@ -62,7 +62,7 @@ class WalletViewModel(application: Application) : AndroidViewModel(application) 
         getTokenBlocklist()
 
         //Add sample transactions for testing
-        addSampleTransactions()
+        //addSampleTransactions()
     }
 
     fun callMedSkyContract2() {
@@ -82,6 +82,7 @@ class WalletViewModel(application: Application) : AndroidViewModel(application) 
     fun callDenyContract(recordId: String, requester: String) {
         val mnemonic = getMnemonic()
         viewModelScope.launch {
+            setTransactionProcessing(true)
             try {
                 if (!mnemonic.isNullOrEmpty()) {
                     val credentials = loadBip44Credentials(mnemonic)
@@ -116,8 +117,115 @@ class WalletViewModel(application: Application) : AndroidViewModel(application) 
                 //updateUiState { it.copy(showPayDialog = false) }
                 Log.d("DenyContract", "Error loading contract: ${e.message}")
             }
+            setTransactionProcessing(false)
         }
     }
+
+    fun callAcceptContract(recordId: String, requester: String) {
+        val mnemonic = getMnemonic()
+        viewModelScope.launch {
+            setTransactionProcessing(true)
+            try {
+                if (!mnemonic.isNullOrEmpty()) {
+                    val credentials = loadBip44Credentials(mnemonic)
+                    credentials.let {
+                        val hash = withContext(Dispatchers.IO) {
+                            walletRepository.loadHealthyContract(credentials)
+                        }
+                    }
+                    try {
+                        val receipt = withContext(Dispatchers.IO) {
+                            walletRepository.acceptAccess(recordId, requester, credentials)
+                        }
+                        Log.d("AcceptContract", "Access given: ${receipt.transactionHash}")
+                        updateUiState { state ->
+                            state.copy(
+                                transactionHash = receipt.transactionHash,
+                                showPayDialog = false,
+                                showDenyDialog = true,
+                                showSuccessModal = false,
+                                showWalletModal = false,
+                            )
+                        }
+                        updateTransactionStatus(recordId, "accepted")
+                    } catch (e: Exception) {
+                        // Handle errors
+                        Log.e("AcceptContract", "Exception caught", e)
+                    }
+                }
+            } catch (e: Exception) {
+                // Handle errors
+                //updateUiState { it.copy(showPayDialog = false) }
+                Log.d("AcceptContract", "Error loading contract: ${e.message}")
+            }
+            setTransactionProcessing(false)
+        }
+    }
+
+    fun syncTransactionWithHealthyContract() {
+        val mnemonic = getMnemonic()
+        viewModelScope.launch {
+            try {
+                if (!mnemonic.isNullOrEmpty()) {
+                    val credentials = loadBip44Credentials(mnemonic)
+
+                    withContext(Dispatchers.IO) {
+                        walletRepository.loadHealthyContract(credentials)
+                    }
+                    Log.d("SyncedLog", "Before syncTransactionWithHealthyContract")
+                    val logs = withContext(Dispatchers.IO) {
+                        walletRepository.syncTransactionWithHealthyContract(credentials)
+                    }
+                    Log.d("SyncedLog", "Logs=${logs.size}")
+                    logs.forEach { log ->
+                        val transactionId = log.timestamp.toString() + "-" + log.doctor.takeLast(6)
+                        val date = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date(log.timestamp.toLong() * 1000))
+                        Log.d("SyncedLog", "Doctor=${log.doctor}, Patient=${log.patient}, Type=${log.recordType}, Timestamp=${log.timestamp}")
+
+
+                        val transaction = TransactionEntity(
+                            id = transactionId,
+                            date = date,
+                            status = "accepted",
+                            type = log.recordType,
+                            patientId = log.patient,
+                            practitionerId = log.doctor,
+                            documentReferenceId = "", // Placeholder if unknown
+                            medicationRequestId = "",
+                            conditionId = "",
+                            encounterId = "",
+                            observationId = ""
+                        )
+
+                        withContext(Dispatchers.IO) {
+                            if (transactionDao.transactionExists(transaction.id) == 0) {
+                                transactionDao.insertTransaction(transaction)
+                            }
+                        }
+                        _uiState.value = _uiState.value.copy(showSyncSuccessDialog = true)
+                    }
+
+                    updateTransactions()
+                }
+            } catch (e: Exception) {
+                Log.e("SyncedLog", "Sync failed: ${e.message}", e)
+                _uiState.value = _uiState.value.copy(showSyncErrorDialog = true)
+            }
+        }
+    }
+
+    fun setShowSyncSuccessDialog(show: Boolean) {
+        _uiState.value = _uiState.value.copy(showSyncSuccessDialog = show)
+    }
+
+    fun setShowSyncErrorDialog(show: Boolean) {
+        _uiState.value = _uiState.value.copy(showSyncErrorDialog = show)
+    }
+
+    fun setTransactionProcessing(isProcessing: Boolean) {
+        updateUiState { it.copy(isTransactionProcessing = isProcessing) }
+    }
+
 
     fun callMedSkyContract() {
         val mnemonic = getMnemonic()
@@ -513,9 +621,9 @@ class WalletViewModel(application: Application) : AndroidViewModel(application) 
             id = transaction.id,
             date = transaction.date,
             status = transaction.status,
-            type = "",
+            type = transaction.type,
             patientId = "",
-            practitionerId = "",
+            practitionerId = transaction.practitionerId,
             documentReferenceId = "",
             medicationRequestId = "",
             conditionId = "",
@@ -551,9 +659,9 @@ class WalletViewModel(application: Application) : AndroidViewModel(application) 
      */
     fun addSampleTransactions() {
         val sampleTransactions = listOf(
-            Transaction(id = "122", date = "2023-10-01", status = "completed"),
-            Transaction(id = "222", date = "2023-10-02", status = "pending"),
-            Transaction(id = "322", date = "2023-10-03", status = "denied")
+            Transaction(id = "122", date = "2023-10-01", status = "accepted", practitionerId = "123", type = "MRI"),
+            Transaction(id = "222", date = "2023-10-02", status = "pending", practitionerId = "456", type = "X-Ray"),
+            Transaction(id = "322", date = "2023-10-03", status = "denied", practitionerId = "789", type = "Blood Test"),
         )
         viewModelScope.launch {
             sampleTransactions.forEach { transaction ->
