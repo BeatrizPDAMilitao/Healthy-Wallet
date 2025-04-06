@@ -91,7 +91,8 @@ class WalletRepository(private val application: Application) : IWalletRepository
         enclave,                     // the Tessera instance, used as Enclave
         credentials,                 // Ethereum credentials
         "FD1shKqVkRZkE4tbRDTpCSDFkf9BfwV3U77ljAa0OAA=",   // Public key of sender
-        privateFor // Private for
+        privateFor, // Private for
+        PrivacyFlag.STANDARD_PRIVATE // Privacy flag
     )
 
 
