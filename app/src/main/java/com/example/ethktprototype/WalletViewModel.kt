@@ -141,10 +141,7 @@ class WalletViewModel(application: Application) : AndroidViewModel(application) 
                         updateUiState { state ->
                             state.copy(
                                 transactionHash = receipt.transactionHash,
-                                showPayDialog = false,
                                 showDenyDialog = true,
-                                showSuccessModal = false,
-                                showWalletModal = false,
                             )
                         }
                         updateTransactionStatus(recordId, "accepted")
@@ -224,6 +221,43 @@ class WalletViewModel(application: Application) : AndroidViewModel(application) 
 
     fun setTransactionProcessing(isProcessing: Boolean) {
         updateUiState { it.copy(isTransactionProcessing = isProcessing) }
+    }
+
+    fun resetContractCounter() {
+        val mnemonic = getMnemonic()
+        viewModelScope.launch {
+            setTransactionProcessing(true)
+            try {
+                if (!mnemonic.isNullOrEmpty()) {
+                    val credentials = loadBip44Credentials(mnemonic)
+                    credentials.let {
+                        val hash = withContext(Dispatchers.IO) {
+                            walletRepository.loadHealthyContract(credentials)
+                        }
+                    }
+                    try {
+                        val receipt = withContext(Dispatchers.IO) {
+                            walletRepository.resetSyncPointer()
+                        }
+                        Log.d("Reset Pointer", "Reset Pointer with success: ${receipt.transactionHash}")
+                        // Handle the result as needed
+                        updateUiState { state ->
+                            state.copy(
+                                transactionHash = receipt.transactionHash,
+                            )
+                        }
+                    } catch (e: Exception) {
+                        // Handle errors
+                        Log.e("Reset Pointer", "Exception caught", e)
+                    }
+                }
+            } catch (e: Exception) {
+                // Handle errors
+                //updateUiState { it.copy(showPayDialog = false) }
+                Log.d("Reset Pointer", "Error loading contract: ${e.message}")
+            }
+            setTransactionProcessing(false)
+        }
     }
 
 

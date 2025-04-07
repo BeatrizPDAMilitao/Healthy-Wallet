@@ -19,27 +19,33 @@ import com.example.ethktprototype.WalletViewModel
 import com.example.ethktprototype.composables.ClearBlocklist
 import com.example.ethktprototype.composables.RemoveTransactions
 import com.example.ethktprototype.composables.RemoveWallet
+import com.example.ethktprototype.composables.ResetContractCounter
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 
 @Composable
 fun SettingsScreen(navController: NavHostController, viewModel: WalletViewModel) {
-    Column(
+    LazyColumn(
         modifier = Modifier
             .fillMaxSize()
             .padding(22.dp)
             .windowInsetsPadding(WindowInsets.statusBars)
     ) {
-        Text(
-            text = "Settings",
-            style = MaterialTheme.typography.titleLarge,
-            color = MaterialTheme.colorScheme.onSurface,
-            fontWeight = FontWeight.Bold,
-            modifier = Modifier.padding(bottom = 16.dp)
-        )
-        RemoveWallet(viewModel = viewModel)
-        Spacer(modifier = Modifier.height(8.dp))
-        ClearBlocklist(viewModel = viewModel)
-        Spacer(modifier = Modifier.height(8.dp))
-        RemoveTransactions(viewModel = viewModel)
-
+        item {
+            Text(
+                text = "Settings",
+                style = MaterialTheme.typography.titleLarge,
+                color = MaterialTheme.colorScheme.onSurface,
+                fontWeight = FontWeight.Bold,
+                modifier = Modifier.padding(bottom = 16.dp)
+            )
+        }
+        item { RemoveWallet(viewModel = viewModel) }
+        item { Spacer(modifier = Modifier.height(8.dp)) }
+        item { ClearBlocklist(viewModel = viewModel) }
+        item { Spacer(modifier = Modifier.height(8.dp)) }
+        item { RemoveTransactions(viewModel = viewModel) }
+        item { Spacer(modifier = Modifier.height(8.dp)) }
+        item { ResetContractCounter(viewModel = viewModel) }
     }
 }
