@@ -18,9 +18,11 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.AlertDialog
 
 import androidx.compose.material.BottomNavigation
 import androidx.compose.material.BottomNavigationItem
+import androidx.compose.material.CircularProgressIndicator
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.Settings
@@ -119,6 +121,12 @@ fun TransactionScreen(
 
             Spacer(modifier = Modifier.height(16.dp))
 
+            if (uiState.isTransactionProcessing) {
+                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    CircularProgressIndicator()
+                }
+            }
+
             if (transaction.value != null) {
                 Column(
                     modifier = Modifier
@@ -128,9 +136,15 @@ fun TransactionScreen(
                         .padding(16.dp)
                 ) {
                     Text(
-                        text = "Transaction ID: ${transaction.value!!.id}",
+                        text = "Practitioner ${transaction.value!!.practitionerId} requested access to your ${transaction.value!!.type}",
                         style = MaterialTheme.typography.bodyLarge,
                         fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        text = "Transaction ID: ${transaction.value!!.id}",
+                        style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurface
                     )
                     Spacer(modifier = Modifier.height(8.dp))
@@ -141,11 +155,23 @@ fun TransactionScreen(
                     )
                     Spacer(modifier = Modifier.height(8.dp))
                     Text(
+                        text = "Practitioner ID: ${transaction.value!!.practitionerId}",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        text = "Type: ${transaction.value!!.type}",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
                         text = "Status: ${transaction.value!!.status}",
                         style = MaterialTheme.typography.bodyMedium,
                         color = when (transaction.value!!.status) {
                             "denied" -> Color(0xFFD32F2F)
-                            "completed" -> Color(0xFF388E3C)
+                            "accepted" -> Color(0xFF388E3C)
                             "pending" -> Color(0xFF1976D2)
                             else -> MaterialTheme.colorScheme.onSurface
                         }
@@ -155,7 +181,15 @@ fun TransactionScreen(
                         Spacer(modifier = Modifier.height(16.dp))
                         Row {
                             Button(
-                                onClick = { /*TODO: Handle accept*/ },
+                                onClick = {
+                                    // Handle accept
+                                    transaction.let { transaction ->
+                                        val recordId =
+                                            transaction.value!!.id // Supondo que o ID da transação seja o recordId
+                                        val requester = uiState.walletAddress // TODO: Should be transaction.practitionerId
+                                        viewModel.callAcceptContract(recordId, requester)
+                                    }
+                                },
                                 modifier = Modifier.weight(1f),
                                 colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF03A9F4))
                             ) {
@@ -166,7 +200,10 @@ fun TransactionScreen(
                                 onClick = {
                                     // Handle deny
                                     transaction.let { transaction ->
-                                        viewModel.updateTransactionStatus(transaction.value!!.id, "denied")
+                                        val recordId =
+                                            transaction.value!!.id // Supondo que o ID da transação seja o recordId
+                                        val requester = uiState.walletAddress // TODO: Should be transaction.practitionerId
+                                        viewModel.callDenyContract(recordId, requester)
                                     }
                                 },
                                 modifier = Modifier.weight(1f),
@@ -206,6 +243,26 @@ fun TransactionScreen(
                 onClick = {
                     // Do nothing. This is the current screen.
                 }
+            )
+        }
+        if (uiState.showDenyDialog) {
+            // Show the deny dialog
+            AlertDialog(
+                onDismissRequest = { viewModel.setShowDenyDialog(false) },
+                title = { Text("Transaction Details") },
+                text = {
+                    Column {
+                        Text("Hash: ${uiState.transactionHash}")
+                        //Text("Date: ${uiState.transactionHash}")
+                        //Text("Status: ${uiState.transactionHash}")
+                    }
+                },
+                confirmButton = {
+                    Button(onClick = { viewModel.setShowDenyDialog(false) }) {
+                        Text("OK")
+                    }
+                },
+                backgroundColor = MaterialTheme.colorScheme.background,
             )
         }
     }
