@@ -93,7 +93,7 @@ class WalletViewModel(application: Application) : AndroidViewModel(application) 
                     }
                     try {
                         val receipt = withContext(Dispatchers.IO) {
-                            walletRepository.denyAccess(recordId, requester, credentials)
+                            walletRepository.denyAccess2(recordId, requester, credentials)
                         }
                         Log.d("DenyContract", "Access denied: ${receipt.transactionHash}")
                         // Handle the result as needed
@@ -135,7 +135,7 @@ class WalletViewModel(application: Application) : AndroidViewModel(application) 
                     }
                     try {
                         val receipt = withContext(Dispatchers.IO) {
-                            walletRepository.acceptAccess(recordId, requester, credentials)
+                            walletRepository.acceptAccess2(recordId, requester, credentials)
                         }
                         Log.d("AcceptContract", "Access given: ${receipt.transactionHash}")
                         updateUiState { state ->
@@ -171,22 +171,22 @@ class WalletViewModel(application: Application) : AndroidViewModel(application) 
                     }
                     Log.d("SyncedLog", "Before syncTransactionWithHealthyContract")
                     val logs = withContext(Dispatchers.IO) {
-                        walletRepository.syncTransactionWithHealthyContract(credentials)
+                        walletRepository.syncTransactionWithHealthyContract2(credentials)
                     }
                     Log.d("SyncedLog", "Logs=${logs.size}")
                     logs.forEach { log ->
-                        val transactionId = log.timestamp.toString() + "-" + log.doctor.takeLast(6)
-                        val date = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date(log.timestamp.toLong() * 1000))
-                        Log.d("SyncedLog", "Doctor=${log.doctor}, Patient=${log.patient}, Type=${log.recordType}, Timestamp=${log.timestamp}")
+                        val transactionId = log.date.toString() + "-" + log.practitionerId.takeLast(6)
+                        val date = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date(log.date.toLong() * 1000))
+                        Log.d("SyncedLog", "Doctor=${log.practitionerId}, Patient=${log.patientId}, Type=${log.type}, Timestamp=${log.date}")
 
 
                         val transaction = TransactionEntity(
                             id = transactionId,
                             date = date,
-                            status = "accepted",
-                            type = log.recordType,
-                            patientId = log.patient,
-                            practitionerId = log.doctor,
+                            status = log.status,
+                            type = log.type,
+                            patientId = log.patientId,
+                            practitionerId = log.practitionerId,
                             documentReferenceId = "", // Placeholder if unknown
                             medicationRequestId = "",
                             conditionId = "",
@@ -693,9 +693,9 @@ class WalletViewModel(application: Application) : AndroidViewModel(application) 
      */
     fun addSampleTransactions() {
         val sampleTransactions = listOf(
-            Transaction(id = "122", date = "2023-10-01", status = "accepted", practitionerId = "123", type = "MRI"),
-            Transaction(id = "222", date = "2023-10-02", status = "pending", practitionerId = "456", type = "X-Ray"),
-            Transaction(id = "322", date = "2023-10-03", status = "denied", practitionerId = "789", type = "Blood Test"),
+            Transaction(id = "122", date = "2023-10-01", status = "accepted", practitionerId = "123", type = "MRI", patientId = "456"),
+            Transaction(id = "222", date = "2023-10-02", status = "pending", practitionerId = "456", type = "X-Ray", patientId = "456"),
+            Transaction(id = "322", date = "2023-10-03", status = "denied", practitionerId = "789", type = "Blood Test", patientId = "456"),
         )
         viewModelScope.launch {
             sampleTransactions.forEach { transaction ->

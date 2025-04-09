@@ -10,6 +10,7 @@ data class Transaction(
     val status: String, // "pending", "accepted" or "denied"
     val practitionerId: String,
     val type: String, // "MRI" or "XRay" and so on. TODO: add more types and convert to enum
+    val patientId: String,
 )
 
 @Serializable

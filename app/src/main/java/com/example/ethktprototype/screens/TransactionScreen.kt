@@ -186,7 +186,7 @@ fun TransactionScreen(
                                     transaction.let { transaction ->
                                         val recordId =
                                             transaction.value!!.id // Supondo que o ID da transação seja o recordId
-                                        val requester = uiState.walletAddress // TODO: Should be transaction.practitionerId
+                                        val requester = transaction.value!!.practitionerId
                                         viewModel.callAcceptContract(recordId, requester)
                                     }
                                 },
@@ -202,7 +202,7 @@ fun TransactionScreen(
                                     transaction.let { transaction ->
                                         val recordId =
                                             transaction.value!!.id // Supondo que o ID da transação seja o recordId
-                                        val requester = uiState.walletAddress // TODO: Should be transaction.practitionerId
+                                        val requester = transaction.value!!.practitionerId
                                         viewModel.callDenyContract(recordId, requester)
                                     }
                                 },

@@ -95,7 +95,8 @@ suspend fun simulateTransactionReceived(context: Context, viewModel: WalletViewM
         date = viewModel.getCurrentDate(),
         status = "pending",
         practitionerId = "555",
-        type = "MRI"
+        type = "MRI",
+        patientId = "123"
     )
     viewModel.onNotificationReceived(newTransaction) //Modifies the viewModel state, so needs to be called first
     sendNotification(context, viewModel, "New Transaction", "You have a new transaction pending. With ID: ${newTransaction.id}", newTransaction.id)
