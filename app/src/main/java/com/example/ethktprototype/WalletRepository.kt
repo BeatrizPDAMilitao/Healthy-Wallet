@@ -10,6 +10,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.core.content.edit
 import androidx.lifecycle.MutableLiveData
 import com.example.ethktprototype.contracts.MedicalRecordAccess
+import com.example.ethktprototype.contracts.MedicalRecordAccess2
 import com.example.ethktprototype.contracts.MedskyContract
 import com.example.ethktprototype.data.GraphQLData
 import com.example.ethktprototype.data.GraphQLQueries
@@ -46,7 +47,6 @@ import java.math.BigInteger
 import java.net.HttpURLConnection
 import java.net.URL
 import kotlinx.coroutines.delay
-import com.example.ethktprototype.contracts.MedicalRecordAccess2
 
 object JsonUtils {
     val json = Json {
@@ -741,6 +741,48 @@ class WalletRepository(private val application: Application) : IWalletRepository
                     )
                 }
             }
+            delay(1000)
+        }
+
+        throw RuntimeException("Transaction receipt not generated after sending transaction")
+    }
+
+    suspend fun requestAccess(doctor: String, patient: String, recordId: String, recordType: String, credentials: Credentials): TransactionReceipt {
+        val nonce = web3jService.ethGetTransactionCount(credentials.address, DefaultBlockParameterName.LATEST).send().transactionCount
+        val gasPrice = web3jService.ethGasPrice().send().gasPrice
+        val gasLimit = BigInteger.valueOf(3000000) // Ajuste conforme necessário
+
+        val function = Function(
+            "doctorRequestAccess",
+            listOf(Address(doctor),Address(patient), org.web3j.abi.datatypes.Utf8String(recordId), org.web3j.abi.datatypes.Utf8String(recordType)),
+            emptyList()
+        )
+        val encodedFunction = FunctionEncoder.encode(function)
+
+        val rawTransaction = RawTransaction.createTransaction(
+            nonce,
+            gasPrice,
+            gasLimit,
+            healthyWalletAdress,
+            encodedFunction
+        )
+
+        val signedMessage = TransactionEncoder.signMessage(rawTransaction, selectedNetwork.value.chainId, credentials)
+        val hexValue = Numeric.toHexString(signedMessage)
+
+        val transactionResponse = web3jService.ethSendRawTransaction(hexValue).send()
+
+        if (transactionResponse.hasError()) {
+            throw RuntimeException("Transaction failed: ${transactionResponse.error.message}")
+        }
+
+        // Tentar obter o recibo da transação várias vezes
+        repeat(10) {
+            val receipt = web3jService.ethGetTransactionReceipt(transactionResponse.transactionHash).send().transactionReceipt
+            if (receipt.isPresent) {
+                return receipt.get()
+            }
+            // Esperar um pouco antes de tentar novamente
             delay(1000)
         }
 

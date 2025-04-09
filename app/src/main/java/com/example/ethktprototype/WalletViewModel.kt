@@ -594,8 +594,48 @@ class WalletViewModel(application: Application) : AndroidViewModel(application) 
      *
      * @param transaction The transaction associated with the notification.
      */
-    fun onNotificationReceived(transaction: Transaction) {
-        addTransaction(transaction)
+    suspend fun onNotificationReceived() {
+        var newTransaction = Transaction(
+            id = getTransactionId().toString(),
+            date = getCurrentDate(),
+            status = "pending",
+            practitionerId = "0xd0c4753de208449772e0a7e43f7ecda79df32bc7",
+            type = "Head CT",
+            patientId = uiState.value.walletAddress
+        )
+        val mnemonic = getMnemonic()
+        viewModelScope.launch {
+            try {
+                if (!mnemonic.isNullOrEmpty()) {
+                    val credentials = loadBip44Credentials(mnemonic)
+                    credentials.let {
+                        val hash = withContext(Dispatchers.IO) {
+                            walletRepository.loadHealthyContract(credentials)
+                        }
+                    }
+                    try {
+                        val receipt = withContext(Dispatchers.IO) {
+                            walletRepository.requestAccess(newTransaction.practitionerId, newTransaction.patientId, newTransaction.id, newTransaction.type, credentials)
+                        }
+                        Log.d("RequestAccess", "Access requested: ${receipt.transactionHash}")
+                        updateUiState { state ->
+                            state.copy(
+                                transactionHash = receipt.transactionHash,
+                                showRecordDialog = true,
+                            )
+                        }
+                        addTransaction(newTransaction)
+                    } catch (e: Exception) {
+                        // Handle errors
+                        Log.e("RequestAccess", "Exception caught", e)
+                    }
+                }
+            } catch (e: Exception) {
+                // Handle errors
+                //updateUiState { it.copy(showPayDialog = false) }
+                Log.d("RequestAccess", "Error loading contract: ${e.message}")
+            }
+        }
     }
 
     /**

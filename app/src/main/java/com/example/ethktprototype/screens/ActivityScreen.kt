@@ -170,7 +170,7 @@ fun ActivityScreen(
                     Text("Sync Transactions")
                 }
 
-                //Spacer(modifier = Modifier.height(2.dp))
+                Spacer(modifier = Modifier.height(2.dp))
 
                 /*Button(
                     onClick = {
@@ -188,7 +188,7 @@ fun ActivityScreen(
                 }
                 Spacer(modifier = Modifier.height(2.dp))*/
 
-                /*Button(
+                Button(
                     onClick = {
                         viewModel.viewModelScope.launch {
                             simulateTransactionReceived(context, viewModel)
@@ -201,7 +201,7 @@ fun ActivityScreen(
                     shape = RoundedCornerShape(8.dp)
                 ) {
                     Text("Simulate New Transaction")
-                }*/
+                }
                 Divider(color = Color.Gray, thickness = 1.dp)
                 Spacer(modifier = Modifier.height(8.dp))
 

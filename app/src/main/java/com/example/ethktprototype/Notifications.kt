@@ -14,6 +14,9 @@ import com.example.ethktprototype.data.Transaction
 import android.content.pm.PackageManager
 import androidx.core.content.ContextCompat
 import androidx.activity.result.ActivityResultLauncher
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 
 
 fun sendNotification(context: Context, viewModel: WalletViewModel, title: String, message: String, requestPermissionLauncher: ActivityResultLauncher<String>) {
@@ -90,15 +93,10 @@ fun sendNotification(context: Context, viewModel: WalletViewModel, title: String
  */
 suspend fun simulateTransactionReceived(context: Context, viewModel: WalletViewModel) {
     Log.d("ViewModel", "Before: $viewModel")
-    val newTransaction = Transaction(
-        id = viewModel.getTransactionId().toString(),
-        date = viewModel.getCurrentDate(),
-        status = "pending",
-        practitionerId = "555",
-        type = "MRI",
-        patientId = "123"
-    )
-    viewModel.onNotificationReceived(newTransaction) //Modifies the viewModel state, so needs to be called first
-    sendNotification(context, viewModel, "New Transaction", "You have a new transaction pending. With ID: ${newTransaction.id}", newTransaction.id)
+    val id = viewModel.getTransactionId().toString()
+    CoroutineScope(Dispatchers.Main).launch {
+        viewModel.onNotificationReceived() //Modifies the viewModel state, so needs to be called first
+        sendNotification(context, viewModel, "New Transaction", "You have a new transaction pending. With ID: $id", id)
+    }
 }
 
