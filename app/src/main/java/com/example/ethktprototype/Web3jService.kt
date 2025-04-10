@@ -4,7 +4,7 @@ package com.example.ethktprototype
 import org.web3j.protocol.Web3j
 import org.web3j.protocol.http.HttpService
 
-const val INFURA_API_KEY = "MY_INFURA_API_KEY"
+const val INFURA_API_KEY = "1e34aa8ed01747bfba701b541f69ea6f"
 
 object Web3jService {
 
@@ -22,9 +22,15 @@ enum class Network(
     val chainId: Long,
     val covalentChainName: String
 ) {
+    SEPOLIA(
+        "Sepolia",
+        "https://sepolia.infura.io/v3/$INFURA_API_KEY",
+        11155111, // TODO: confirm this chain ID
+        covalentChainName = "eth-sepolia"
+    ),
     QUORUM(
         "Quorum",
-        "http://192.168.1.248:8545", //192.168.1.76    172.26.146.19
+        "http://192.168.1.76:8545", //192.168.1.76    172.26.146.19
         1337, // TODO: confirm this chain ID
         covalentChainName = "quorum"
     ),

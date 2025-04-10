@@ -62,7 +62,7 @@ class WalletRepository(private val application: Application) : IWalletRepository
     private val sharedPreferences =
         context.getSharedPreferences("WalletPrefs", Context.MODE_PRIVATE)
     private val walletAddressKey = "wallet_address"
-    private val _selectedNetwork = mutableStateOf(Network.QUORUM)
+    private val _selectedNetwork = mutableStateOf(Network.SEPOLIA)
     private val selectedNetwork: MutableState<Network> = _selectedNetwork
     private val mnemonicLoaded = MutableLiveData<Boolean>()
 
@@ -220,76 +220,65 @@ class WalletRepository(private val application: Application) : IWalletRepository
         }
     }
 
+    private fun getEthPriceInUsd(): Double {
+        return try {
+            val client = OkHttpClient()
+            val request = Request.Builder()
+                .url("https://api.coingecko.com/api/v3/simple/price?ids=ethereum&vs_currencies=usd")
+                .build()
+            val response = client.newCall(request).execute()
+            val body = response.body?.string() ?: return 0.0
+
+            val json = JSONObject(body)
+            json.getJSONObject("ethereum").getDouble("usd")
+        } catch (e: Exception) {
+            Log.e("PriceFetch", "Failed to fetch ETH price", e)
+            0.0
+        }
+    }
+
 
     override fun fetchBalances(
         addresses: String,
         first: Int,
     ): Pair<Double, List<TokenBalance>> {
-        val currentTime = System.currentTimeMillis() / 1000
-        val sharedPreferences = getBalancesSharedPreferences(application)
-        val cacheExpirationTime = getCacheExpirationTime(sharedPreferences)
-        val cachedBalances = getUserBalances(application)
-        val cachedTotalBalance = getTotalBalanceUSD(application)
-        //val envVars = EnvVars()
-        val zapperApiKey = "MY_API_KEY"
-
-        if (cachedBalances.isNotEmpty() && cacheExpirationTime > currentTime) {
-            return Pair(cachedTotalBalance, cachedBalances)
-        }
-
-        val client = OkHttpClient()
-
-        val json = GraphQLQueries.getTokenBalancesQuery(
-            addresses = listOf(addresses),
-            first = 10
-        )
-        val requestBody = json.toString().toRequestBody("application/json; charset=utf-8".toMediaType())
-        val request = Request.Builder()
-            .url("https://public.zapper.xyz/graphql")
-            .header("x-zapper-api-key", zapperApiKey)
-            .post(requestBody)
-            .build()
-
         return try {
-            val response = client.newCall(request).execute()
-            val responseBody = response.body?.string()
+            val web3j = Web3jService.build(selectedNetwork.value)
 
-            val graphQLResponse = json.let {
-                JsonUtils.json.decodeFromString<GraphQLResponse<PortfolioData>>(
-                    responseBody!!
-                )
-            }
+            // Get native ETH balance
+            val balanceInWei = web3j.ethGetBalance(addresses, DefaultBlockParameterName.LATEST)
+                .send()
+                .balance
 
-            if (graphQLResponse.data == null) {
-                Log.e("fetchBalances", "Error fetching balances: ${graphQLResponse.errors}")
-                return Pair(0.0, emptyList())
-            }
+            val balanceInEth = Convert.fromWei(balanceInWei.toString(), Convert.Unit.ETHER)
+                .toDouble()
 
-            // Extract the totalBalanceUSD
-            val totalBalanceUSD = graphQLResponse.data.portfolioV2.tokenBalances.totalBalanceUSD
+            // Fetch ETH price in USD from CoinGecko
+            val priceUSD = getEthPriceInUsd()
 
-            val balances = graphQLResponse.data.portfolioV2.tokenBalances.byToken.edges.map { edge ->
-                TokenBalance(
-                    contractAddress = edge.node.tokenAddress,
-                    balance = edge.node.balance.toString(),
-                    name = edge.node.name,
-                    symbol = edge.node.symbol,
-                    decimals = 18,
-                    tokenIcon = edge.node.imgUrlV2,
-                    balanceUSD = edge.node.balanceUSD,
-                    networkName = edge.node.network.name
-                )
-            }
+            val balanceUSD = balanceInEth * priceUSD
 
-            cacheUserBalance(balances, application)
-            cacheTotalBalanceUSD(totalBalanceUSD, application)
 
-            sharedPreferences.edit().putLong("CACHE_EXPIRATION_TIME", currentTime + 3600).apply()
+            // Create a basic TokenBalance entry for ETH/SepoliaETH
+            val tokenBalance = TokenBalance(
+                contractAddress = "native", // Placeholder
+                balance = balanceInWei.toString(),
+                name = selectedNetwork.value.displayName,
+                symbol = "ETH",
+                decimals = 18,
+                tokenIcon = "", // Optional: add your own logo URL
+                balanceUSD = balanceUSD, // Set to 0 or fetch from price API
+                networkName = selectedNetwork.value.displayName
+            )
 
-            Pair(totalBalanceUSD, balances)
+            // Optionally cache this balance like before
+            cacheUserBalance(listOf(tokenBalance), application)
+            cacheTotalBalanceUSD(balanceInEth, application)
+
+            Pair(balanceInEth, listOf(tokenBalance))
         } catch (e: Exception) {
-            Log.e("fetchTokenBalances", "Error fetching balances", e)
-            Pair(cachedTotalBalance, cachedBalances)
+            Log.e("fetchTokenBalances", "Error fetching native balance", e)
+            Pair(0.0, emptyList())
         }
     }
 
@@ -411,7 +400,7 @@ class WalletRepository(private val application: Application) : IWalletRepository
     private lateinit var medskyContract: MedskyContract
 
     private val healthyWalletAdressOld = "0x9A8ea6736DF00Af70D1cD70b1Daf3619C8c0D7F4"
-    private val healthyWalletAdress = "0x6410E8e6321f46B7A34B9Ea9649a4c84563d8045"
+    private val healthyWalletAdress = "0xF443c9B544E4020777cf751E344C34754e1A0F40" //"0x6410E8e6321f46B7A34B9Ea9649a4c84563d8045"
     private lateinit var healthyContract: MedicalRecordAccess2
 
     val web3jService = Web3jService.build(selectedNetwork.value)
@@ -637,8 +626,14 @@ class WalletRepository(private val application: Application) : IWalletRepository
             throw RuntimeException("Transaction failed: ${transactionResponse.error.message}")
         }
 
+        Log.d("SyncedLog", "Sent tx: ${transactionResponse.transactionHash}")
+
+
         // Tentar obter o recibo da transação várias vezes
-        repeat(10) {
+        val maxWaitMs = 60000L
+        val start = System.currentTimeMillis()
+
+        while (System.currentTimeMillis() - start < maxWaitMs) {
             val receipt = web3jService.ethGetTransactionReceipt(transactionResponse.transactionHash).send().transactionReceipt
             if (receipt.isPresent) {
                 return receipt.get()
@@ -678,9 +673,13 @@ class WalletRepository(private val application: Application) : IWalletRepository
         if (transactionResponse.hasError()) {
             throw RuntimeException("Transaction failed: ${transactionResponse.error.message}")
         }
+        Log.d("SyncedLog", "Sent tx: ${transactionResponse.transactionHash}")
 
-        // Tentar obter o recibo da transação várias vezes
-        repeat(10) {
+
+        val maxWaitMs = 60000L
+        val start = System.currentTimeMillis()
+
+        while (System.currentTimeMillis() - start < maxWaitMs) {
             val receipt = web3jService.ethGetTransactionReceipt(transactionResponse.transactionHash).send().transactionReceipt
             if (receipt.isPresent) {
                 return receipt.get()
@@ -725,8 +724,14 @@ class WalletRepository(private val application: Application) : IWalletRepository
 
         val txHash = transactionResponse.transactionHash
 
+        Log.d("SyncedLog", "Sent tx: ${transactionResponse.transactionHash}")
+
+
         // Poll for the transaction receipt
-        repeat(10) {
+        val maxWaitMs = 60000L
+        val start = System.currentTimeMillis()
+
+        while (System.currentTimeMillis() - start < maxWaitMs) {
             val receiptResp = web3jService.ethGetTransactionReceipt(txHash).send()
             if (receiptResp.transactionReceipt.isPresent) {
                 return previewLogs.map { log ->
@@ -776,8 +781,10 @@ class WalletRepository(private val application: Application) : IWalletRepository
             throw RuntimeException("Transaction failed: ${transactionResponse.error.message}")
         }
 
-        // Tentar obter o recibo da transação várias vezes
-        repeat(10) {
+        val maxWaitMs = 60000L
+        val start = System.currentTimeMillis()
+
+        while (System.currentTimeMillis() - start < maxWaitMs) {
             val receipt = web3jService.ethGetTransactionReceipt(transactionResponse.transactionHash).send().transactionReceipt
             if (receipt.isPresent) {
                 return receipt.get()

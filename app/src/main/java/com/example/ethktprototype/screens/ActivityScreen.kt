@@ -239,6 +239,7 @@ fun ActivityScreen(
             )
         }
     }
+    Log.d("SyncedLog", uiState.walletAddress)
     if (uiState.showRecordDialog) {
         AlertDialog(
             onDismissRequest = { viewModel.setShowRecordDialog(false) },

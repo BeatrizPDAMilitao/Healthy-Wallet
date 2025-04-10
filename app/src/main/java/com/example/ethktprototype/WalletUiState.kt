@@ -13,7 +13,7 @@ data class WalletUiState(
     val totalBalanceUSD: Double = 0.0,
     val transactionHash: String = "",
     val selectedToken: TokenBalance? = null,
-    val selectedNetwork: Network = Network.ETH_MAINNET,
+    val selectedNetwork: Network = Network.SEPOLIA,
     val isTokensLoading: Boolean = false,
     val isNftsLoading: Boolean = false,
     val showPayDialog: Boolean = false,
