@@ -4,6 +4,7 @@ plugins {
     id 'org.jetbrains.kotlin.plugin.serialization'
     //id "io.sentry.android.gradle" version "3.5.0"
     id 'kotlin-kapt'
+    id("com.apollographql.apollo") version "4.2.0"
 }
 
 Properties properties = new Properties()
@@ -56,6 +57,13 @@ android {
         }
     }
 }
+apollo {
+    service("default") {
+        srcDir("src/main/graphql")
+        packageName.set("com.example.medplum")
+        schemaFile.set(file("src/main/graphql/com/example/medplum/schema.json"))
+    }
+}
 
 dependencies {
     implementation 'androidx.appcompat:appcompat:1.7.0'
@@ -79,6 +87,11 @@ dependencies {
     implementation "androidx.lifecycle:lifecycle-runtime-ktx:2.8.7"
     implementation "androidx.compose.runtime:runtime-livedata:$compose_version"
     // other dependencies...
+    implementation("com.apollographql.apollo:apollo-runtime:4.2.0")
+    implementation("com.apollographql.apollo:apollo-api:4.2.0")
+    implementation("com.squareup.okhttp3:okhttp:4.12.0")
+    implementation("org.json:json:20240303")
+
     implementation "androidx.security:security-crypto:1.1.0-alpha06"
     implementation "org.bouncycastle:bcpkix-jdk15on:1.68"
     implementation "org.bouncycastle:bcprov-jdk15on:1.70"

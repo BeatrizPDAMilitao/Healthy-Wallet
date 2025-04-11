@@ -47,6 +47,10 @@ import java.math.BigInteger
 import java.net.HttpURLConnection
 import java.net.URL
 import kotlinx.coroutines.delay
+import com.apollographql.apollo.ApolloClient
+import com.apollographql.apollo.exception.ApolloHttpException
+import com.example.medplum.GetPatientQuery
+
 
 object JsonUtils {
     val json = Json {
@@ -65,6 +69,11 @@ class WalletRepository(private val application: Application) : IWalletRepository
     private val _selectedNetwork = mutableStateOf(Network.SEPOLIA)
     private val selectedNetwork: MutableState<Network> = _selectedNetwork
     private val mnemonicLoaded = MutableLiveData<Boolean>()
+    private val CLIENT_ID = "01968b74-d07a-766d-8331-1cefab3a8922"
+    private val CLIENT_SECRET = "a6bcb43c6607ad32e3ae324ff6689b6716d6abcaad6a330e6e5b330616cb71ac"
+    init {
+        getAccessToken()
+    }
 
     override fun storeMnemonic(mnemonic: String) {
         encryptMnemonic(context, mnemonic)
@@ -395,6 +404,81 @@ class WalletRepository(private val application: Application) : IWalletRepository
             }
         }
     }
+
+    fun getAccessToken(): String? {
+        return kotlinx.coroutines.runBlocking { getMedplumAccessToken(CLIENT_ID, CLIENT_SECRET) }
+        //return sharedPreferences.getString("medplum_access_token", null)
+    }
+
+    private lateinit var apolloClient: ApolloClient
+
+    suspend fun fetchPatient(){
+        try {
+            val response = apolloClient.query(GetPatientQuery("01968b59-76f3-7228-aea9-07db748ee2ca")).execute()
+            Log.d("MedPlum", "GraphQL response: $response")
+
+            if (response.hasErrors()) {
+                Log.e("MedPlum", "GraphQL errors: ${response.errors}")
+            }
+
+            val patient = response.data?.Patient
+            Log.d("MedPlum", "Patient name: ${patient?.name?.firstOrNull()?.given}")
+
+        } catch (e: ApolloHttpException) {
+            Log.e("MedPlum", "HTTP error ${e.statusCode}: ${e.message}", e)
+            val errorBody = e.body?.use { it: okio.BufferedSource -> it.readUtf8() }
+            Log.e("MedPlum", "Error body: $errorBody")
+        } catch (e: Exception) {
+            Log.e("MedPlum", "Unexpected error", e)
+        }
+
+    }
+
+    suspend fun getMedplumAccessToken(
+        clientId: String,
+        clientSecret: String
+    ): String? = withContext(Dispatchers.IO) {
+        val client = OkHttpClient()
+
+        val form = "grant_type=client_credentials" +
+                "&client_id=${clientId}" +
+                "&client_secret=${clientSecret}"
+
+        val request = Request.Builder()
+            .url("https://api.medplum.com/oauth2/token")
+            .post(form.toRequestBody("application/x-www-form-urlencoded".toMediaType()))
+            .build()
+
+        try {
+            client.newCall(request).execute().use { response ->
+                val responseBodyStr = response.body?.string()
+
+                if (!response.isSuccessful || responseBodyStr == null) {
+                    Log.e("MedplumAuth", "Token request failed: ${response.code}")
+                    Log.e("MedplumAuth", "Body: $responseBodyStr")
+                    return@withContext null
+                }
+
+                val json = JSONObject(responseBodyStr)
+                val accessToken = json.getString("access_token")
+                Log.d("MedplumAuth", "Access token: $accessToken")
+
+                apolloClient = ApolloClient.Builder()
+                    .serverUrl("https://api.medplum.com/fhir/R4/\$graphql")
+                    .addHttpHeader("Authorization", "Bearer $accessToken")
+                    .build()
+                Log.d("MedplumAuth", "Apollo Client: $apolloClient")
+
+                return@withContext accessToken
+            }
+        } catch (e: Exception) {
+            Log.e("MedplumAuth", "Exception: ${e.message}", e)
+            return@withContext null
+        }
+    }
+
+
+
     //TODO: Add functions that interact with the healthyWallet contract
     private val medskyAdress = "0xBca0fDc68d9b21b5bfB16D784389807017B2bbbc"
     private lateinit var medskyContract: MedskyContract
@@ -609,9 +693,10 @@ class WalletRepository(private val application: Application) : IWalletRepository
                 return previewLogs.map { log ->
                     val status = if (log.status.toString() == "0") "pending" else if (log.status.toString() == "1") "accepted" else "denied"
                     com.example.ethktprototype.data.Transaction(
-                        id = log.recordId,
+                        id = "",
                         date = log.timestamp.toString(),
                         status = status,
+                        recordId = log.recordId,
                         practitionerId = log.doctor,
                         type = log.recordType,
                         patientId = log.patient
@@ -648,7 +733,7 @@ class WalletRepository(private val application: Application) : IWalletRepository
         val hexValue = Numeric.toHexString(signedMessage)
 
         val transactionResponse = web3jService.ethSendRawTransaction(hexValue).send()
-
+        Log.d("SyncedLog", "Sent tx: ${transactionResponse.transactionHash}")
         if (transactionResponse.hasError()) {
             throw RuntimeException("Transaction failed: ${transactionResponse.error.message}")
         }

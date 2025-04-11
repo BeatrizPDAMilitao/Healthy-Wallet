@@ -14,9 +14,12 @@ import com.example.ethktprototype.data.Transaction
 import android.content.pm.PackageManager
 import androidx.core.content.ContextCompat
 import androidx.activity.result.ActivityResultLauncher
+import com.example.ethktprototype.data.ConditionRequirement
+import com.example.ethktprototype.data.ZkpExamRequestPayload
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.serialization.json.Json
 
 
 /*fun sendNotification(context: Context, viewModel: WalletViewModel, title: String, message: String, requestPermissionLauncher: ActivityResultLauncher<String>) {
@@ -98,4 +101,20 @@ suspend fun simulateTransactionReceived(context: Context, viewModel: WalletViewM
         viewModel.onNotificationReceived(context, id) //Modifies the viewModel state, so needs to be called first
     }
 }
+
+suspend fun simulateZkpRequestJson(context: Context, viewModel: WalletViewModel) {
+    val payload = ZkpExamRequestPayload(
+        requestId = viewModel.getTransactionId().toString(),
+        examType = "X-Ray",
+        conditions = listOf(
+            ConditionRequirement("not_pregnant"),
+            ConditionRequirement("no_implants")
+        ),
+        issuer = "RadiologyCenter123"
+    )
+
+    val json = Json.encodeToString(ZkpExamRequestPayload.serializer(), payload)
+    viewModel.handleZkpRequestJson(json)
+}
+
 
