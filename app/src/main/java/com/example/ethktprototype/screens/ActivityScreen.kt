@@ -59,6 +59,7 @@ import androidx.lifecycle.viewModelScope
 import com.example.ethktprototype.simulateTransactionReceived
 import kotlinx.coroutines.launch
 import androidx.compose.material3.CircularProgressIndicator
+import com.example.ethktprototype.data.ConditionRequirement
 
 /**
  * ActivityScreen is a Composable function that displays the activity screen of the wallet application.
@@ -181,24 +182,6 @@ fun ActivityScreen(
                     }
                 }
 
-                Spacer(modifier = Modifier.height(2.dp))
-
-                /*Button(
-                    onClick = {
-                        viewModel.viewModelScope.launch {
-                            viewModel.callMedSkyContract()
-                        }
-                    },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(8.dp)
-                        .background(MaterialTheme.colorScheme.primary, shape = RoundedCornerShape(8.dp)),
-                    shape = RoundedCornerShape(8.dp)
-                ) {
-                    Text("Call contract")
-                }
-                Spacer(modifier = Modifier.height(2.dp))*/
-
                 Button(
                     onClick = {
                         viewModel.viewModelScope.launch {
@@ -213,6 +196,34 @@ fun ActivityScreen(
                 ) {
                     Text("Simulate New Transaction")
                 }
+
+                Button(onClick = {
+                    viewModel.viewModelScope.launch {
+                        val mockRequest = Transaction(
+                            id = viewModel.getTransactionId().toString(),
+                            date = viewModel.getCurrentDate(),
+                            status = "pending",
+                            recordId = "999",
+                            practitionerId = "0xd0c4753de208449772e0a7e43f7ecda79df32bc7",
+                            type = "X-Ray",
+                            patientId = viewModel.uiState.value.walletAddress,
+                            conditions = listOf(
+                                ConditionRequirement("not_pregnant"),
+                                ConditionRequirement("no_implants")
+                            )
+                        )
+                        viewModel.addTransaction(mockRequest)
+                    }
+                },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(8.dp)
+                        .background(MaterialTheme.colorScheme.primary, shape = RoundedCornerShape(8.dp)),
+                    shape = RoundedCornerShape(8.dp)
+                ) {
+                    Text("Simulate ZKP Request")
+                }
+
                 Divider(color = Color.Gray, thickness = 1.dp)
                 Spacer(modifier = Modifier.height(8.dp))
 
@@ -343,11 +354,20 @@ fun TransactionItem(transaction: Transaction, navController: NavHostController) 
                 modifier = Modifier.weight(1f)
             ) {
                 Spacer(modifier = Modifier.height(8.dp))
-                Text(
-                    text = "Request to access ${transaction.type}",
-                    style = MaterialTheme.typography.bodyLarge,
-                    fontWeight = FontWeight.Bold
-                )
+                if (!transaction.conditions.isNullOrEmpty()) {
+                    Text(
+                        text = "Requested proof for ${transaction.type}",
+                        style = MaterialTheme.typography.bodyLarge,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+                else {
+                    Text(
+                        text = "Request to access ${transaction.type}",
+                        style = MaterialTheme.typography.bodyLarge,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
                 Spacer(modifier = Modifier.height(8.dp))
                 Text(
                     text = "Date: ${transaction.date}",

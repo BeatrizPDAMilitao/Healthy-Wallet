@@ -135,12 +135,23 @@ fun TransactionScreen(
                         .background(MaterialTheme.colorScheme.surface, shape = RoundedCornerShape(8.dp))
                         .padding(16.dp)
                 ) {
-                    Text(
-                        text = "Practitioner ${transaction.value!!.practitionerId} requested access to your ${transaction.value!!.type}",
-                        style = MaterialTheme.typography.bodyLarge,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onSurface
-                    )
+                    if (!transaction.value!!.conditions.isNullOrEmpty()) {
+                        Text(
+                            text = "Practitioner ${transaction.value!!.practitionerId} requested proof for ${transaction.value!!.type}",
+                            style = MaterialTheme.typography.bodyLarge,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                    }
+                    else {
+                        Text(
+                            text = "Practitioner ${transaction.value!!.practitionerId} requested access to your ${transaction.value!!.type}",
+                            style = MaterialTheme.typography.bodyLarge,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                    }
+
                     Spacer(modifier = Modifier.height(8.dp))
                     Text(
                         text = "Transaction ID: ${transaction.value!!.id}",
@@ -189,8 +200,29 @@ fun TransactionScreen(
                             else -> MaterialTheme.colorScheme.onSurface
                         }
                     )
+                    Log.d("ZKP", "Conditions: ${transaction.value!!.conditions}")
+                    if (!transaction.value!!.conditions.isNullOrEmpty()) {
+                        Spacer(modifier = Modifier.height(16.dp))
+                        Text("ZKP Required for:")
+                        transaction.value!!.conditions!!.forEach {
+                            Text("- ${it.type}")
+                        }
 
-                    if (transaction.value!!.status == "pending") {
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Button(onClick = {
+                            // TODO: Eventually call ZKP prover here
+                            Log.d("ZKP", "Simulating ZKP proof generation...")
+                        },
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(8.dp)
+                                .background(MaterialTheme.colorScheme.primary, shape = RoundedCornerShape(8.dp)),
+                            shape = RoundedCornerShape(8.dp)
+                        ) {
+                            Text("Generate ZKP Proof")
+                        }
+                    }
+                    else if (transaction.value!!.status == "pending") {
                         Spacer(modifier = Modifier.height(16.dp))
                         Row {
                             Button(
@@ -198,7 +230,7 @@ fun TransactionScreen(
                                     // Handle accept
                                     transaction.let { transaction ->
                                         val recordId =
-                                            transaction.value!!.id // Supondo que o ID da transação seja o recordId
+                                            transaction.value!!.recordId// Supondo que o ID da transação seja o recordId
                                         val requester = transaction.value!!.practitionerId
                                         viewModel.callAcceptContract(recordId, requester)
                                     }
@@ -214,7 +246,7 @@ fun TransactionScreen(
                                     // Handle deny
                                     transaction.let { transaction ->
                                         val recordId =
-                                            transaction.value!!.id // Supondo que o ID da transação seja o recordId
+                                            transaction.value!!.recordId // Supondo que o ID da transação seja o recordId
                                         val requester = transaction.value!!.practitionerId
                                         viewModel.callDenyContract(recordId, requester)
                                     }

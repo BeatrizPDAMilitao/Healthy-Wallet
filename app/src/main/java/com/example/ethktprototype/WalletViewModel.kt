@@ -6,9 +6,11 @@ import android.util.Log
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.ethktprototype.data.AppDatabase
+import com.example.ethktprototype.data.Converters
 import com.example.ethktprototype.data.TokenBalance
 import com.example.ethktprototype.data.Transaction
 import com.example.ethktprototype.data.TransactionEntity
+import com.example.ethktprototype.data.ZkpExamRequestPayload
 import com.example.ethktprototype.data.toTransaction
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -17,6 +19,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import kotlinx.serialization.json.Json
 import utils.addressToEnsResolver
 import utils.ensResolver
 import utils.loadBip44Credentials
@@ -181,10 +184,11 @@ class WalletViewModel(application: Application) : AndroidViewModel(application) 
 
 
                         val transaction = TransactionEntity(
-                            id = log.id,
+                            id = getTransactionId().toString(),
                             date = date,
                             status = log.status,
                             type = log.type,
+                            recordId = log.recordId,
                             patientId = log.patientId,
                             practitionerId = log.practitionerId,
                             documentReferenceId = "", // Placeholder if unknown
@@ -597,9 +601,10 @@ class WalletViewModel(application: Application) : AndroidViewModel(application) 
      */
     suspend fun onNotificationReceived(context: Context, id: String) {
         var newTransaction = Transaction(
-            id = getTransactionId().toString(),
+            id = id,
             date = getCurrentDate(),
             status = "pending",
+            recordId = id,
             practitionerId = "0xd0c4753de208449772e0a7e43f7ecda79df32bc7",
             type = "Head CT",
             patientId = uiState.value.walletAddress
@@ -639,6 +644,24 @@ class WalletViewModel(application: Application) : AndroidViewModel(application) 
             }
         }
     }
+
+    suspend fun handleZkpRequestJson(json: String) {
+        val payload = Json.decodeFromString<ZkpExamRequestPayload>(json)
+
+        val transaction = Transaction(
+            id = getTransactionId().toString(),
+            date = getCurrentDate(),
+            status = "pending",
+            recordId = payload.requestId,
+            practitionerId = payload.issuer, // or other value if needed
+            type = payload.examType,
+            patientId = uiState.value.walletAddress,
+            conditions = payload.conditions
+        )
+
+        addTransaction(transaction)
+    }
+
 
     /**
      * Gets the current date in the format "yyyy-MM-dd".
@@ -698,13 +721,15 @@ class WalletViewModel(application: Application) : AndroidViewModel(application) 
             date = transaction.date,
             status = transaction.status,
             type = transaction.type,
+            recordId = transaction.recordId,
             patientId = transaction.patientId,
             practitionerId = transaction.practitionerId,
             documentReferenceId = "",
             medicationRequestId = "",
             conditionId = "",
             encounterId = "",
-            observationId = ""
+            observationId = "",
+            conditionsJson = Converters.fromConditionsList(transaction.conditions)
         )
         viewModelScope.launch {
             if (transactionDao.transactionExists(transaction.id) == 0) {
@@ -728,22 +753,6 @@ class WalletViewModel(application: Application) : AndroidViewModel(application) 
         //val updatedTransactions = uiState.value.transactions + transactions
         //updateUiState { it.copy(transactions = updatedTransactions) }
         transactions.forEach { addTransaction(it) }
-    }
-
-    /**
-     * Adds sample transactions to the UI state for testing purposes.
-     */
-    fun addSampleTransactions() {
-        val sampleTransactions = listOf(
-            Transaction(id = "122", date = "2023-10-01", status = "accepted", practitionerId = "123", type = "MRI", patientId = "456"),
-            Transaction(id = "222", date = "2023-10-02", status = "pending", practitionerId = "456", type = "X-Ray", patientId = "456"),
-            Transaction(id = "322", date = "2023-10-03", status = "denied", practitionerId = "789", type = "Blood Test", patientId = "456"),
-        )
-        viewModelScope.launch {
-            sampleTransactions.forEach { transaction ->
-                addTransaction(transaction)
-            }
-        }
     }
 
     /**

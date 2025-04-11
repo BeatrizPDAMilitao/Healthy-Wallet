@@ -609,9 +609,10 @@ class WalletRepository(private val application: Application) : IWalletRepository
                 return previewLogs.map { log ->
                     val status = if (log.status.toString() == "0") "pending" else if (log.status.toString() == "1") "accepted" else "denied"
                     com.example.ethktprototype.data.Transaction(
-                        id = log.recordId,
+                        id = "",
                         date = log.timestamp.toString(),
                         status = status,
+                        recordId = log.recordId,
                         practitionerId = log.doctor,
                         type = log.recordType,
                         patientId = log.patient
@@ -648,7 +649,7 @@ class WalletRepository(private val application: Application) : IWalletRepository
         val hexValue = Numeric.toHexString(signedMessage)
 
         val transactionResponse = web3jService.ethSendRawTransaction(hexValue).send()
-
+        Log.d("SyncedLog", "Sent tx: ${transactionResponse.transactionHash}")
         if (transactionResponse.hasError()) {
             throw RuntimeException("Transaction failed: ${transactionResponse.error.message}")
         }
