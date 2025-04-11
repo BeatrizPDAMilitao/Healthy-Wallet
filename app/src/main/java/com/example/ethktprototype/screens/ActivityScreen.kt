@@ -58,6 +58,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.viewModelScope
 import com.example.ethktprototype.simulateTransactionReceived
 import kotlinx.coroutines.launch
+import androidx.compose.material3.CircularProgressIndicator
 
 /**
  * ActivityScreen is a Composable function that displays the activity screen of the wallet application.
@@ -163,11 +164,21 @@ fun ActivityScreen(
                     },
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(8.dp)
-                        .background(MaterialTheme.colorScheme.primary, shape = RoundedCornerShape(8.dp)),
+                        .padding(8.dp),
                     shape = RoundedCornerShape(8.dp)
                 ) {
-                    Text("Sync Transactions")
+                    if (uiState.isTransactionProcessing) {
+                        CircularProgressIndicator(
+                            modifier = Modifier
+                                .size(20.dp)
+                                .padding(end = 8.dp),
+                            strokeWidth = 2.dp,
+                            color = MaterialTheme.colorScheme.onPrimary
+                        )
+                        Text("Syncing…")
+                    } else {
+                        Text("Sync Transactions")
+                    }
                 }
 
                 Spacer(modifier = Modifier.height(2.dp))
@@ -208,7 +219,7 @@ fun ActivityScreen(
                 LazyColumn(
                     modifier = Modifier.fillMaxSize()
                 ) {
-                    items(viewModel.getTransactions()) { transaction ->
+                    items(viewModel.getTransactions().reversed()) { transaction ->
                         TransactionItem(transaction, navController)
                         Spacer(modifier = Modifier.height(6.dp))
                     }

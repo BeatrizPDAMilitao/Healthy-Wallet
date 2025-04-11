@@ -162,6 +162,7 @@ class WalletViewModel(application: Application) : AndroidViewModel(application) 
     fun syncTransactionWithHealthyContract() {
         val mnemonic = getMnemonic()
         viewModelScope.launch {
+            setTransactionProcessing(true)
             try {
                 if (!mnemonic.isNullOrEmpty()) {
                     val credentials = loadBip44Credentials(mnemonic)
@@ -175,13 +176,12 @@ class WalletViewModel(application: Application) : AndroidViewModel(application) 
                     }
                     Log.d("SyncedLog", "Logs=${logs.size}")
                     logs.forEach { log ->
-                        val transactionId = log.date.toString() + "-" + log.practitionerId.takeLast(6)
                         val date = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date(log.date.toLong() * 1000))
                         Log.d("SyncedLog", "Doctor=${log.practitionerId}, Patient=${log.patientId}, Type=${log.type}, Timestamp=${log.date}")
 
 
                         val transaction = TransactionEntity(
-                            id = transactionId,
+                            id = log.id,
                             date = date,
                             status = log.status,
                             type = log.type,
@@ -208,6 +208,7 @@ class WalletViewModel(application: Application) : AndroidViewModel(application) 
                 Log.e("SyncedLog", "Sync failed: ${e.message}", e)
                 _uiState.value = _uiState.value.copy(showSyncErrorDialog = true)
             }
+            setTransactionProcessing(false)
         }
     }
 
@@ -594,7 +595,7 @@ class WalletViewModel(application: Application) : AndroidViewModel(application) 
      *
      * @param transaction The transaction associated with the notification.
      */
-    suspend fun onNotificationReceived() {
+    suspend fun onNotificationReceived(context: Context, id: String) {
         var newTransaction = Transaction(
             id = getTransactionId().toString(),
             date = getCurrentDate(),
@@ -625,6 +626,7 @@ class WalletViewModel(application: Application) : AndroidViewModel(application) 
                             )
                         }
                         addTransaction(newTransaction)
+                        sendNotification(context, this@WalletViewModel, "New Transaction", "You have a new transaction pending. With ID: $id", id)
                     } catch (e: Exception) {
                         // Handle errors
                         Log.e("RequestAccess", "Exception caught", e)
@@ -696,7 +698,7 @@ class WalletViewModel(application: Application) : AndroidViewModel(application) 
             date = transaction.date,
             status = transaction.status,
             type = transaction.type,
-            patientId = "",
+            patientId = transaction.patientId,
             practitionerId = transaction.practitionerId,
             documentReferenceId = "",
             medicationRequestId = "",

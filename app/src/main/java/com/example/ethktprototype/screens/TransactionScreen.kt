@@ -161,6 +161,19 @@ fun TransactionScreen(
                     )
                     Spacer(modifier = Modifier.height(8.dp))
                     Text(
+                        text = "Patient ID: ${transaction.value!!.patientId}",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                    if (transaction.value!!.patientId == uiState.walletAddress) {
+                        Text(
+                            text = "You are the patient",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                    }
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
                         text = "Type: ${transaction.value!!.type}",
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurface

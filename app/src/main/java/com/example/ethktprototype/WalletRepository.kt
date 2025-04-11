@@ -400,7 +400,7 @@ class WalletRepository(private val application: Application) : IWalletRepository
     private lateinit var medskyContract: MedskyContract
 
     private val healthyWalletAdressOld = "0x9A8ea6736DF00Af70D1cD70b1Daf3619C8c0D7F4"
-    private val healthyWalletAdress = "0xF443c9B544E4020777cf751E344C34754e1A0F40" //"0x6410E8e6321f46B7A34B9Ea9649a4c84563d8045"
+    private val healthyWalletAdress = "0x3069FD69c7C178414de9b1761084c984B4d9A5ba" //"0x6410E8e6321f46B7A34B9Ea9649a4c84563d8045"
     private lateinit var healthyContract: MedicalRecordAccess2
 
     val web3jService = Web3jService.build(selectedNetwork.value)
@@ -450,148 +450,6 @@ class WalletRepository(private val application: Application) : IWalletRepository
         return healthyContract.logAccess(doctor, address patient, string recordId, string recordType).send()
     }*/
 
-    // Approve access to a record
-    suspend fun approveAccess(recordId: String, requester: String): TransactionReceipt {
-        return healthyContract.approveAccess(recordId, requester).send()
-    }
-
-    // Deny access to a record
-    suspend fun denyAccess(recordId: String, requester: String, credentials: Credentials): TransactionReceipt {
-        val nonce = web3jService.ethGetTransactionCount(credentials.address, DefaultBlockParameterName.LATEST).send().transactionCount
-        val gasPrice = web3jService.ethGasPrice().send().gasPrice
-        val gasLimit = BigInteger.valueOf(3000000) // Ajuste conforme necessário
-
-        val function = Function(
-            "denyAccess",
-            listOf(Address(recordId), Address(requester)),
-            emptyList()
-        )
-        val encodedFunction = FunctionEncoder.encode(function)
-
-        val rawTransaction = RawTransaction.createTransaction(
-            nonce,
-            gasPrice,
-            gasLimit,
-            healthyWalletAdress,
-            encodedFunction
-        )
-
-        val signedMessage = TransactionEncoder.signMessage(rawTransaction, selectedNetwork.value.chainId, credentials)
-        val hexValue = Numeric.toHexString(signedMessage)
-
-        val transactionResponse = web3jService.ethSendRawTransaction(hexValue).send()
-
-        if (transactionResponse.hasError()) {
-            throw RuntimeException("Transaction failed: ${transactionResponse.error.message}")
-        }
-
-        // Tentar obter o recibo da transação várias vezes
-        repeat(10) {
-            val receipt = web3jService.ethGetTransactionReceipt(transactionResponse.transactionHash).send().transactionReceipt
-            if (receipt.isPresent) {
-                return receipt.get()
-            }
-            // Esperar um pouco antes de tentar novamente
-            delay(1000)
-        }
-
-        throw RuntimeException("Transaction receipt not generated after sending transaction")
-    }
-
-    suspend fun acceptAccess(recordId: String, requester: String, credentials: Credentials): TransactionReceipt {
-        val nonce = web3jService.ethGetTransactionCount(credentials.address, DefaultBlockParameterName.LATEST).send().transactionCount
-        val gasPrice = web3jService.ethGasPrice().send().gasPrice
-        val gasLimit = BigInteger.valueOf(3000000) // Ajuste conforme necessário
-
-        val function = Function(
-            "approveAccess",
-            listOf(Address(recordId), Address(requester)),
-            emptyList()
-        )
-        val encodedFunction = FunctionEncoder.encode(function)
-
-        val rawTransaction = RawTransaction.createTransaction(
-            nonce,
-            gasPrice,
-            gasLimit,
-            healthyWalletAdress,
-            encodedFunction
-        )
-
-        val signedMessage = TransactionEncoder.signMessage(rawTransaction, selectedNetwork.value.chainId, credentials)
-        val hexValue = Numeric.toHexString(signedMessage)
-
-        val transactionResponse = web3jService.ethSendRawTransaction(hexValue).send()
-
-        if (transactionResponse.hasError()) {
-            throw RuntimeException("Transaction failed: ${transactionResponse.error.message}")
-        }
-
-        // Tentar obter o recibo da transação várias vezes
-        repeat(10) {
-            val receipt = web3jService.ethGetTransactionReceipt(transactionResponse.transactionHash).send().transactionReceipt
-            if (receipt.isPresent) {
-                return receipt.get()
-            }
-            // Esperar um pouco antes de tentar novamente
-            delay(1000)
-        }
-
-        throw RuntimeException("Transaction receipt not generated after sending transaction")
-    }
-
-    suspend fun syncTransactionWithHealthyContract(credentials: Credentials): List<MedicalRecordAccess.RecordAccessedEventResponse> {
-        val previewLogs = healthyContract.previewNextAccessLogs().send() as List<MedicalRecordAccess.MedicalAccessLog>
-
-        if (previewLogs.isEmpty()) {
-            return emptyList()
-        }
-
-        val nonce = web3jService.ethGetTransactionCount(credentials.address, DefaultBlockParameterName.LATEST).send().transactionCount
-        val gasPrice = web3jService.ethGasPrice().send().gasPrice
-        val gasLimit = BigInteger.valueOf(3000000)
-
-        val function = Function("getNextAccessLogs", emptyList(), emptyList())
-        val encodedFunction = FunctionEncoder.encode(function)
-
-        val rawTransaction = RawTransaction.createTransaction(
-            nonce,
-            gasPrice,
-            gasLimit,
-            healthyWalletAdress,
-            encodedFunction
-        )
-
-        val signedMessage = TransactionEncoder.signMessage(rawTransaction, selectedNetwork.value.chainId, credentials)
-        val hexValue = Numeric.toHexString(signedMessage)
-
-        val transactionResponse = web3jService.ethSendRawTransaction(hexValue).send()
-
-        if (transactionResponse.hasError()) {
-            throw RuntimeException("Transaction failed: ${transactionResponse.error.message}")
-        }
-
-        val txHash = transactionResponse.transactionHash
-
-        // Poll for the transaction receipt
-        repeat(10) {
-            val receiptResp = web3jService.ethGetTransactionReceipt(txHash).send()
-            if (receiptResp.transactionReceipt.isPresent) {
-                return previewLogs.map { log ->
-                    MedicalRecordAccess.RecordAccessedEventResponse().apply {
-                        this.doctor = log.doctor
-                        this.patient = log.patient
-                        this.recordType = log.recordType
-                        this.timestamp = log.timestamp
-                    }
-                }
-            }
-            delay(1000)
-        }
-
-        throw RuntimeException("Transaction receipt not generated after sending transaction")
-    }
-
     // Reset the sync pointer (e.g. for testing)
     suspend fun resetSyncPointer(): TransactionReceipt {
         return healthyContract.resetSyncPointer().send()
@@ -636,6 +494,10 @@ class WalletRepository(private val application: Application) : IWalletRepository
         while (System.currentTimeMillis() - start < maxWaitMs) {
             val receipt = web3jService.ethGetTransactionReceipt(transactionResponse.transactionHash).send().transactionReceipt
             if (receipt.isPresent) {
+                if (receipt.get().status == "0x0") {
+                    Log.e("TxStatus", "Transaction reverted")
+                    throw RuntimeException("Transaction reverted")
+                }
                 return receipt.get()
             }
             // Esperar um pouco antes de tentar novamente
@@ -649,7 +511,8 @@ class WalletRepository(private val application: Application) : IWalletRepository
         val nonce = web3jService.ethGetTransactionCount(credentials.address, DefaultBlockParameterName.LATEST).send().transactionCount
         val gasPrice = web3jService.ethGasPrice().send().gasPrice
         val gasLimit = BigInteger.valueOf(3000000) // Ajuste conforme necessário
-
+        val request = healthyContract.getAccessRequest(requester, recordId).send()
+        Log.d("AcceptContract","doctor = $requester, recordId = $recordId, patient = ${request.patient}")
         val function = Function(
             "approveAccess",
             listOf(Address(requester), org.web3j.abi.datatypes.Utf8String(recordId)),
@@ -682,6 +545,10 @@ class WalletRepository(private val application: Application) : IWalletRepository
         while (System.currentTimeMillis() - start < maxWaitMs) {
             val receipt = web3jService.ethGetTransactionReceipt(transactionResponse.transactionHash).send().transactionReceipt
             if (receipt.isPresent) {
+                if (receipt.get().status == "0x0") {
+                    Log.e("TxStatus", "Transaction reverted")
+                    throw RuntimeException("Transaction reverted")
+                }
                 return receipt.get()
             }
             // Esperar um pouco antes de tentar novamente
@@ -734,10 +601,15 @@ class WalletRepository(private val application: Application) : IWalletRepository
         while (System.currentTimeMillis() - start < maxWaitMs) {
             val receiptResp = web3jService.ethGetTransactionReceipt(txHash).send()
             if (receiptResp.transactionReceipt.isPresent) {
+                val receipt = receiptResp.transactionReceipt.get()
+                if (receipt.status == "0x0") {
+                    Log.e("TxStatus", "Transaction reverted")
+                    throw RuntimeException("Transaction reverted")
+                }
                 return previewLogs.map { log ->
                     val status = if (log.status.toString() == "0") "pending" else if (log.status.toString() == "1") "accepted" else "denied"
                     com.example.ethktprototype.data.Transaction(
-                        id = log.doctor,
+                        id = log.recordId,
                         date = log.timestamp.toString(),
                         status = status,
                         practitionerId = log.doctor,
@@ -787,6 +659,10 @@ class WalletRepository(private val application: Application) : IWalletRepository
         while (System.currentTimeMillis() - start < maxWaitMs) {
             val receipt = web3jService.ethGetTransactionReceipt(transactionResponse.transactionHash).send().transactionReceipt
             if (receipt.isPresent) {
+                if (receipt.get().status == "0x0") {
+                    Log.e("TxStatus", "Transaction reverted")
+                    throw RuntimeException("Transaction reverted")
+                }
                 return receipt.get()
             }
             // Esperar um pouco antes de tentar novamente

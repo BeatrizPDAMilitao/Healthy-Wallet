@@ -19,7 +19,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 
 
-fun sendNotification(context: Context, viewModel: WalletViewModel, title: String, message: String, requestPermissionLauncher: ActivityResultLauncher<String>) {
+/*fun sendNotification(context: Context, viewModel: WalletViewModel, title: String, message: String, requestPermissionLauncher: ActivityResultLauncher<String>) {
     if (ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED) {
         val channelId = "transaction_channel"
         val channelName = "Transaction Notifications"
@@ -41,7 +41,7 @@ fun sendNotification(context: Context, viewModel: WalletViewModel, title: String
     } else {
         requestPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
     }
-}
+}*/
 
 /**
  * This function sends a notification to the user when a new transaction is received.
@@ -95,8 +95,7 @@ suspend fun simulateTransactionReceived(context: Context, viewModel: WalletViewM
     Log.d("ViewModel", "Before: $viewModel")
     val id = viewModel.getTransactionId().toString()
     CoroutineScope(Dispatchers.Main).launch {
-        viewModel.onNotificationReceived() //Modifies the viewModel state, so needs to be called first
-        sendNotification(context, viewModel, "New Transaction", "You have a new transaction pending. With ID: $id", id)
+        viewModel.onNotificationReceived(context, id) //Modifies the viewModel state, so needs to be called first
     }
 }
 
