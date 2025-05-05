@@ -1,6 +1,8 @@
 package com.example.ethktprototype
 
 import com.example.ethktprototype.data.NftValue
+import com.example.ethktprototype.data.PatientEntity
+import com.example.ethktprototype.data.PractitionerEntity
 import com.example.ethktprototype.data.TokenBalance
 import com.example.ethktprototype.data.Transaction
 
@@ -34,4 +36,7 @@ data class WalletUiState(
     val showSyncSuccessDialog: Boolean = false,
     val showSyncErrorDialog: Boolean = false,
     var isTransactionProcessing: Boolean = false,
+    var showDataDialog: Boolean = false,
+    var patientData: PatientEntity? = null,
+    var practitionerData: PractitionerEntity? = null,
     )

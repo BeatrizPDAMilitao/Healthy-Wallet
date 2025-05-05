@@ -2,7 +2,6 @@ package com.example.ethktprototype.screens
 
 import android.util.Log
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -16,7 +15,6 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBars
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.foundation.lazy.LazyColumn
@@ -50,7 +48,6 @@ import androidx.compose.ui.unit.sp
 import androidx.navigation.NavHostController
 import com.example.ethktprototype.WalletViewModel
 import com.example.ethktprototype.composables.ReceiveBottomSheet
-import com.example.ethktprototype.composables.SuccessDialogModal
 import java.text.DecimalFormat
 import androidx.compose.ui.graphics.Color
 import com.example.ethktprototype.data.Transaction
@@ -206,6 +203,7 @@ fun ActivityScreen(
                             status = "pending",
                             recordId = "999",
                             practitionerId = "0xd0c4753de208449772e0a7e43f7ecda79df32bc7",
+                            practitionerAddress = viewModel.uiState.value.walletAddress,
                             type = "X-Ray",
                             patientId = viewModel.uiState.value.walletAddress,
                             conditions = listOf(
@@ -335,6 +333,30 @@ fun ActivityScreen(
             text = { Text("An error occurred while doing sync.") },
             confirmButton = {
                 Button(onClick = { viewModel.setShowSyncErrorDialog(false) }) {
+                    Text("OK")
+                }
+            },
+            containerColor = MaterialTheme.colorScheme.background,
+        )
+    }
+
+    if (uiState.showDataDialog) {
+        AlertDialog(
+            onDismissRequest = { viewModel.setShowDataDialog(false) },
+            title = { Text("Data") },
+            text = {
+                Column {
+                    Text("ID: ${uiState.patientData?.id}")
+                    Text("Name: ${uiState.patientData?.name}")
+                    Text("Birth Date: ${uiState.patientData?.birthDate}")
+                    Text("Gender: ${uiState.patientData?.gender}")
+                }
+            },
+            confirmButton = {
+                Button(onClick = {
+                    viewModel.setShowDataDialog(false)
+                    viewModel.setPatientData(null)
+                }) {
                     Text("OK")
                 }
             },

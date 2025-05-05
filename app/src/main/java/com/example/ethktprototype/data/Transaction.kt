@@ -14,6 +14,7 @@ data class TransactionEntity(
     val recordId: String,
     val patientId: String,
     val practitionerId: String,
+    val practitionerAddress: String,
     val documentReferenceId: String,
     val medicationRequestId: String,
     val conditionId: String,
@@ -25,5 +26,5 @@ data class TransactionEntity(
 fun TransactionEntity.toTransaction(): Transaction {
     val conditions = conditionsJson?.let { Converters.toConditionsList(it) }
     return Transaction(id = this.id, date = this.date, status = this.status, recordId = this.recordId,
-        practitionerId = this.practitionerId, type = this.type, patientId = this.patientId, conditions = conditions)
+        practitionerId = this.practitionerId, practitionerAddress = this.practitionerAddress, type = this.type, patientId = this.patientId, conditions = conditions)
 }

@@ -23,6 +23,7 @@ import androidx.compose.material.AlertDialog
 import androidx.compose.material.BottomNavigation
 import androidx.compose.material.BottomNavigationItem
 import androidx.compose.material.CircularProgressIndicator
+import androidx.compose.material.TextButton
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.Settings
@@ -165,24 +166,31 @@ fun TransactionScreen(
                         color = MaterialTheme.colorScheme.onSurface
                     )
                     Spacer(modifier = Modifier.height(8.dp))
-                    Text(
-                        text = "Practitioner ID: ${transaction.value!!.practitionerId}",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurface
-                    )
+                    TextButton(
+                        onClick = {
+                            viewModel.getPractitionerData(transaction.value!!.practitionerId);
+                            viewModel.setShowDataDialog(true)
+                        },
+                    ) {
+                        Text(
+                            text = "Practitioner ID: ${transaction.value!!.practitionerId}",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                    }
                     Spacer(modifier = Modifier.height(8.dp))
                     Text(
                         text = "Patient ID: ${transaction.value!!.patientId}",
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurface
                     )
-                    if (transaction.value!!.patientId == uiState.walletAddress) {
+                    /*if (transaction.value!!.practitionerAddress == uiState.walletAddress) {
                         Text(
                             text = "You are the patient",
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onSurface
                         )
-                    }
+                    }*/
                     Spacer(modifier = Modifier.height(8.dp))
                     Text(
                         text = "Type: ${transaction.value!!.type}",
@@ -231,7 +239,7 @@ fun TransactionScreen(
                                     transaction.let { transaction ->
                                         val recordId =
                                             transaction.value!!.recordId// Supondo que o ID da transação seja o recordId
-                                        val requester = transaction.value!!.practitionerId
+                                        val requester = transaction.value!!.practitionerAddress
                                         viewModel.callAcceptContract(recordId, requester)
                                     }
                                 },
@@ -247,7 +255,7 @@ fun TransactionScreen(
                                     transaction.let { transaction ->
                                         val recordId =
                                             transaction.value!!.recordId // Supondo que o ID da transação seja o recordId
-                                        val requester = transaction.value!!.practitionerId
+                                        val requester = transaction.value!!.practitionerAddress
                                         viewModel.callDenyContract(recordId, requester)
                                     }
                                 },
@@ -304,6 +312,26 @@ fun TransactionScreen(
                 },
                 confirmButton = {
                     Button(onClick = { viewModel.setShowDenyDialog(false) }) {
+                        Text("OK")
+                    }
+                },
+                backgroundColor = MaterialTheme.colorScheme.background,
+            )
+        }
+        if (uiState.showDataDialog) {
+            // Show the data dialog
+            AlertDialog(
+                onDismissRequest = { viewModel.setShowDataDialog(false) },
+                title = { Text("Practitioner Data") },
+                text = {
+                    Column {
+                        Text("Practitioner ID: ${uiState.practitionerData?.id}")
+                        Text("Name: ${uiState.practitionerData?.name}")
+                        Text("Telecom: ${uiState.practitionerData?.telecom}")
+                    }
+                },
+                confirmButton = {
+                    Button(onClick = { viewModel.setShowDataDialog(false) }) {
                         Text("OK")
                     }
                 },

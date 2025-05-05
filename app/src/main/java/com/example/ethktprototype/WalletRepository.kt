@@ -9,14 +9,11 @@ import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.mutableStateOf
 import androidx.core.content.edit
 import androidx.lifecycle.MutableLiveData
-import com.example.ethktprototype.contracts.MedicalRecordAccess
-import com.example.ethktprototype.contracts.MedicalRecordAccess2
 import com.example.ethktprototype.contracts.MedskyContract
 import com.example.ethktprototype.data.GraphQLData
 import com.example.ethktprototype.data.GraphQLQueries
 import com.example.ethktprototype.data.GraphQLResponse
 import com.example.ethktprototype.data.NftValue
-import com.example.ethktprototype.data.PortfolioData
 import com.example.ethktprototype.data.TokenBalance
 //import io.sentry.Sentry
 import kotlinx.coroutines.Dispatchers
@@ -49,7 +46,11 @@ import java.net.URL
 import kotlinx.coroutines.delay
 import com.apollographql.apollo.ApolloClient
 import com.apollographql.apollo.exception.ApolloHttpException
+import com.example.ethktprototype.contracts.MedicalRecordAccess2
+import com.example.ethktprototype.data.PatientEntity
+import com.example.ethktprototype.data.PractitionerEntity
 import com.example.medplum.GetPatientQuery
+import com.example.medplum.GetPractitionerQuery
 
 
 object JsonUtils {
@@ -412,27 +413,78 @@ class WalletRepository(private val application: Application) : IWalletRepository
 
     private lateinit var apolloClient: ApolloClient
 
-    suspend fun fetchPatient(){
-        try {
+    suspend fun fetchPatient(): PatientEntity? {
+        return try {
             val response = apolloClient.query(GetPatientQuery("01968b59-76f3-7228-aea9-07db748ee2ca")).execute()
             Log.d("MedPlum", "GraphQL response: $response")
 
             if (response.hasErrors()) {
                 Log.e("MedPlum", "GraphQL errors: ${response.errors}")
+                return null
             }
 
-            val patient = response.data?.Patient
-            Log.d("MedPlum", "Patient name: ${patient?.name?.firstOrNull()?.given}")
+            val patient = response.data?.Patient ?: return null
+
+            val given = patient.name?.firstOrNull()?.given?.firstOrNull() ?: ""
+            val family = patient.name?.firstOrNull()?.family ?: ""
+            val name = "$given $family".trim()
+
+            return PatientEntity(
+                id = patient.id ?: "unknown",
+                name = name,
+                birthDate = patient.birthDate ?: "unknown",
+                gender = patient.gender ?: "unknown",
+                identifier = "", // not returned in this query yet
+                address = ""     // not returned in this query yet
+            )
 
         } catch (e: ApolloHttpException) {
             Log.e("MedPlum", "HTTP error ${e.statusCode}: ${e.message}", e)
-            val errorBody = e.body?.use { it: okio.BufferedSource -> it.readUtf8() }
+            val errorBody = e.body?.use { it.readUtf8() }
             Log.e("MedPlum", "Error body: $errorBody")
+            null
         } catch (e: Exception) {
             Log.e("MedPlum", "Unexpected error", e)
+            null
         }
-
     }
+
+    suspend fun fetchPractitioner(practitionerId: String): PractitionerEntity? {
+        return try {
+            val response = apolloClient.query(GetPractitionerQuery(practitionerId)).execute()
+            Log.d("MedPlum", "GraphQL response: $response")
+
+            if (response.hasErrors()) {
+                Log.e("MedPlum", "GraphQL errors: ${response.errors}")
+                return null
+            }
+
+            val practitioner = response.data?.Practitioner ?: return null
+
+            val given = practitioner.name?.firstOrNull()?.given?.firstOrNull() ?: ""
+            val family = practitioner.name?.firstOrNull()?.family ?: ""
+            val name = "$given $family".trim()
+
+            return PractitionerEntity(
+                id = practitioner.id ?: "unknown",
+                name = name,
+                //gender = practitioner.gender ?: "unknown",
+                //identifier = "", // not returned in this query yet
+                telecom = "", // not returned in this query yet
+                address = ""     // not returned in this query yet
+            )
+
+        } catch (e: ApolloHttpException) {
+            Log.e("MedPlum", "HTTP error ${e.statusCode}: ${e.message}", e)
+            val errorBody = e.body?.use { it.readUtf8() }
+            Log.e("MedPlum", "Error body: $errorBody")
+            null
+        } catch (e: Exception) {
+            Log.e("MedPlum", "Unexpected error", e)
+            null
+        }
+    }
+
 
     suspend fun getMedplumAccessToken(
         clientId: String,
@@ -484,7 +536,7 @@ class WalletRepository(private val application: Application) : IWalletRepository
     private lateinit var medskyContract: MedskyContract
 
     private val healthyWalletAdressOld = "0x9A8ea6736DF00Af70D1cD70b1Daf3619C8c0D7F4"
-    private val healthyWalletAdress = "0x3069FD69c7C178414de9b1761084c984B4d9A5ba" //"0x6410E8e6321f46B7A34B9Ea9649a4c84563d8045"
+    private val healthyWalletAdress = "0x503Adf07dE6a7B1C23F793aa6b422A0C59Fa219e" //"0x6410E8e6321f46B7A34B9Ea9649a4c84563d8045"
     private lateinit var healthyContract: MedicalRecordAccess2
 
     val web3jService = Web3jService.build(selectedNetwork.value)
@@ -520,14 +572,14 @@ class WalletRepository(private val application: Application) : IWalletRepository
     }
 
     // Fetch next 3 logs (sync batch)
-    suspend fun getNextAccessLogs(): TransactionReceipt {
+    /*suspend fun getNextAccessLogs(): TransactionReceipt {
         return healthyContract.getNextAccessLogs().send()
     }
 
     // Preview logs before syncing
     suspend fun previewNextAccessLogs(): List<MedicalRecordAccess.MedicalAccessLog> {
         return healthyContract.previewNextAccessLogs().send() as List<MedicalRecordAccess.MedicalAccessLog>
-    }
+    }*/
 
     // Log access to a record (simulate doctor accessing a patient record)
     /*suspend fun logAccess(doctor: String, patient: String, recordType: String): TransactionReceipt {
@@ -568,7 +620,7 @@ class WalletRepository(private val application: Application) : IWalletRepository
             throw RuntimeException("Transaction failed: ${transactionResponse.error.message}")
         }
 
-        Log.d("SyncedLog", "Sent tx: ${transactionResponse.transactionHash}")
+        Log.d("SyncedLog", "Sent tx deny: ${transactionResponse.transactionHash}")
 
 
         // Tentar obter o recibo da transação várias vezes
@@ -596,7 +648,7 @@ class WalletRepository(private val application: Application) : IWalletRepository
         val gasPrice = web3jService.ethGasPrice().send().gasPrice
         val gasLimit = BigInteger.valueOf(3000000) // Ajuste conforme necessário
         val request = healthyContract.getAccessRequest(requester, recordId).send()
-        Log.d("AcceptContract","doctor = $requester, recordId = $recordId, patient = ${request.patient}")
+        Log.d("AcceptContract","doctor = $requester, recordId = $recordId, patient = ${request.patientAddress}")
         val function = Function(
             "approveAccess",
             listOf(Address(requester), org.web3j.abi.datatypes.Utf8String(recordId)),
@@ -620,7 +672,7 @@ class WalletRepository(private val application: Application) : IWalletRepository
         if (transactionResponse.hasError()) {
             throw RuntimeException("Transaction failed: ${transactionResponse.error.message}")
         }
-        Log.d("SyncedLog", "Sent tx: ${transactionResponse.transactionHash}")
+        Log.d("SyncedLog", "Sent tx accept: ${transactionResponse.transactionHash}")
 
 
         val maxWaitMs = 60000L
@@ -675,7 +727,7 @@ class WalletRepository(private val application: Application) : IWalletRepository
 
         val txHash = transactionResponse.transactionHash
 
-        Log.d("SyncedLog", "Sent tx: ${transactionResponse.transactionHash}")
+        Log.d("SyncedLog", "Sent tx sync: ${transactionResponse.transactionHash}")
 
 
         // Poll for the transaction receipt
@@ -697,9 +749,10 @@ class WalletRepository(private val application: Application) : IWalletRepository
                         date = log.timestamp.toString(),
                         status = status,
                         recordId = log.recordId,
-                        practitionerId = log.doctor,
+                        practitionerId = log.doctorMedplumId,
+                        practitionerAddress = log.doctorAddress,
                         type = log.recordType,
-                        patientId = log.patient
+                        patientId = "01968b59-76f3-7228-aea9-07db748ee2ca"
                     )
                 }
             }
@@ -709,14 +762,14 @@ class WalletRepository(private val application: Application) : IWalletRepository
         throw RuntimeException("Transaction receipt not generated after sending transaction")
     }
 
-    suspend fun requestAccess(doctor: String, patient: String, recordId: String, recordType: String, credentials: Credentials): TransactionReceipt {
+    suspend fun requestAccess(doctorAddress: String, patientAddress: String, doctorMedplumId: String, recordId: String, recordType: String, credentials: Credentials): TransactionReceipt {
         val nonce = web3jService.ethGetTransactionCount(credentials.address, DefaultBlockParameterName.LATEST).send().transactionCount
         val gasPrice = web3jService.ethGasPrice().send().gasPrice
-        val gasLimit = BigInteger.valueOf(3000000) // Ajuste conforme necessário
+        val gasLimit = BigInteger.valueOf(3000000)
 
         val function = Function(
             "doctorRequestAccess",
-            listOf(Address(doctor),Address(patient), org.web3j.abi.datatypes.Utf8String(recordId), org.web3j.abi.datatypes.Utf8String(recordType)),
+            listOf(Address(doctorAddress),Address(patientAddress), org.web3j.abi.datatypes.Utf8String(doctorMedplumId), org.web3j.abi.datatypes.Utf8String(recordId), org.web3j.abi.datatypes.Utf8String(recordType)),
             emptyList()
         )
         val encodedFunction = FunctionEncoder.encode(function)
@@ -726,6 +779,7 @@ class WalletRepository(private val application: Application) : IWalletRepository
             gasPrice,
             gasLimit,
             healthyWalletAdress,
+            BigInteger.ZERO,
             encodedFunction
         )
 
@@ -733,7 +787,7 @@ class WalletRepository(private val application: Application) : IWalletRepository
         val hexValue = Numeric.toHexString(signedMessage)
 
         val transactionResponse = web3jService.ethSendRawTransaction(hexValue).send()
-        Log.d("SyncedLog", "Sent tx: ${transactionResponse.transactionHash}")
+        Log.d("SyncedLog", "Sent tx request: ${transactionResponse.transactionHash}")
         if (transactionResponse.hasError()) {
             throw RuntimeException("Transaction failed: ${transactionResponse.error.message}")
         }

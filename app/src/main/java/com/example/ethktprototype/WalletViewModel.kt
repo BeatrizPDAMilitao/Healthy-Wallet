@@ -7,6 +7,7 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.ethktprototype.data.AppDatabase
 import com.example.ethktprototype.data.Converters
+import com.example.ethktprototype.data.PatientEntity
 import com.example.ethktprototype.data.TokenBalance
 import com.example.ethktprototype.data.Transaction
 import com.example.ethktprototype.data.TransactionEntity
@@ -180,7 +181,7 @@ class WalletViewModel(application: Application) : AndroidViewModel(application) 
                     Log.d("SyncedLog", "Logs=${logs.size}")
                     logs.forEach { log ->
                         val date = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date(log.date.toLong() * 1000))
-                        Log.d("SyncedLog", "Doctor=${log.practitionerId}, Patient=${log.patientId}, Type=${log.type}, Timestamp=${log.date}")
+                        Log.d("SyncedLog", "Doctor=${log.practitionerAddress}, Patient=${log.patientId}, Type=${log.type}, Timestamp=${log.date}")
                         //call medplum API to get the necessary data
                         //walletRepository.fetchPatient(/*log.patientId*/)
                         val transaction = TransactionEntity(
@@ -191,6 +192,7 @@ class WalletViewModel(application: Application) : AndroidViewModel(application) 
                             recordId = log.recordId,
                             patientId = log.patientId,
                             practitionerId = log.practitionerId,
+                            practitionerAddress = log.practitionerAddress,
                             documentReferenceId = "", // Placeholder if unknown
                             medicationRequestId = "",
                             conditionId = "",
@@ -222,6 +224,12 @@ class WalletViewModel(application: Application) : AndroidViewModel(application) 
                 val patientData = withContext(Dispatchers.IO) {
                     walletRepository.fetchPatient(/*patientId*/)
                 }
+                updateUiState { state ->
+                    state.copy(
+                        showDataDialog = true,
+                        patientData = patientData
+                    )
+                }
                 // Handle the patient data as needed
                 Log.d("PatientData", "Patient data: $patientData")
             } catch (e: Exception) {
@@ -229,6 +237,34 @@ class WalletViewModel(application: Application) : AndroidViewModel(application) 
                 Log.e("PatientData", "Error fetching patient data: ${e.message}", e)
             }
         }
+    }
+
+    fun getPractitionerData(practitionerId: String) {
+        viewModelScope.launch {
+            try {
+                val practitionerData = withContext(Dispatchers.IO) {
+                    walletRepository.fetchPractitioner(practitionerId)
+                }
+                updateUiState { state ->
+                    state.copy(
+                        practitionerData = practitionerData
+                    )
+                }
+                // Handle the practitioner data as needed
+                Log.d("PractitionerData", "Practitioner data: $practitionerData")
+            } catch (e: Exception) {
+                // Handle errors
+                Log.e("PractitionerData", "Error fetching practitioner data: ${e.message}", e)
+            }
+        }
+    }
+
+    fun setPatientData(patient: PatientEntity?) {
+        updateUiState { it.copy(patientData = patient) }
+    }
+
+    fun setShowDataDialog(show: Boolean) {
+        updateUiState { it.copy(showDataDialog = show) }
     }
 
     fun setShowSyncSuccessDialog(show: Boolean) {
@@ -620,9 +656,10 @@ class WalletViewModel(application: Application) : AndroidViewModel(application) 
             date = getCurrentDate(),
             status = "pending",
             recordId = id,
-            practitionerId = "0xd0c4753de208449772e0a7e43f7ecda79df32bc7",
+            practitionerId = "dsa987654321",
+            practitionerAddress = "0xd0c4753de208449772e0a7e43f7ecda79df32bc7",
             type = "Head CT",
-            patientId = uiState.value.walletAddress
+            patientId = "01968b59-76f3-7228-aea9-07db748ee2ca"
         )
         val mnemonic = getMnemonic()
         viewModelScope.launch {
@@ -636,7 +673,7 @@ class WalletViewModel(application: Application) : AndroidViewModel(application) 
                     }
                     try {
                         val receipt = withContext(Dispatchers.IO) {
-                            walletRepository.requestAccess(newTransaction.practitionerId, newTransaction.patientId, newTransaction.id, newTransaction.type, credentials)
+                            walletRepository.requestAccess(newTransaction.practitionerAddress, uiState.value.walletAddress, newTransaction.practitionerId, newTransaction.id, newTransaction.type, credentials)
                         }
                         Log.d("RequestAccess", "Access requested: ${receipt.transactionHash}")
                         updateUiState { state ->
@@ -669,6 +706,7 @@ class WalletViewModel(application: Application) : AndroidViewModel(application) 
             status = "pending",
             recordId = payload.requestId,
             practitionerId = payload.issuer, // or other value if needed
+            practitionerAddress = payload.issuer, //TODO: check
             type = payload.examType,
             patientId = uiState.value.walletAddress,
             conditions = payload.conditions
@@ -738,6 +776,7 @@ class WalletViewModel(application: Application) : AndroidViewModel(application) 
             type = transaction.type,
             recordId = transaction.recordId,
             patientId = transaction.patientId,
+            practitionerAddress = transaction.practitionerAddress,
             practitionerId = transaction.practitionerId,
             documentReferenceId = "",
             medicationRequestId = "",
