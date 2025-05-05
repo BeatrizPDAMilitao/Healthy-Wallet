@@ -1,0 +1,141 @@
+query GetPatient($id: ID!) {
+  Patient(id: $id) {
+    id
+    name {
+      given
+      family
+    }
+    gender
+    birthDate
+  }
+}
+
+#mutation CreatePatient($content: ResourceInput!) {
+  #createResource(resource: $content) {
+  #  id
+  #}
+#}
+
+query GetPatient2($id: ID!) {
+  Patient(id: $id) {
+    id
+    name {
+      given
+      family
+    }
+    birthDate
+    gender
+    identifier {
+      value
+    }
+    address {
+      line
+      city
+      state
+      postalCode
+    }
+  }
+}
+
+query GetPractitioner($id: ID!) {
+  Practitioner(id: $id) {
+    id
+    name {
+      given
+      family
+    }
+    gender
+    qualification {
+      code {
+        text
+      }
+    }
+  }
+}
+
+query GetDocumentReference($id: ID!) {
+  DocumentReference(id: $id) {
+    id
+    status
+    type {
+      text
+    }
+    subject {
+      reference
+    }
+    date
+    content {
+      attachment {
+        url
+        title
+      }
+    }
+  }
+}
+
+query GetMedicationRequest($id: ID!) {
+  MedicationRequest(id: $id) {
+    id
+    status
+    intent
+    medicationCodeableConcept {
+      text
+    }
+    subject {
+      reference
+    }
+    authoredOn
+  }
+}
+
+query GetCondition($id: ID!) {
+  Condition(id: $id) {
+    id
+    clinicalStatus {
+      text
+    }
+    code {
+      text
+    }
+    subject {
+      reference
+    }
+    onsetDateTime
+  }
+}
+
+query GetEncounter($id: ID!) {
+  Encounter(id: $id) {
+    id
+    status
+    class {
+      code
+    }
+    subject {
+      reference
+    }
+    period {
+      start
+      end
+    }
+  }
+}
+
+query GetObservation($id: ID!) {
+  Observation(id: $id) {
+    id
+    status
+    code {
+      text
+    }
+    subject {
+      reference
+    }
+    effectiveDateTime
+    valueString
+    valueQuantity {
+      value
+      unit
+    }
+  }
+}
