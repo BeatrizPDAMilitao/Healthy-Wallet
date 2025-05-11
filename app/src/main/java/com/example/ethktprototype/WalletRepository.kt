@@ -536,7 +536,7 @@ class WalletRepository(private val application: Application) : IWalletRepository
     private lateinit var medskyContract: MedskyContract
 
     private val healthyWalletAdressOld = "0x9A8ea6736DF00Af70D1cD70b1Daf3619C8c0D7F4"
-    private val healthyWalletAdress = "0x503Adf07dE6a7B1C23F793aa6b422A0C59Fa219e" //"0x6410E8e6321f46B7A34B9Ea9649a4c84563d8045"
+    private val healthyWalletAdress = "0x257F027faAc9eA80F8269a7024FE33a8730223D5" //"0x503Adf07dE6a7B1C23F793aa6b422A0C59Fa219e" //"0x6410E8e6321f46B7A34B9Ea9649a4c84563d8045"
     private lateinit var healthyContract: MedicalRecordAccess2
 
     val web3jService = Web3jService.build(selectedNetwork.value)
@@ -624,7 +624,7 @@ class WalletRepository(private val application: Application) : IWalletRepository
 
 
         // Tentar obter o recibo da transação várias vezes
-        val maxWaitMs = 60000L
+        val maxWaitMs = 100000L
         val start = System.currentTimeMillis()
 
         while (System.currentTimeMillis() - start < maxWaitMs) {
@@ -647,8 +647,8 @@ class WalletRepository(private val application: Application) : IWalletRepository
         val nonce = web3jService.ethGetTransactionCount(credentials.address, DefaultBlockParameterName.LATEST).send().transactionCount
         val gasPrice = web3jService.ethGasPrice().send().gasPrice
         val gasLimit = BigInteger.valueOf(3000000) // Ajuste conforme necessário
-        val request = healthyContract.getAccessRequest(requester, recordId).send()
-        Log.d("AcceptContract","doctor = $requester, recordId = $recordId, patient = ${request.patientAddress}")
+        //val request = healthyContract.getAccessRequest(requester, recordId).send()
+        //Log.d("AcceptContract","doctor = $requester, recordId = $recordId, patient = ${request.patientAddress}")
         val function = Function(
             "approveAccess",
             listOf(Address(requester), org.web3j.abi.datatypes.Utf8String(recordId)),
@@ -675,7 +675,7 @@ class WalletRepository(private val application: Application) : IWalletRepository
         Log.d("SyncedLog", "Sent tx accept: ${transactionResponse.transactionHash}")
 
 
-        val maxWaitMs = 60000L
+        val maxWaitMs = 100000L
         val start = System.currentTimeMillis()
 
         while (System.currentTimeMillis() - start < maxWaitMs) {

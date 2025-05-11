@@ -237,10 +237,10 @@ fun TransactionScreen(
                                 onClick = {
                                     // Handle accept
                                     transaction.let { transaction ->
-                                        val recordId =
-                                            transaction.value!!.recordId// Supondo que o ID da transação seja o recordId
+                                        val transactionId = transaction.value!!.id
+                                        val recordId = transaction.value!!.recordId
                                         val requester = transaction.value!!.practitionerAddress
-                                        viewModel.callAcceptContract(recordId, requester)
+                                        viewModel.callAcceptContract(transactionId, recordId, requester)
                                     }
                                 },
                                 modifier = Modifier.weight(1f),
@@ -253,10 +253,10 @@ fun TransactionScreen(
                                 onClick = {
                                     // Handle deny
                                     transaction.let { transaction ->
-                                        val recordId =
-                                            transaction.value!!.recordId // Supondo que o ID da transação seja o recordId
+                                        val transactionId = transaction.value!!.id
+                                        val recordId = transaction.value!!.recordId
                                         val requester = transaction.value!!.practitionerAddress
-                                        viewModel.callDenyContract(recordId, requester)
+                                        viewModel.callDenyContract(transactionId, recordId, requester)
                                     }
                                 },
                                 modifier = Modifier.weight(1f),

@@ -83,7 +83,7 @@ class WalletViewModel(application: Application) : AndroidViewModel(application) 
         }
     }
 
-    fun callDenyContract(recordId: String, requester: String) {
+    fun callDenyContract(transactionId: String, recordId: String, requester: String) {
         val mnemonic = getMnemonic()
         viewModelScope.launch {
             setTransactionProcessing(true)
@@ -110,7 +110,7 @@ class WalletViewModel(application: Application) : AndroidViewModel(application) 
                                 showWalletModal = false,
                             )
                         }
-                        updateTransactionStatus(recordId, "denied")
+                        updateTransactionStatus(transactionId, "denied")
                     } catch (e: Exception) {
                         // Handle errors
                         Log.e("DenyContract", "Exception caught", e)
@@ -125,7 +125,7 @@ class WalletViewModel(application: Application) : AndroidViewModel(application) 
         }
     }
 
-    fun callAcceptContract(recordId: String, requester: String) {
+    fun callAcceptContract(transactionId: String, recordId: String, requester: String) {
         val mnemonic = getMnemonic()
         viewModelScope.launch {
             setTransactionProcessing(true)
@@ -148,7 +148,7 @@ class WalletViewModel(application: Application) : AndroidViewModel(application) 
                                 showDenyDialog = true,
                             )
                         }
-                        updateTransactionStatus(recordId, "accepted")
+                        updateTransactionStatus(transactionId, "accepted")
                     } catch (e: Exception) {
                         // Handle errors
                         Log.e("AcceptContract", "Exception caught", e)
@@ -655,7 +655,7 @@ class WalletViewModel(application: Application) : AndroidViewModel(application) 
             id = id,
             date = getCurrentDate(),
             status = "pending",
-            recordId = id,
+            recordId = "local$id",
             practitionerId = "dsa987654321",
             practitionerAddress = "0xd0c4753de208449772e0a7e43f7ecda79df32bc7",
             type = "Head CT",
@@ -673,7 +673,7 @@ class WalletViewModel(application: Application) : AndroidViewModel(application) 
                     }
                     try {
                         val receipt = withContext(Dispatchers.IO) {
-                            walletRepository.requestAccess(newTransaction.practitionerAddress, uiState.value.walletAddress, newTransaction.practitionerId, newTransaction.id, newTransaction.type, credentials)
+                            walletRepository.requestAccess(newTransaction.practitionerAddress, uiState.value.walletAddress, newTransaction.practitionerId, newTransaction.recordId, newTransaction.type, credentials)
                         }
                         Log.d("RequestAccess", "Access requested: ${receipt.transactionHash}")
                         updateUiState { state ->
