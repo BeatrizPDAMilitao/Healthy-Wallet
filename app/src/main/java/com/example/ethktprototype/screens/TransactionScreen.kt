@@ -1,6 +1,7 @@
 package com.example.ethktprototype.screens
 
 import android.util.Log
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -43,6 +44,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -50,6 +53,12 @@ import androidx.navigation.NavHostController
 import com.example.ethktprototype.WalletViewModel
 import androidx.compose.ui.platform.LocalContext
 import com.example.ethktprototype.data.Transaction
+import com.example.ethktprototype.nexus.ProofBridge
+import com.example.ethktprototype.nexus.extractGuestElf
+import com.example.ethktprototype.nexus.generateProof
+import net.glxn.qrgen.android.QRCode
+import java.io.File
+import java.net.InetAddress
 
 /**
  * TransactionScreen is a Composable function that displays the transaction details.
@@ -218,7 +227,17 @@ fun TransactionScreen(
 
                         Spacer(modifier = Modifier.height(8.dp))
                         Button(onClick = {
-                            // TODO: Eventually call ZKP prover here
+                            val elfFile = extractGuestElf(context)
+                            val input = "15"
+                            val result = ProofBridge.runProof(elfFile.absolutePath, input)
+                            Log.d("ZKP", "Proof Result: $result")
+                            //val ip = InetAddress.getLocalHost().hostAddress
+                            val proofUrl = "http://localhost:8080/proof" // manually resolve IP
+
+                            val qrBitmap = QRCode.from(proofUrl).bitmap()
+                            uiState.qrCode = qrBitmap
+                            // Display the QR code
+
                             Log.d("ZKP", "Simulating ZKP proof generation...")
                         },
                             modifier = Modifier
@@ -336,6 +355,17 @@ fun TransactionScreen(
                     }
                 },
                 backgroundColor = MaterialTheme.colorScheme.background,
+            )
+        }
+        if (uiState.qrCode != null) {
+            Spacer(modifier = Modifier.height(16.dp))
+            Image(
+                bitmap = uiState.qrCode!!.asImageBitmap(),
+                contentDescription = "QR Code",
+                modifier = Modifier
+                    .size(300.dp)
+                    .align(Alignment.Center),
+                contentScale = ContentScale.Fit
             )
         }
     }
