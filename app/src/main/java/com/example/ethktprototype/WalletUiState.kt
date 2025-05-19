@@ -1,5 +1,6 @@
 package com.example.ethktprototype
 
+import android.graphics.Bitmap
 import com.example.ethktprototype.data.NftValue
 import com.example.ethktprototype.data.PatientEntity
 import com.example.ethktprototype.data.PractitionerEntity
@@ -39,4 +40,5 @@ data class WalletUiState(
     var showDataDialog: Boolean = false,
     var patientData: PatientEntity? = null,
     var practitionerData: PractitionerEntity? = null,
+    var qrCode: Bitmap? = null,
     )
