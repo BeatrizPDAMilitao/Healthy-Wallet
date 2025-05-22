@@ -13,7 +13,8 @@ data class Transaction(
     val practitionerAddress: String,
     val type: String, // "MRI" or "XRay" and so on. TODO: add more types and convert to enum
     val patientId: String,
-    val conditions: List<ConditionRequirement>? = null
+    val conditions: List<ConditionRequirement>? = null,
+    var qrCodeFileName: String? = null,
 )
 
 @Serializable

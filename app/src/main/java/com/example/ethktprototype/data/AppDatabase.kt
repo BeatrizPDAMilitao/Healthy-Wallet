@@ -15,7 +15,8 @@ import androidx.room.TypeConverters
         MedicationRequestEntity::class,
         ConditionEntity::class,
         EncounterEntity::class,
-        ObservationEntity::class
+        ObservationEntity::class,
+        ZkpEntity::class
                ],
     version = 1
 )

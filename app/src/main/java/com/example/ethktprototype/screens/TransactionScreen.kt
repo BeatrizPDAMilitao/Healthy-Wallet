@@ -1,5 +1,6 @@
 package com.example.ethktprototype.screens
 
+import android.graphics.Bitmap
 import android.util.Log
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -18,6 +19,8 @@ import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.layout.wrapContentHeight
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.AlertDialog
 
@@ -78,6 +81,8 @@ fun TransactionScreen(
 
     val transaction = remember { mutableStateOf<Transaction?>(null) }
 
+    val qrCodeBitmap = remember { mutableStateOf<Bitmap?>(null) }
+
     LaunchedEffect(transactionId) {
         transaction.value = viewModel.getTransactionById(transactionId.toString())
         Log.d("ExampleTestSample", "Found transaction: ${transaction.value?.id}")
@@ -87,217 +92,225 @@ fun TransactionScreen(
         transaction.value = viewModel.getTransactionById(transactionId.toString())
     }
 
+    LaunchedEffect(transaction.value?.qrCodeFileName) {
+        transaction.value?.qrCodeFileName?.let { fileName ->
+            qrCodeBitmap.value = QRCode.from(fileName).bitmap()
+        }
+    }
+
     Box(
         Modifier
             .fillMaxSize()
             .windowInsetsPadding(WindowInsets.statusBars)
             .background(MaterialTheme.colorScheme.background)
     ) {
-        Column(
+        LazyColumn(
             Modifier
                 .fillMaxSize()
                 .padding(vertical = 8.dp, horizontal = 16.dp)
         ) {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(16.dp, 0.dp)
-                    .wrapContentHeight(),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    text = uiState.ens.ifEmpty {
-                        uiState.walletAddress.take(5) + "..." + uiState.walletAddress.takeLast(4)
-                    },
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurface,
-                    fontWeight = FontWeight.Medium,
-                    fontSize = 18.sp
-                )
-                Spacer(modifier = Modifier.weight(1f))
-                IconButton(
-                    modifier = Modifier.size(30.dp),
-                    onClick = { navController.navigate("settingsScreen") }
+            item {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp, 0.dp)
+                        .wrapContentHeight(),
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Icon(
-                        Icons.Filled.Settings,
-                        contentDescription = "Settings",
+                    Text(
+                        text = uiState.ens.ifEmpty {
+                            uiState.walletAddress.take(5) + "..." + uiState.walletAddress.takeLast(4)
+                        },
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurface,
+                        fontWeight = FontWeight.Medium,
+                        fontSize = 18.sp
                     )
+                    Spacer(modifier = Modifier.weight(1f))
+                    IconButton(
+                        modifier = Modifier.size(30.dp),
+                        onClick = { navController.navigate("settingsScreen") }
+                    ) {
+                        Icon(
+                            Icons.Filled.Settings,
+                            contentDescription = "Settings",
+                        )
+                    }
                 }
             }
 
-            Spacer(modifier = Modifier.height(16.dp))
+            item {
+                Spacer(modifier = Modifier.height(16.dp))
+            }
 
             if (uiState.isTransactionProcessing) {
-                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    CircularProgressIndicator()
+                item {
+                    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                        CircularProgressIndicator()
+                    }
                 }
             }
 
             if (transaction.value != null) {
-                Column(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(16.dp)
-                        .background(MaterialTheme.colorScheme.surface, shape = RoundedCornerShape(8.dp))
-                        .padding(16.dp)
-                ) {
-                    if (!transaction.value!!.conditions.isNullOrEmpty()) {
-                        Text(
-                            text = "Practitioner ${transaction.value!!.practitionerId} requested proof for ${transaction.value!!.type}",
-                            style = MaterialTheme.typography.bodyLarge,
-                            fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.onSurface
-                        )
-                    }
-                    else {
-                        Text(
-                            text = "Practitioner ${transaction.value!!.practitionerId} requested access to your ${transaction.value!!.type}",
-                            style = MaterialTheme.typography.bodyLarge,
-                            fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.onSurface
-                        )
-                    }
-
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Text(
-                        text = "Transaction ID: ${transaction.value!!.id}",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurface
-                    )
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Text(
-                        text = "Date: ${transaction.value!!.date}",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurface
-                    )
-                    Spacer(modifier = Modifier.height(8.dp))
-                    TextButton(
-                        onClick = {
-                            viewModel.getPractitionerData(transaction.value!!.practitionerId);
-                            viewModel.setShowDataDialog(true)
-                        },
+                item {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(16.dp)
+                            .background(MaterialTheme.colorScheme.surface, shape = RoundedCornerShape(8.dp))
+                            .padding(16.dp)
                     ) {
-                        Text(
-                            text = "Practitioner ID: ${transaction.value!!.practitionerId}",
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurface
-                        )
-                    }
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Text(
-                        text = "Patient ID: ${transaction.value!!.patientId}",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurface
-                    )
-                    /*if (transaction.value!!.practitionerAddress == uiState.walletAddress) {
-                        Text(
-                            text = "You are the patient",
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurface
-                        )
-                    }*/
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Text(
-                        text = "Type: ${transaction.value!!.type}",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurface
-                    )
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Text(
-                        text = "Status: ${transaction.value!!.status}",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = when (transaction.value!!.status) {
-                            "denied" -> Color(0xFFD32F2F)
-                            "accepted" -> Color(0xFF388E3C)
-                            "pending" -> Color(0xFF1976D2)
-                            else -> MaterialTheme.colorScheme.onSurface
-                        }
-                    )
-                    Log.d("ZKP", "Conditions: ${transaction.value!!.conditions}")
-                    if (!transaction.value!!.conditions.isNullOrEmpty()) {
-                        Spacer(modifier = Modifier.height(16.dp))
-                        Text("ZKP Required for:")
-                        transaction.value!!.conditions!!.forEach {
-                            Text("- ${it.type}")
+                        if (!transaction.value!!.conditions.isNullOrEmpty()) {
+                            Text(
+                                text = "Practitioner ${transaction.value!!.practitionerId} requested proof for ${transaction.value!!.type}",
+                                style = MaterialTheme.typography.bodyLarge,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+                        } else {
+                            Text(
+                                text = "Practitioner ${transaction.value!!.practitionerId} requested access to your ${transaction.value!!.type}",
+                                style = MaterialTheme.typography.bodyLarge,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
                         }
 
                         Spacer(modifier = Modifier.height(8.dp))
-                        Button(onClick = {
-                            Log.d("ZKP", "Simulating ZKP proof generation...")
-                            CallZkpApi.sendHemoglobin(
-                                hemoglobin = 15,
-                                onSuccess = { resultJson ->
-                                    Log.d("ZKP", "Result: $resultJson")
-                                    // parse JSON, update UI
-                                    val status = JSONObject(resultJson).getString("status")
-
-                                    val proofUrl = JSONObject(resultJson).getString("proof_url")
-
-                                    Log.d("ZKP", "ZKP Status: $status")
-                                    Log.d("ZKP", "Proof URL: $proofUrl")
-
-                                    val qrCode = QRCode.from(proofUrl).bitmap() // Generate QR code
-                                    uiState.qrCode = qrCode
-                                },
-                                onError = { error ->
-                                    Log.e("ZKP", error)
-                                }
-                            )
-                        },
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(8.dp)
-                                .background(MaterialTheme.colorScheme.primary, shape = RoundedCornerShape(8.dp)),
-                            shape = RoundedCornerShape(8.dp)
+                        Text(
+                            text = "Transaction ID: ${transaction.value!!.id}",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text(
+                            text = "Date: ${transaction.value!!.date}",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+                        TextButton(
+                            onClick = {
+                                viewModel.getPractitionerData(transaction.value!!.practitionerId);
+                                viewModel.setShowDataDialog(true)
+                            },
                         ) {
-                            Text("Generate ZKP Proof")
+                            Text(
+                                text = "Practitioner ID: ${transaction.value!!.practitionerId}",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
                         }
-                    }
-                    else if (transaction.value!!.status == "pending") {
-                        Spacer(modifier = Modifier.height(16.dp))
-                        Row {
-                            Button(
-                                onClick = {
-                                    // Handle accept
-                                    transaction.let { transaction ->
-                                        val transactionId = transaction.value!!.id
-                                        val recordId = transaction.value!!.recordId
-                                        val requester = transaction.value!!.practitionerAddress
-                                        viewModel.callAcceptContract(transactionId, recordId, requester)
-                                    }
-                                },
-                                modifier = Modifier.weight(1f),
-                                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF03A9F4))
-                            ) {
-                                Text("Accept")
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text(
+                            text = "Patient ID: ${transaction.value!!.patientId}",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text(
+                            text = "Type: ${transaction.value!!.type}",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text(
+                            text = "Status: ${transaction.value!!.status}",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = when (transaction.value!!.status) {
+                                "denied" -> Color(0xFFD32F2F)
+                                "accepted" -> Color(0xFF388E3C)
+                                "pending" -> Color(0xFF1976D2)
+                                else -> MaterialTheme.colorScheme.onSurface
                             }
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Button(
-                                onClick = {
-                                    // Handle deny
-                                    transaction.let { transaction ->
-                                        val transactionId = transaction.value!!.id
-                                        val recordId = transaction.value!!.recordId
-                                        val requester = transaction.value!!.practitionerAddress
-                                        viewModel.callDenyContract(transactionId, recordId, requester)
-                                    }
-                                },
-                                modifier = Modifier.weight(1f),
-                                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF03A9F4))
+                        )
 
+                        if (qrCodeBitmap.value != null) {
+                            Spacer(modifier = Modifier.height(16.dp))
+                            Image(
+                                bitmap = qrCodeBitmap.value!!.asImageBitmap(),
+                                contentDescription = "QR Code",
+                                modifier = Modifier
+                                    .size(300.dp)
+                                    .align(Alignment.CenterHorizontally),
+                                contentScale = ContentScale.Fit
+                            )
+                        }
+
+                        if (!transaction.value!!.conditions.isNullOrEmpty()) {
+                            Spacer(modifier = Modifier.height(16.dp))
+                            Text("ZKP Required for:")
+                            transaction.value!!.conditions!!.forEach {
+                                Text("- ${it.type}")
+                            }
+
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Button(onClick = {
+                                CallZkpApi.sendHemoglobin(
+                                    hemoglobin = 15,
+                                    onSuccess = { resultJson ->
+                                        val status = JSONObject(resultJson).getString("status")
+                                        val proofUrl = JSONObject(resultJson).getString("proof_url")
+                                        transaction.value!!.qrCodeFileName = proofUrl
+                                        viewModel.updateTransactionQrCode(transaction.value!!.id, proofUrl)
+                                    },
+                                    onError = { error ->
+                                        Log.e("ZKP", error)
+                                    }
+                                )
+                            },
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(8.dp)
+                                    .background(MaterialTheme.colorScheme.primary, shape = RoundedCornerShape(8.dp)),
+                                shape = RoundedCornerShape(8.dp)
                             ) {
-                                Text("Deny")
+                                Text("Generate ZKP Proof")
+                            }
+                        } else if (transaction.value!!.status == "pending") {
+                            Spacer(modifier = Modifier.height(16.dp))
+                            Row {
+                                Button(
+                                    onClick = {
+                                        transaction.let { transaction ->
+                                            val transactionId = transaction.value!!.id
+                                            val recordId = transaction.value!!.recordId
+                                            val requester = transaction.value!!.practitionerAddress
+                                            viewModel.callAcceptContract(transactionId, recordId, requester)
+                                        }
+                                    },
+                                    modifier = Modifier.weight(1f),
+                                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF03A9F4))
+                                ) {
+                                    Text("Accept")
+                                }
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Button(
+                                    onClick = {
+                                        transaction.let { transaction ->
+                                            val transactionId = transaction.value!!.id
+                                            val recordId = transaction.value!!.recordId
+                                            val requester = transaction.value!!.practitionerAddress
+                                            viewModel.callDenyContract(transactionId, recordId, requester)
+                                        }
+                                    },
+                                    modifier = Modifier.weight(1f),
+                                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF03A9F4))
+                                ) {
+                                    Text("Deny")
+                                }
                             }
                         }
                     }
                 }
             } else {
-                Text(
-                    text = "Transaction not found",
-                    style = MaterialTheme.typography.bodyLarge,
-                    color = MaterialTheme.colorScheme.onSurface
-                )
+                item {
+                    Text(
+                        text = "Transaction not found",
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                }
             }
         }
 
@@ -360,17 +373,6 @@ fun TransactionScreen(
                     }
                 },
                 backgroundColor = MaterialTheme.colorScheme.background,
-            )
-        }
-        if (uiState.qrCode != null) {
-            Spacer(modifier = Modifier.height(16.dp))
-            Image(
-                bitmap = uiState.qrCode!!.asImageBitmap(),
-                contentDescription = "QR Code",
-                modifier = Modifier
-                    .size(300.dp)
-                    .align(Alignment.Center),
-                contentScale = ContentScale.Fit
             )
         }
     }

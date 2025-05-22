@@ -9,6 +9,9 @@ interface TransactionDao {
     @Insert
     suspend fun insertTransaction(transaction: TransactionEntity)
 
+    @Insert
+    suspend fun insertZkpTransaction(zkp: ZkpEntity)
+
     @Query("SELECT * FROM transactions")
     suspend fun getAllTransactions(): List<TransactionEntity>
 
@@ -17,6 +20,9 @@ interface TransactionDao {
 
     @Query("UPDATE transactions SET status = :status WHERE id = :transactionId")
     suspend fun updateTransactionStatus(transactionId: String, status: String)
+
+    @Query("UPDATE zkp_transactions SET qrCodeFileName = :qrCodeFileName WHERE id = :transactionId")
+    suspend fun updateZkpQrCode(transactionId: String, qrCodeFileName: String)
 
     @Query("SELECT COUNT(*) FROM transactions WHERE id = :transactionId")
     suspend fun transactionExists(transactionId: String): Int
@@ -29,6 +35,12 @@ interface TransactionDao {
 
     @Query("SELECT * FROM transactions WHERE id = :transactionId")
     suspend fun getTransactionWithDetails(transactionId: String): TransactionWithDetails?
+
+    @Query("SELECT * FROM transactions")
+    suspend fun getTransactionsWithProof(): List<TransactionWithProof>
+
+    @Query(" SELECT * FROM transactions WHERE id = :transactionId")
+    suspend fun getTransactionWithProofById(transactionId: String): TransactionWithProof?
 
     @Insert
     suspend fun insertPatient(patient: PatientEntity)

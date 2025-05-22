@@ -2,6 +2,8 @@ package com.example.ethktprototype
 
 import android.app.Application
 import android.content.Context
+import android.graphics.Bitmap
+import android.graphics.BitmapFactory
 import android.util.Log
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
@@ -11,6 +13,7 @@ import com.example.ethktprototype.data.PatientEntity
 import com.example.ethktprototype.data.TokenBalance
 import com.example.ethktprototype.data.Transaction
 import com.example.ethktprototype.data.TransactionEntity
+import com.example.ethktprototype.data.ZkpEntity
 import com.example.ethktprototype.data.ZkpExamRequestPayload
 import com.example.ethktprototype.data.toTransaction
 import kotlinx.coroutines.Dispatchers
@@ -734,7 +737,7 @@ class WalletViewModel(application: Application) : AndroidViewModel(application) 
      */
     suspend fun getTransactionById(transactionId: String): Transaction? {
         return withContext(Dispatchers.IO) {
-            transactionDao.getById(transactionId)?.toTransaction()
+            transactionDao.getTransactionWithProofById(transactionId)?.toTransaction()
         }
     }
 
@@ -751,7 +754,7 @@ class WalletViewModel(application: Application) : AndroidViewModel(application) 
     fun updateTransactions() {
         viewModelScope.launch {
             val transactions = withContext(Dispatchers.IO) {
-                transactionDao.getAllTransactions().map { it.toTransaction() }
+                transactionDao.getTransactionsWithProof().map { it.toTransaction() }
             }
             updateUiState { it.copy(transactions = transactions) }
             Log.d("ExampleTestSample", "getTransactions: $transactions")
@@ -785,16 +788,37 @@ class WalletViewModel(application: Application) : AndroidViewModel(application) 
             observationId = "",
             conditionsJson = Converters.fromConditionsList(transaction.conditions)
         )
+        val zkpEntity = transaction.conditions?.let {
+            ZkpEntity(
+                id = transaction.id,
+                conditionsJson = Converters.fromConditionsList(it).toString(),
+                qrCodeFileName = "" // Or set later when available
+            )
+        }
         viewModelScope.launch {
-            if (transactionDao.transactionExists(transaction.id) == 0) {
-                Log.d("ExampleTestSample", "Adding transaction: ${transactionEntity.id}")
-                transactionDao.insertTransaction(transactionEntity)
-            } else {
-                // Handle the case where the transaction already exists, if needed
-                Log.d("ExampleTestSample", "Transaction already exists: ${transactionEntity.id}")
+            var wasInserted = false
+            withContext(Dispatchers.IO) {
+                if (transactionDao.transactionExists(transaction.id) == 0) {
+                    Log.d("ExampleTestSample", "Adding transaction: ${transactionEntity.id}")
+                    transactionDao.insertTransaction(transactionEntity)
+                    zkpEntity?.let { transactionDao.insertZkpTransaction(it) }
+                    wasInserted = true
+                } else {
+                    Log.d("ExampleTestSample", "Transaction already exists: ${transactionEntity.id}")
+                }
             }
-            val updatedTransactions = transactionDao.getAllTransactions()
-            updateUiState { it.copy(transactions = updatedTransactions.map { it.toTransaction() }) }
+
+            if (wasInserted) {
+                // Fetch just the new transaction and add it to UI state
+                val insertedTransaction = withContext(Dispatchers.IO) {
+                    transactionDao.getTransactionWithProofById(transaction.id)?.toTransaction()
+                }
+                insertedTransaction?.let { newTx ->
+                    updateUiState { state ->
+                        state.copy(transactions = state.transactions + newTx)
+                    }
+                }
+            }
         }
     }
 
@@ -829,13 +853,41 @@ class WalletViewModel(application: Application) : AndroidViewModel(application) 
         viewModelScope.launch {
             withContext(Dispatchers.IO) {
                 transactionDao.updateTransactionStatus(transactionId, newStatus)
-                val updatedTransactions = transactionDao.getAllTransactions().map { it.toTransaction() }
-                withContext(Dispatchers.Main) {
-                    updateUiState { it.copy(transactions = updatedTransactions) }
+                val updatedEntity = transactionDao.getById(transactionId)
+                val updated = updatedEntity?.toTransaction()
+                if (updated != null) {
+                    withContext(Dispatchers.Main) {
+                        updateUiState { state ->
+                            val updatedList = state.transactions.map {
+                                if (it.id == transactionId) updated else it
+                            }
+                            state.copy(transactions = updatedList)
+                        }
+                    }
                 }
             }
         }
     }
+
+    fun updateTransactionQrCode(transactionId: String, qrCodeFileName: String) {
+        viewModelScope.launch {
+            withContext(Dispatchers.IO) {
+                transactionDao.updateZkpQrCode(transactionId, qrCodeFileName)
+                val updated = transactionDao.getTransactionWithProofById(transactionId)?.toTransaction()
+                if (updated != null) {
+                    withContext(Dispatchers.Main) {
+                        updateUiState { state ->
+                            val updatedList = state.transactions.map {
+                                if (it.id == transactionId) updated else it
+                            }
+                            state.copy(transactions = updatedList)
+                        }
+                    }
+                }
+            }
+        }
+    }
+
 
     fun deleteAllTransactions() {
         viewModelScope.launch {
