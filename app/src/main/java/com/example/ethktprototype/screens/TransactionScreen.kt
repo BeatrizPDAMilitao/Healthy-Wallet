@@ -93,8 +93,11 @@ fun TransactionScreen(
     }
 
     LaunchedEffect(transaction.value?.qrCodeFileName) {
-        transaction.value?.qrCodeFileName?.let { fileName ->
-            qrCodeBitmap.value = QRCode.from(fileName).bitmap()
+        if (transaction.value?.qrCodeFileName != null && transaction.value?.qrCodeFileName != "") {
+            Log.d("ExampleTestSample", "Generating QR code for: ${transaction.value?.qrCodeFileName}")
+            transaction.value?.qrCodeFileName?.let { fileName ->
+                qrCodeBitmap.value = QRCode.from(fileName).bitmap()
+            }
         }
     }
 
