@@ -56,6 +56,7 @@ import androidx.lifecycle.viewModelScope
 import com.example.ethktprototype.simulateTransactionReceived
 import kotlinx.coroutines.launch
 import androidx.compose.material3.CircularProgressIndicator
+import com.example.ethktprototype.composables.BottomNavigationBar
 import com.example.ethktprototype.data.ConditionRequirement
 
 /**
@@ -208,7 +209,8 @@ fun ActivityScreen(
                             patientId = viewModel.uiState.value.walletAddress,
                             conditions = listOf(
                                 ConditionRequirement("not_pregnant"),
-                                ConditionRequirement("no_implants")
+                                ConditionRequirement("no_implants"),
+                                ConditionRequirement(value = "hemoglobin", min = 12, max = 17),
                             )
                         )
                         viewModel.addTransaction(mockRequest)
@@ -222,10 +224,10 @@ fun ActivityScreen(
                 ) {
                     Text("Simulate ZKP Request")
                 }
-                Button(
+                /*Button(
                     onClick = {
                         viewModel.viewModelScope.launch {
-                            viewModel.getPatientData("example")
+                            //viewModel.getPatientData("example")
                         }
                     },
                     modifier = Modifier
@@ -235,7 +237,7 @@ fun ActivityScreen(
                     shape = RoundedCornerShape(8.dp)
                 ) {
                     Text("Get Patient MedPlum")
-                }
+                }*/
 
                 Divider(color = Color.Gray, thickness = 1.dp)
                 Spacer(modifier = Modifier.height(8.dp))
@@ -251,26 +253,14 @@ fun ActivityScreen(
             }
         }
 
-        BottomNavigation(
-            modifier = Modifier.align(Alignment.BottomCenter)
-                .fillMaxWidth(),
-            backgroundColor = MaterialTheme.colorScheme.inverseOnSurface,
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .align(Alignment.BottomCenter)
         ) {
-            BottomNavigationItem(
-                icon = { Icon(Icons.Filled.Wallet, contentDescription = "Wallet") },
-                label = { Text("Wallet") },
-                selected = false,
-                onClick = {
-                    navController.navigate("tokenList")
-                }
-            )
-            BottomNavigationItem(
-                icon = { Icon(Icons.Filled.History, contentDescription = "Activity") },
-                label = { Text("Activity") },
-                selected = true,
-                onClick = {
-                    // Do nothing. This is the current screen.
-                }
+            BottomNavigationBar(
+                navController = navController,
+                currentRoute = "activity"
             )
         }
     }

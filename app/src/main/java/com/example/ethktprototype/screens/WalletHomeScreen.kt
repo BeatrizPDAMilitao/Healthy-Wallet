@@ -16,12 +16,8 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.layout.wrapContentHeight
-import androidx.compose.material.BottomNavigation
-import androidx.compose.material.BottomNavigationItem
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.Settings
-import androidx.compose.material.icons.filled.Wallet
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -44,11 +40,11 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavHostController
 import com.example.ethktprototype.WalletViewModel
+import com.example.ethktprototype.composables.BottomNavigationBar
 import com.example.ethktprototype.composables.MyRow
 import com.example.ethktprototype.composables.NftList
 import com.example.ethktprototype.composables.ReceiveBottomSheet
 import com.example.ethktprototype.composables.SendBottomSheet
-import com.example.ethktprototype.composables.SuccessDialogModal
 import com.example.ethktprototype.composables.TokenList
 import java.text.DecimalFormat
 
@@ -89,6 +85,7 @@ fun TokenListScreen(
                 .fillMaxSize()
                 .fillMaxHeight()
                 .padding(vertical = 8.dp, horizontal = 16.dp)
+                .padding(bottom = 56.dp)
                 .windowInsetsPadding(WindowInsets.statusBars)
         ) {
             Row(
@@ -192,26 +189,14 @@ fun TokenListScreen(
                 1 -> NftList(nfts = uiState.nfts, viewModel = viewModel)
             }
         }
-        BottomNavigation(
-            modifier = Modifier.align(Alignment.BottomCenter)
-                .fillMaxWidth(),
-            backgroundColor = MaterialTheme.colorScheme.inverseOnSurface,
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .align(Alignment.BottomCenter)
         ) {
-            BottomNavigationItem(
-                icon = { Icon(Icons.Filled.Wallet, contentDescription = "Wallet") },
-                label = { Text("Wallet") },
-                selected = true,
-                onClick = {
-                    //Do nothing. Current screen
-                }
-            )
-            BottomNavigationItem(
-                icon = { Icon(Icons.Filled.History, contentDescription = "Activity") },
-                label = { Text("Activity") },
-                selected = false,
-                onClick = {
-                    navController.navigate("activity")
-                }
+            BottomNavigationBar(
+                navController = navController,
+                currentRoute = "tokenList"
             )
         }
     }

@@ -9,7 +9,6 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
-import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -20,18 +19,13 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.AlertDialog
 
-import androidx.compose.material.BottomNavigation
-import androidx.compose.material.BottomNavigationItem
 import androidx.compose.material.CircularProgressIndicator
 import androidx.compose.material.TextButton
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.Settings
-import androidx.compose.material.icons.filled.Wallet
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
@@ -59,6 +53,7 @@ import com.example.ethktprototype.data.Transaction
 import com.example.ethktprototype.nexus.CallZkpApi
 import org.json.JSONObject
 import net.glxn.qrgen.android.QRCode
+import com.example.ethktprototype.composables.BottomNavigationBar
 
 /**
  * TransactionScreen is a Composable function that displays the transaction details.
@@ -111,6 +106,7 @@ fun TransactionScreen(
             Modifier
                 .fillMaxSize()
                 .padding(vertical = 8.dp, horizontal = 16.dp)
+                .padding(bottom = 56.dp)
         ) {
             item {
                 Row(
@@ -244,7 +240,12 @@ fun TransactionScreen(
                             Spacer(modifier = Modifier.height(16.dp))
                             Text("ZKP Required for:")
                             transaction.value!!.conditions!!.forEach {
-                                Text("- ${it.type}")
+                                if (it.value != null) {
+                                    Text("- ${it.value} (${it.min ?: "N/A"} - ${it.max ?: "N/A"})")
+                                }
+                                else {
+                                    Text("- ${it.type}")
+                                }
                             }
 
                             Spacer(modifier = Modifier.height(8.dp))
@@ -317,27 +318,17 @@ fun TransactionScreen(
             }
         }
 
-        BottomNavigation(
-            modifier = Modifier.align(Alignment.BottomCenter).fillMaxWidth(),
-            backgroundColor = MaterialTheme.colorScheme.inverseOnSurface,
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .align(Alignment.BottomCenter)
         ) {
-            BottomNavigationItem(
-                icon = { Icon(Icons.Filled.Wallet, contentDescription = "Wallet") },
-                label = { Text("Wallet") },
-                selected = false,
-                onClick = {
-                    navController.navigate("tokenList")
-                }
-            )
-            BottomNavigationItem(
-                icon = { Icon(Icons.Filled.History, contentDescription = "Activity") },
-                label = { Text("Activity") },
-                selected = true,
-                onClick = {
-                    // Do nothing. This is the current screen.
-                }
+            BottomNavigationBar(
+                navController = navController,
+                currentRoute = "transaction"
             )
         }
+
         if (uiState.showDenyDialog) {
             // Show the deny dialog
             AlertDialog(
