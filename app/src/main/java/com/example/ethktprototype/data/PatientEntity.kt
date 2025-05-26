@@ -10,5 +10,7 @@ data class PatientEntity(
     val birthDate: String,
     val gender: String,
     val identifier: String,
-    val address: String
+    val address: String,
+    val healthUnit: String,    // Organization name
+    val doctor: String
 )

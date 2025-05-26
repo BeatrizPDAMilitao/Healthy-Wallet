@@ -19,7 +19,10 @@ data class Transaction(
 
 @Serializable
 data class ConditionRequirement(
-    val type: String // e.g., "not_pregnant", "no_implants"
+    val type: String? = null, //e.g., "not_pregnant", "no_implants"
+    val value: String? = null, // e.g., "hemoglobin"
+    val min: Int? = null, // e.g., "hemoglobin" min value
+    val max: Int? = null, // e.g., "hemoglobin" max value
 )
 
 @Serializable

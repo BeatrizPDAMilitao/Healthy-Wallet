@@ -16,7 +16,7 @@ query GetPatient($id: ID!) {
   #}
 #}
 
-query GetPatient2($id: ID!) {
+query GetPatientComplete($id: ID!) {
   Patient(id: $id) {
     id
     name {
@@ -25,7 +25,7 @@ query GetPatient2($id: ID!) {
     }
     birthDate
     gender
-    identifier {
+    telecom {
       value
     }
     address {
@@ -34,8 +34,28 @@ query GetPatient2($id: ID!) {
       state
       postalCode
     }
+    identifier {
+      system
+      value
+    }
+    generalPractitioner {
+      reference
+      display
+    }
+    managingOrganization {
+      reference
+      display
+    }
   }
 }
+
+query GetOrganization($id: ID!) {
+  Organization(id: $id) {
+    name
+    address { line city postalCode }
+  }
+}
+
 
 query GetPractitioner($id: ID!) {
   Practitioner(id: $id) {
@@ -103,6 +123,114 @@ query GetCondition($id: ID!) {
     onsetDateTime
   }
 }
+
+################### Currently working to mirror SNS24 ########################
+
+query GetConditionsForPatient($subjectId: String!) {
+  ConditionList(subject: $subjectId) {
+    resourceType
+    id
+    code {
+      text
+    }
+    onsetDateTime
+    clinicalStatus {
+      text
+    }
+  }
+}
+
+query GetPatientDiagnosticReport($subjectId: String!) {
+  DiagnosticReportList(subject: $subjectId) {
+    id
+    status
+    code {
+      text
+    }
+    effectiveDateTime
+    result {
+      display
+      reference
+    }
+  }
+}
+
+query GetPatientMedicationRequests($subjectId: String!) {
+  MedicationRequestList(subject: $subjectId) {
+    id
+    medicationCodeableConcept {
+      text
+    }
+    authoredOn
+    status
+    dosageInstruction {
+      text
+    }
+  }
+}
+
+query GetPatientMedicationStatements($subjectId: String!) {
+  MedicationStatementList(subject: $subjectId) {
+    id
+    medicationCodeableConcept {
+      text
+    }
+    status
+    effectivePeriod {
+      start
+      end
+    }
+  }
+}
+
+query GetPatientImmunizations($subjectId: String!) {
+  ImmunizationList(patient: $subjectId) {
+    id
+    vaccineCode {
+      text
+    }
+    occurrenceDateTime
+    status
+    lotNumber
+  }
+}
+
+query GetPatientAllergies($subjectId: String!) {
+  AllergyIntoleranceList(patient: $subjectId) {
+    id
+    clinicalStatus {
+      text
+    }
+    code {
+      text
+    }
+    onsetDateTime
+    recordedDate
+  }
+}
+
+query GetPatientDevices($subjectId: String!) {
+  DeviceList(patient: $subjectId) {
+    id
+    type {
+      text
+    }
+    status
+    manufactureDate
+  }
+}
+
+query GetPatientProcedures($subjectId: String!) {
+  ProcedureList(subject: $subjectId) {
+    id
+    status
+    code {
+      text
+    }
+    performedDateTime
+  }
+}
+###########################################
 
 query GetEncounter($id: ID!) {
   Encounter(id: $id) {

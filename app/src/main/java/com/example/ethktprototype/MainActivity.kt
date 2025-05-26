@@ -22,7 +22,13 @@ import android.util.Log
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.runtime.LaunchedEffect
 import androidx.core.content.ContextCompat
+import com.example.ethktprototype.screens.EHRsScreen
+import com.example.ethktprototype.screens.ExamsScreen
+import com.example.ethktprototype.screens.HealthSummaryScreen
+import com.example.ethktprototype.screens.MedicationScreen
+import com.example.ethktprototype.screens.PrescriptionsScreen
 import com.example.ethktprototype.screens.TransactionScreen
+import com.example.ethktprototype.screens.VaccinationsScreen
 
 /**
  * MainActivity.kt
@@ -67,7 +73,7 @@ class MainActivity : ComponentActivity() {
         setContent {
             val navController = rememberNavController()
             val uiState by viewModel.uiState.collectAsState()
-            val startPoint = if (!uiState.mnemonicLoaded) "importWallet" else "tokenList"
+            val startPoint = if (!uiState.mnemonicLoaded) "importWallet" else "EHRs"
 
             EthKtPrototypeTheme {
                 Surface(color = MaterialTheme.colorScheme.background) {
@@ -87,6 +93,9 @@ class MainActivity : ComponentActivity() {
                         composable("activity") {
                             ActivityScreen(navController = navController, viewModel = viewModel)
                         }
+                        composable("EHRs") {
+                            EHRsScreen(navController = navController, viewModel = viewModel)
+                        }
                         composable("transaction/{transactionId}") { backStackEntry ->
                             val transactionId = backStackEntry.arguments?.getString("transactionId")
                             TransactionScreen(
@@ -94,6 +103,21 @@ class MainActivity : ComponentActivity() {
                                 viewModel = viewModel,
                                 transactionId = transactionId
                             )
+                        }
+                        composable("healthSummaryScreen") {
+                            HealthSummaryScreen(navController = navController, viewModel = viewModel)
+                        }
+                        composable("examsScreen") {
+                            ExamsScreen(navController = navController, viewModel = viewModel)
+                        }
+                        composable("prescriptionsScreen") {
+                            PrescriptionsScreen(navController = navController, viewModel = viewModel)
+                        }
+                        composable("vaccinationsScreen") {
+                            VaccinationsScreen(navController = navController, viewModel = viewModel)
+                        }
+                        composable("medicationScreen") {
+                            MedicationScreen(navController = navController, viewModel = viewModel)
                         }
                     }
                 }

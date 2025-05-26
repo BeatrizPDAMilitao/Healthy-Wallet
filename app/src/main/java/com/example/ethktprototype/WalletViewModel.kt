@@ -7,9 +7,17 @@ import android.graphics.BitmapFactory
 import android.util.Log
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.ethktprototype.data.AllergyIntoleranceEntity
 import com.example.ethktprototype.data.AppDatabase
+import com.example.ethktprototype.data.ConditionEntity
 import com.example.ethktprototype.data.Converters
+import com.example.ethktprototype.data.DeviceEntity
+import com.example.ethktprototype.data.DiagnosticReportEntity
+import com.example.ethktprototype.data.ImmunizationEntity
+import com.example.ethktprototype.data.MedicationRequestEntity
+import com.example.ethktprototype.data.MedicationStatementEntity
 import com.example.ethktprototype.data.PatientEntity
+import com.example.ethktprototype.data.ProcedureEntity
 import com.example.ethktprototype.data.TokenBalance
 import com.example.ethktprototype.data.Transaction
 import com.example.ethktprototype.data.TransactionEntity
@@ -43,6 +51,7 @@ class WalletViewModel(application: Application) : AndroidViewModel(application) 
     private val transactionDao = AppDatabase.getDatabase(application).transactionDao()
 
     private val walletRepository = WalletRepository(application)
+    private val medPlumAPI = MedPlumAPI(application)
     private val sharedPreferences =
         application.getSharedPreferences("WalletPrefs", Context.MODE_PRIVATE)
     private val walletAddressKey = "wallet_address"
@@ -183,8 +192,14 @@ class WalletViewModel(application: Application) : AndroidViewModel(application) 
                     }
                     Log.d("SyncedLog", "Logs=${logs.size}")
                     logs.forEach { log ->
-                        val date = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date(log.date.toLong() * 1000))
-                        Log.d("SyncedLog", "Doctor=${log.practitionerAddress}, Patient=${log.patientId}, Type=${log.type}, Timestamp=${log.date}")
+                        val date = SimpleDateFormat(
+                            "yyyy-MM-dd",
+                            Locale.getDefault()
+                        ).format(Date(log.date.toLong() * 1000))
+                        Log.d(
+                            "SyncedLog",
+                            "Doctor=${log.practitionerAddress}, Patient=${log.patientId}, Type=${log.type}, Timestamp=${log.date}"
+                        )
                         //call medplum API to get the necessary data
                         //walletRepository.fetchPatient(/*log.patientId*/)
                         val transaction = TransactionEntity(
@@ -225,7 +240,7 @@ class WalletViewModel(application: Application) : AndroidViewModel(application) 
         viewModelScope.launch {
             try {
                 val patientData = withContext(Dispatchers.IO) {
-                    walletRepository.fetchPatient(/*patientId*/)
+                    medPlumAPI.fetchPatient(/*patientId*/)
                 }
                 updateUiState { state ->
                     state.copy(
@@ -242,11 +257,30 @@ class WalletViewModel(application: Application) : AndroidViewModel(application) 
         }
     }
 
+    private val _patient = MutableStateFlow<PatientEntity?>(null)
+    val patient: StateFlow<PatientEntity?> = _patient
+    fun getPatientComplete(patientId: String) {
+        viewModelScope.launch {
+            try {
+                val patientData = withContext(Dispatchers.IO) {
+                    medPlumAPI.fetchPatientComplete(patientId)
+                }
+                patientData?.let {
+                    _patient.value = it
+                }
+                Log.d("PatientCompleteData", "Patient Complete Data: $patientData")
+            } catch (e: Exception) {
+                // Handle errors
+                Log.e("PatientCompleteData", "Error fetching patient complete data: ${e.message}", e)
+            }
+        }
+    }
+
     fun getPractitionerData(practitionerId: String) {
         viewModelScope.launch {
             try {
                 val practitionerData = withContext(Dispatchers.IO) {
-                    walletRepository.fetchPractitioner(practitionerId)
+                    medPlumAPI.fetchPractitioner(practitionerId)
                 }
                 updateUiState { state ->
                     state.copy(
@@ -258,6 +292,158 @@ class WalletViewModel(application: Application) : AndroidViewModel(application) 
             } catch (e: Exception) {
                 // Handle errors
                 Log.e("PractitionerData", "Error fetching practitioner data: ${e.message}", e)
+            }
+        }
+    }
+
+    private val _conditions = MutableStateFlow<List<ConditionEntity>>(emptyList())
+    val conditions: StateFlow<List<ConditionEntity>> = _conditions
+
+    fun getConditions(subjectId: String) {
+        viewModelScope.launch {
+            try {
+                val conditions = withContext(Dispatchers.IO) {
+                    medPlumAPI.fetchConditions(subjectId)
+                }
+                conditions?.let {
+                    _conditions.value = it
+                }
+                Log.d("ConditionsData", "Conditions: $conditions")
+            } catch (e: Exception) {
+                // Handle errors
+                Log.e("ConditionsData", "Error fetching ConditionsData : ${e.message}", e)
+            }
+        }
+    }
+
+    private val _diagnosticReports = MutableStateFlow<List<DiagnosticReportEntity>>(emptyList())
+    val diagnosticReports: StateFlow<List<DiagnosticReportEntity>> = _diagnosticReports
+    fun getDiagnosticReports(subjectId: String) {
+        viewModelScope.launch {
+            try {
+                val reports = withContext(Dispatchers.IO) {
+                    medPlumAPI.fetchDiagnosticReports(subjectId)
+                }
+                reports?.let {
+                    _diagnosticReports.value = it
+                }
+                Log.d("DiagnosticReportsData", "Diagnostic Reports: $reports")
+            } catch (e: Exception) {
+                Log.e("DiagnosticReportsData", "Error fetching diagnostic reports: ${e.message}", e)
+                null
+            }
+        }
+    }
+    private val _medicationRequests = MutableStateFlow<List<MedicationRequestEntity>>(emptyList())
+    val medicationRequests: StateFlow<List<MedicationRequestEntity>> = _medicationRequests
+    fun getMedicationRequests(subjectId: String) {
+        viewModelScope.launch {
+            try {
+                val requests = withContext(Dispatchers.IO) {
+                    medPlumAPI.fetchMedicationRequests(subjectId)
+                }
+                requests?.let {
+                    _medicationRequests.value = it
+                }
+                Log.d("MedicationRequestsData", "Medication Requests: $requests")
+            } catch (e: Exception) {
+                Log.e("MedicationRequestsData", "Error fetching medication requests: ${e.message}", e)
+                null
+            }
+        }
+    }
+
+    private val _medicationStatements = MutableStateFlow<List<MedicationStatementEntity>>(emptyList())
+    val medicationStatements: StateFlow<List<MedicationStatementEntity>> = _medicationStatements
+    fun getMedicationStatements(subjectId: String) {
+        viewModelScope.launch {
+            try {
+                val statements = withContext(Dispatchers.IO) {
+                    medPlumAPI.fetchMedicationStatements(subjectId)
+                }
+                statements?.let {
+                    _medicationStatements.value = it
+                }
+                Log.d("MedicationStatementsData", "Medication Statements: $statements")
+            } catch (e: Exception) {
+                Log.e("MedicationStatementsData", "Error fetching medication statements: ${e.message}", e)
+                null
+            }
+        }
+    }
+
+    private val _immunizations = MutableStateFlow<List<ImmunizationEntity>>(emptyList())
+    val immunizations: StateFlow<List<ImmunizationEntity>> = _immunizations
+    fun getImmunizations(subjectId: String) {
+        viewModelScope.launch {
+            try {
+                val immunizations = withContext(Dispatchers.IO) {
+                    medPlumAPI.fetchImmunizations(subjectId)
+                }
+                immunizations?.let {
+                    _immunizations.value = it
+                }
+                Log.d("ImmunizationsData", "Medication Requests: $immunizations")
+            } catch (e: Exception) {
+                Log.e("ImmunizationsData", "Error fetching immunizations: ${e.message}", e)
+                null
+            }
+        }
+    }
+
+    private val _allergies = MutableStateFlow<List<AllergyIntoleranceEntity>>(emptyList())
+    val allergies: StateFlow<List<AllergyIntoleranceEntity>> = _allergies
+    fun getAllergies(subjectId: String) {
+        viewModelScope.launch {
+            try {
+                val allergies = withContext(Dispatchers.IO) {
+                    medPlumAPI.fetchAllergies(subjectId)
+                }
+                allergies?.let {
+                    _allergies.value = it
+                }
+                Log.d("AllergiesData", "Allergies: $allergies")
+            } catch (e: Exception) {
+                Log.e("AllergiesData", "Error fetching allergies: ${e.message}", e)
+                null
+            }
+        }
+    }
+
+    private val _devices = MutableStateFlow<List<DeviceEntity>>(emptyList())
+    val devices: StateFlow<List<DeviceEntity>> = _devices
+    fun getDevices(subjectId: String) {
+        viewModelScope.launch {
+            try {
+                val devices = withContext(Dispatchers.IO) {
+                    medPlumAPI.fetchDevices(subjectId)
+                }
+                devices?.let {
+                    _devices.value = it
+                }
+                Log.d("DevicesData", "Devices: $devices")
+            } catch (e: Exception) {
+                Log.e("DevicesData", "Error fetching devices: ${e.message}", e)
+                null
+            }
+        }
+    }
+
+    private val _procedures = MutableStateFlow<List<ProcedureEntity>>(emptyList())
+    val procedures: StateFlow<List<ProcedureEntity>> = _procedures
+    fun getProcedures(subjectId: String) {
+        viewModelScope.launch {
+            try {
+                val procedures = withContext(Dispatchers.IO) {
+                    medPlumAPI.fetchProcedures(subjectId)
+                }
+                procedures?.let {
+                    _procedures.value = it
+                }
+                Log.d("ProceduresData", "Procedures: $procedures")
+            } catch (e: Exception) {
+                Log.e("ProceduresData", "Error fetching procedures: ${e.message}", e)
+                null
             }
         }
     }

@@ -3,11 +3,11 @@ package com.example.ethktprototype.data
 import androidx.room.Entity
 import androidx.room.PrimaryKey
 
-@Entity(tableName = "medication_requests")
-data class MedicationRequestEntity(
+@Entity(tableName = "diagnostic_reports")
+data class DiagnosticReportEntity(
     @PrimaryKey val id: String,
-    val medication: String,
-    val authoredOn: String,
+    val code: String,
     val status: String,
-    val dosage: String
+    val effectiveDateTime: String,
+    val result: String
 )
