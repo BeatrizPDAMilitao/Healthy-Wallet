@@ -13,7 +13,13 @@ import androidx.room.TypeConverters
         PractitionerEntity::class,
         DocumentReferenceEntity::class,
         MedicationRequestEntity::class,
+        MedicationStatementEntity::class,
         ConditionEntity::class,
+        AllergyIntoleranceEntity::class,
+        DiagnosticReportEntity::class,
+        ImmunizationEntity::class,
+        DeviceEntity::class,
+        ProcedureEntity::class,
         EncounterEntity::class,
         ObservationEntity::class,
         ZkpEntity::class

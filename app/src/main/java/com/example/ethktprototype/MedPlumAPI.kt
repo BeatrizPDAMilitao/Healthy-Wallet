@@ -24,6 +24,7 @@ import com.example.ethktprototype.data.DeviceEntity
 import com.example.ethktprototype.data.ObservationEntity
 import com.example.ethktprototype.data.ProcedureEntity
 import com.example.medplum.GetObservationByIdQuery
+import com.example.medplum.GetObservationsQuery
 import com.example.medplum.GetOrganizationQuery
 import com.example.medplum.GetPatientAllergiesQuery
 import com.example.medplum.GetPatientCompleteQuery
@@ -54,6 +55,9 @@ class MedPlumAPI(private val application: Application) : IMedPlumAPI {
 
     override suspend fun fetchPatient(): PatientEntity? {
         return try {
+            if (!::apolloClient.isInitialized) {
+                getAccessToken()
+            }
             val response = apolloClient.query(GetPatientQuery("01968b59-76f3-7228-aea9-07db748ee2ca")).execute()
             Log.d("MedPlum", "GraphQL response: $response")
 
@@ -92,6 +96,9 @@ class MedPlumAPI(private val application: Application) : IMedPlumAPI {
 
     override suspend fun fetchPatientComplete(patientId: String): PatientEntity? {
         return try {
+            if (!::apolloClient.isInitialized) {
+                getAccessToken()
+            }
             val response = apolloClient.query(GetPatientCompleteQuery(patientId)).execute()
             val patient = response.data?.Patient ?: return null
 
@@ -155,6 +162,9 @@ class MedPlumAPI(private val application: Application) : IMedPlumAPI {
 
     override suspend fun fetchPractitioner(practitionerId: String): PractitionerEntity? {
         return try {
+            if (!::apolloClient.isInitialized) {
+                getAccessToken()
+            }
             val response = apolloClient.query(GetPractitionerQuery(practitionerId)).execute()
             Log.d("MedPlum", "GraphQL response: $response")
 
@@ -234,6 +244,9 @@ class MedPlumAPI(private val application: Application) : IMedPlumAPI {
     }
     override suspend fun fetchConditions(subjectId: String): List<ConditionEntity>? {
         return try {
+            if (!::apolloClient.isInitialized) {
+                getAccessToken()
+            }
             val response = apolloClient.query(GetConditionsForPatientQuery(subjectId)).execute()
             val data = response.data?.ConditionList ?: return null
 
@@ -253,28 +266,36 @@ class MedPlumAPI(private val application: Application) : IMedPlumAPI {
         }
     }
 
-    /*override suspend fun fetchObservations(subjectId: String): List<ObservationEntity>? {
+    override suspend fun fetchObservations(subjectId: String): List<ObservationEntity>? {
         return try {
-            val response = apolloClient.query(GetObservationQuery(subjectId)).execute()
+            if (!::apolloClient.isInitialized) {
+                getAccessToken()
+            }
+            val response = apolloClient.query(GetObservationsQuery(subjectId)).execute()
             val data = response.data?.ObservationList ?: return null
 
             data.map {
                 ObservationEntity(
-                    id = it.id ?: "",
-                    code = it.code?.text ?: "",
-                    value = it.valueQuantity?.value?.toString() ?: "",
-                    unit = it.valueQuantity?.unit ?: "",
-                    effectiveDateTime = it.effectiveDateTime ?: ""
+                    id = it?.id ?: "",
+                    status = it?.status ?: "",
+                    code = it?.code?.text ?: "",
+                    subjectId = subjectId,
+                    effectiveDateTime = it?.effectiveDateTime ?: "",
+                    valueQuantity = it?.valueQuantity?.value?.toString() ?: "",
+                    unit = it?.valueQuantity?.unit ?: "",
                 )
             }
         } catch (e: Exception) {
             Log.e("MedPlum", "Error fetching observations", e)
             null
         }
-    }*/
+    }
 
     override suspend fun fetchDiagnosticReports(subjectId: String): List<DiagnosticReportEntity>? {
         return try {
+            if (!::apolloClient.isInitialized) {
+                getAccessToken()
+            }
             val response = apolloClient.query(GetPatientDiagnosticReportQuery(subjectId)).execute()
             val data = response.data?.DiagnosticReportList ?: return null
             val observationDao = AppDatabase.getDatabase(application).transactionDao()
@@ -304,7 +325,7 @@ class MedPlumAPI(private val application: Application) : IMedPlumAPI {
                 )
                 observations.forEach { obs ->
                     // Insert or update observation in your database
-                    observationDao.insertOrUpdateObservation(obs)
+                    observationDao.insertObservation(obs)
                 }
                 diagnostic
             }
@@ -316,6 +337,9 @@ class MedPlumAPI(private val application: Application) : IMedPlumAPI {
 
     override suspend fun fetchMedicationRequests(subjectId: String): List<MedicationRequestEntity>? {
         return try {
+            if (!::apolloClient.isInitialized) {
+                getAccessToken()
+            }
             val response = apolloClient.query(GetPatientMedicationRequestsQuery(subjectId)).execute()
             val data = response.data?.MedicationRequestList ?: return null
 
@@ -337,6 +361,9 @@ class MedPlumAPI(private val application: Application) : IMedPlumAPI {
 
     override suspend fun fetchMedicationStatements(subjectId: String): List<MedicationStatementEntity>? {
         return try {
+            if (!::apolloClient.isInitialized) {
+                getAccessToken()
+            }
             val response = apolloClient.query(GetPatientMedicationStatementsQuery(subjectId)).execute()
             val data = response.data?.MedicationStatementList ?: return null
 
@@ -357,6 +384,9 @@ class MedPlumAPI(private val application: Application) : IMedPlumAPI {
 
     override suspend fun fetchImmunizations(subjectId: String): List<ImmunizationEntity>? {
         return try {
+            if (!::apolloClient.isInitialized) {
+                getAccessToken()
+            }
             val response = apolloClient.query(GetPatientImmunizationsQuery(subjectId)).execute()
             val data = response.data?.ImmunizationList ?: return null
 
@@ -377,6 +407,9 @@ class MedPlumAPI(private val application: Application) : IMedPlumAPI {
 
     override suspend fun fetchAllergies(subjectId: String): List<AllergyIntoleranceEntity>? {
         return try {
+            if (!::apolloClient.isInitialized) {
+                getAccessToken()
+            }
             val response = apolloClient.query(GetPatientAllergiesQuery(subjectId)).execute()
             val data = response.data?.AllergyIntoleranceList ?: return null
 
@@ -397,6 +430,9 @@ class MedPlumAPI(private val application: Application) : IMedPlumAPI {
 
     override suspend fun fetchDevices(subjectId: String): List<DeviceEntity>? {
         return try {
+            if (!::apolloClient.isInitialized) {
+                getAccessToken()
+            }
             val response = apolloClient.query(GetPatientDevicesQuery(subjectId)).execute()
             val data = response.data?.DeviceList ?: return null
 
@@ -416,6 +452,9 @@ class MedPlumAPI(private val application: Application) : IMedPlumAPI {
 
     override suspend fun fetchProcedures(subjectId: String): List<ProcedureEntity>? {
         return try {
+            if (!::apolloClient.isInitialized) {
+                getAccessToken()
+            }
             val response = apolloClient.query(GetPatientProceduresQuery(subjectId)).execute()
             val data = response.data?.ProcedureList ?: return null
 
@@ -435,6 +474,9 @@ class MedPlumAPI(private val application: Application) : IMedPlumAPI {
 
     override suspend fun fetchObservationByID(observationId: String): ObservationEntity? {
         return try {
+            if (!::apolloClient.isInitialized) {
+                getAccessToken()
+            }
             val response = apolloClient.query(GetObservationByIdQuery(observationId)).execute()
             val data = response.data?.Observation ?: return null
 

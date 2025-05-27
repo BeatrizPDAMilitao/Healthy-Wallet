@@ -43,13 +43,79 @@ interface TransactionDao {
     @Query(" SELECT * FROM transactions WHERE id = :transactionId")
     suspend fun getTransactionWithProofById(transactionId: String): TransactionWithProof?
 
-    @Insert
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertPatient(patient: PatientEntity)
 
+    @Query("SELECT * FROM patients WHERE id = :patientId")
+    suspend fun getPatientById(patientId: String): PatientEntity?
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
-    suspend fun insertOrUpdateObservation(observation: ObservationEntity)
+    suspend fun insertObservation(observation: ObservationEntity)
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertObservations(observations: List<ObservationEntity>)
 
     @Query("SELECT * FROM observations WHERE code = :code LIMIT 1")
     suspend fun findByCode(code: String): ObservationEntity?
+
+    @Query("SELECT * FROM observations")
+    suspend fun getObservations(): List<ObservationEntity>
+
+    // CONDITIONS
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertConditions(conditions: List<ConditionEntity>)
+
+    @Query("SELECT * FROM conditions")
+    suspend fun getConditions(): List<ConditionEntity>
+
+    // DIAGNOSTIC REPORTS
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertDiagnosticReports(reports: List<DiagnosticReportEntity>)
+
+    @Query("SELECT * FROM diagnostic_reports")
+    suspend fun getDiagnosticReports(): List<DiagnosticReportEntity>
+
+    // MEDICATION REQUESTS
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertMedicationRequests(requests: List<MedicationRequestEntity>)
+
+    @Query("SELECT * FROM medication_requests")
+    suspend fun getMedicationRequests(): List<MedicationRequestEntity>
+
+    // MEDICATION STATEMENTS
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertMedicationStatements(statements: List<MedicationStatementEntity>)
+
+    @Query("SELECT * FROM medication_statements")
+    suspend fun getMedicationStatements(): List<MedicationStatementEntity>
+
+    // IMMUNIZATIONS
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertImmunizations(immunizations: List<ImmunizationEntity>)
+
+    @Query("SELECT * FROM immunizations")
+    suspend fun getImmunizations(): List<ImmunizationEntity>
+
+    // ALLERGIES
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertAllergies(allergies: List<AllergyIntoleranceEntity>)
+
+    @Query("SELECT * FROM allergies")
+    suspend fun getAllergies(): List<AllergyIntoleranceEntity>
+
+    // DEVICES
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertDevices(devices: List<DeviceEntity>)
+
+    @Query("SELECT * FROM devices")
+    suspend fun getDevices(): List<DeviceEntity>
+
+    // PROCEDURES
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertProcedures(procedures: List<ProcedureEntity>)
+
+    @Query("SELECT * FROM procedures")
+    suspend fun getProcedures(): List<ProcedureEntity>
+
 
 }

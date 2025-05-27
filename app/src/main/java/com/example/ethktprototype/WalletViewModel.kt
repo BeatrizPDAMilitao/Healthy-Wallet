@@ -79,6 +79,17 @@ class WalletViewModel(application: Application) : AndroidViewModel(application) 
         loadMnemonicFromPrefs()
         getTokenBlocklist()
 
+        viewModelScope.launch {
+            loadPatientFromDb()
+            loadConditionsFromDb()
+            loadMedicationRequestsFromDb()
+            loadMedicationStatementsFromDb()
+            loadImmunizationsFromDb()
+            loadAllergiesFromDb()
+            loadDevicesFromDb()
+            loadProceduresFromDb()
+        }
+
         //Add sample transactions for testing
         //addSampleTransactions()
     }
@@ -269,6 +280,7 @@ class WalletViewModel(application: Application) : AndroidViewModel(application) 
                 }
                 patientData?.let {
                     _patient.value = it
+                    transactionDao.insertPatient(it)
                 }
                 Log.d("PatientCompleteData", "Patient Complete Data: $patientData")
             } catch (e: Exception) {
@@ -278,6 +290,16 @@ class WalletViewModel(application: Application) : AndroidViewModel(application) 
         }
     }
 
+    fun loadPatientFromDb() {
+        viewModelScope.launch {
+            val cached = withContext(Dispatchers.IO) {
+                transactionDao.getPatientById("019706de-81bf-77d0-a864-2db46cad1d8c")
+            }
+            _patient.value = cached
+        }
+    }
+
+    //TODO: Change to be like the others
     fun getPractitionerData(practitionerId: String) {
         viewModelScope.launch {
             try {
@@ -300,7 +322,6 @@ class WalletViewModel(application: Application) : AndroidViewModel(application) 
 
     private val _conditions = MutableStateFlow<List<ConditionEntity>>(emptyList())
     val conditions: StateFlow<List<ConditionEntity>> = _conditions
-
     fun getConditions(subjectId: String) {
         viewModelScope.launch {
             try {
@@ -309,12 +330,22 @@ class WalletViewModel(application: Application) : AndroidViewModel(application) 
                 }
                 conditions?.let {
                     _conditions.value = it
+                    transactionDao.insertConditions(it)
                 }
                 Log.d("ConditionsData", "Conditions: $conditions")
             } catch (e: Exception) {
                 // Handle errors
                 Log.e("ConditionsData", "Error fetching ConditionsData : ${e.message}", e)
             }
+        }
+    }
+
+    fun loadConditionsFromDb() {
+        viewModelScope.launch {
+            val cached = withContext(Dispatchers.IO) {
+                transactionDao.getConditions()
+            }
+            _conditions.value = cached
         }
     }
 
@@ -334,6 +365,7 @@ class WalletViewModel(application: Application) : AndroidViewModel(application) 
                 }
                 reports?.let {
                     _diagnosticReports.value = it
+                    transactionDao.insertDiagnosticReports(it)
                 }
                 Log.d("DiagnosticReportsData", "Diagnostic Reports: $reports")
             } catch (e: Exception) {
@@ -342,6 +374,17 @@ class WalletViewModel(application: Application) : AndroidViewModel(application) 
             }
         }
     }
+
+    fun loadDiagnosticReportsFromDb() {
+        viewModelScope.launch {
+            val cached = withContext(Dispatchers.IO) {
+                transactionDao.getDiagnosticReports()
+            }
+            _diagnosticReports.value = cached
+        }
+    }
+
+
     private val _medicationRequests = MutableStateFlow<List<MedicationRequestEntity>>(emptyList())
     val medicationRequests: StateFlow<List<MedicationRequestEntity>> = _medicationRequests
     fun getMedicationRequests(subjectId: String) {
@@ -352,12 +395,22 @@ class WalletViewModel(application: Application) : AndroidViewModel(application) 
                 }
                 requests?.let {
                     _medicationRequests.value = it
+                    transactionDao.insertMedicationRequests(it)
                 }
                 Log.d("MedicationRequestsData", "Medication Requests: $requests")
             } catch (e: Exception) {
                 Log.e("MedicationRequestsData", "Error fetching medication requests: ${e.message}", e)
                 null
             }
+        }
+    }
+
+    fun loadMedicationRequestsFromDb() {
+        viewModelScope.launch {
+            val cached = withContext(Dispatchers.IO) {
+                transactionDao.getMedicationRequests()
+            }
+            _medicationRequests.value = cached
         }
     }
 
@@ -371,12 +424,22 @@ class WalletViewModel(application: Application) : AndroidViewModel(application) 
                 }
                 statements?.let {
                     _medicationStatements.value = it
+                    transactionDao.insertMedicationStatements(it)
                 }
                 Log.d("MedicationStatementsData", "Medication Statements: $statements")
             } catch (e: Exception) {
                 Log.e("MedicationStatementsData", "Error fetching medication statements: ${e.message}", e)
                 null
             }
+        }
+    }
+
+    fun loadMedicationStatementsFromDb() {
+        viewModelScope.launch {
+            val cached = withContext(Dispatchers.IO) {
+                transactionDao.getMedicationStatements()
+            }
+            _medicationStatements.value = cached
         }
     }
 
@@ -390,12 +453,22 @@ class WalletViewModel(application: Application) : AndroidViewModel(application) 
                 }
                 immunizations?.let {
                     _immunizations.value = it
+                    transactionDao.insertImmunizations(it)
                 }
                 Log.d("ImmunizationsData", "Medication Requests: $immunizations")
             } catch (e: Exception) {
                 Log.e("ImmunizationsData", "Error fetching immunizations: ${e.message}", e)
                 null
             }
+        }
+    }
+
+    fun loadImmunizationsFromDb() {
+        viewModelScope.launch {
+            val cached = withContext(Dispatchers.IO) {
+                transactionDao.getImmunizations()
+            }
+            _immunizations.value = cached
         }
     }
 
@@ -409,12 +482,22 @@ class WalletViewModel(application: Application) : AndroidViewModel(application) 
                 }
                 allergies?.let {
                     _allergies.value = it
+                    transactionDao.insertAllergies(it)
                 }
                 Log.d("AllergiesData", "Allergies: $allergies")
             } catch (e: Exception) {
                 Log.e("AllergiesData", "Error fetching allergies: ${e.message}", e)
                 null
             }
+        }
+    }
+
+    fun loadAllergiesFromDb() {
+        viewModelScope.launch {
+            val cached = withContext(Dispatchers.IO) {
+                transactionDao.getAllergies()
+            }
+            _allergies.value = cached
         }
     }
 
@@ -428,12 +511,22 @@ class WalletViewModel(application: Application) : AndroidViewModel(application) 
                 }
                 devices?.let {
                     _devices.value = it
+                    transactionDao.insertDevices(it)
                 }
                 Log.d("DevicesData", "Devices: $devices")
             } catch (e: Exception) {
                 Log.e("DevicesData", "Error fetching devices: ${e.message}", e)
                 null
             }
+        }
+    }
+
+    fun loadDevicesFromDb() {
+        viewModelScope.launch {
+            val cached = withContext(Dispatchers.IO) {
+                transactionDao.getDevices()
+            }
+            _devices.value = cached
         }
     }
 
@@ -447,12 +540,51 @@ class WalletViewModel(application: Application) : AndroidViewModel(application) 
                 }
                 procedures?.let {
                     _procedures.value = it
+                    transactionDao.insertProcedures(it)
                 }
                 Log.d("ProceduresData", "Procedures: $procedures")
             } catch (e: Exception) {
                 Log.e("ProceduresData", "Error fetching procedures: ${e.message}", e)
                 null
             }
+        }
+    }
+
+    fun loadProceduresFromDb() {
+        viewModelScope.launch {
+            val cached = withContext(Dispatchers.IO) {
+                transactionDao.getProcedures()
+            }
+            _procedures.value = cached
+        }
+    }
+
+    private val _observations = MutableStateFlow<List<ObservationEntity>>(emptyList())
+    val observations: StateFlow<List<ObservationEntity>> = _observations
+    fun getObservations(subjectId: String) {
+        viewModelScope.launch {
+            try {
+                val observations = withContext(Dispatchers.IO) {
+                    medPlumAPI.fetchObservations(subjectId)
+                }
+                observations?.let {
+                    _observations.value = it
+                    transactionDao.insertObservations(it)
+                }
+                Log.d("ObservationsData", "Observations: $observations")
+            } catch (e: Exception) {
+                Log.e("ObservationsData", "Error fetching observations: ${e.message}", e)
+                null
+            }
+        }
+    }
+
+    fun loadObservationsFromDb() {
+        viewModelScope.launch {
+            val cached = withContext(Dispatchers.IO) {
+                transactionDao.getObservations()
+            }
+            _observations.value = cached
         }
     }
 

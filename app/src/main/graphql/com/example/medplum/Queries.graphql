@@ -234,6 +234,7 @@ query GetPatientProcedures($subjectId: String!) {
 query GetObservations($subjectId: String!) {
   ObservationList(subject: $subjectId) {
     id
+    status
     code {
       text
     }
