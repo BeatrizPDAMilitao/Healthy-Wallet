@@ -19,8 +19,11 @@ import com.example.medplum.GetPatientImmunizationsQuery
 import com.example.medplum.GetPatientMedicationRequestsQuery
 import com.example.medplum.GetPatientMedicationStatementsQuery
 import com.example.ethktprototype.data.AllergyIntoleranceEntity
+import com.example.ethktprototype.data.AppDatabase
 import com.example.ethktprototype.data.DeviceEntity
+import com.example.ethktprototype.data.ObservationEntity
 import com.example.ethktprototype.data.ProcedureEntity
+import com.example.medplum.GetObservationByIdQuery
 import com.example.medplum.GetOrganizationQuery
 import com.example.medplum.GetPatientAllergiesQuery
 import com.example.medplum.GetPatientCompleteQuery
@@ -274,15 +277,36 @@ class MedPlumAPI(private val application: Application) : IMedPlumAPI {
         return try {
             val response = apolloClient.query(GetPatientDiagnosticReportQuery(subjectId)).execute()
             val data = response.data?.DiagnosticReportList ?: return null
+            val observationDao = AppDatabase.getDatabase(application).transactionDao()
 
-            data.map {
-                DiagnosticReportEntity(
-                    id = it?.id ?: "",
-                    code = it?.code?.text ?: "",
-                    status = it?.status ?: "",
-                    effectiveDateTime = it?.effectiveDateTime ?: "",
-                    result = it?.result?.joinToString { r -> r.display ?: "" } ?: ""
+            data.map { report ->
+                val reportId = report?.id ?: ""
+                val code = report?.code?.text ?: ""
+                val status = report?.status ?: ""
+                val effectiveDateTime = report?.effectiveDateTime ?: ""
+
+                // Fetch Observations for each result reference
+                val observations = report?.result?.mapNotNull { ref ->
+                    val obsId = ref.reference?.split("/")?.lastOrNull()
+                    obsId?.let { fetchObservationByID(it) }
+                } ?: emptyList()
+
+                val formattedResults = observations.joinToString(separator = "\n") { obs ->
+                    "${obs.code}: ${obs.valueQuantity} ${obs.unit}"
+                }
+
+                var diagnostic = DiagnosticReportEntity(
+                    id = reportId,
+                    code = code,
+                    status = status,
+                    effectiveDateTime = effectiveDateTime,
+                    result = formattedResults
                 )
+                observations.forEach { obs ->
+                    // Insert or update observation in your database
+                    observationDao.insertOrUpdateObservation(obs)
+                }
+                diagnostic
             }
         } catch (e: Exception) {
             Log.e("MedPlum", "Error fetching diagnostic reports", e)
@@ -405,6 +429,26 @@ class MedPlumAPI(private val application: Application) : IMedPlumAPI {
             }
         } catch (e: Exception) {
             Log.e("MedPlum", "Error fetching procedures", e)
+            null
+        }
+    }
+
+    override suspend fun fetchObservationByID(observationId: String): ObservationEntity? {
+        return try {
+            val response = apolloClient.query(GetObservationByIdQuery(observationId)).execute()
+            val data = response.data?.Observation ?: return null
+
+            ObservationEntity(
+                id = data.id ?: "",
+                status = data.status ?: "",
+                code = data.code?.text ?: "",
+                subjectId = data.subject?.reference?.split("/")?.getOrNull(1) ?: "",
+                effectiveDateTime = data.effectiveDateTime ?: "",
+                valueQuantity = data.valueQuantity?.value?.toString() ?: "",
+                unit = data.valueQuantity?.unit ?: ""
+            )
+        } catch (e: Exception) {
+            Log.e("MedPlum", "Error fetching observation by ID", e)
             null
         }
     }

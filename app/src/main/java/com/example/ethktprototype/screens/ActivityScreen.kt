@@ -208,9 +208,9 @@ fun ActivityScreen(
                             type = "X-Ray",
                             patientId = viewModel.uiState.value.walletAddress,
                             conditions = listOf(
-                                ConditionRequirement("not_pregnant"),
-                                ConditionRequirement("no_implants"),
-                                ConditionRequirement(value = "hemoglobin", min = 12, max = 17),
+                                //ConditionRequirement("not_pregnant"),
+                                //ConditionRequirement("no_implants"),
+                                ConditionRequirement(value = "Glucose", min = 40, max = 100),
                             )
                         )
                         viewModel.addTransaction(mockRequest)

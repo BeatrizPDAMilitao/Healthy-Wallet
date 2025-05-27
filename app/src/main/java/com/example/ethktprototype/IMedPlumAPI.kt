@@ -27,4 +27,5 @@ interface IMedPlumAPI {
     suspend fun fetchAllergies(subjectId: String): List<AllergyIntoleranceEntity>?
     suspend fun fetchDevices(subjectId: String): List<DeviceEntity>?
     suspend fun fetchProcedures(subjectId: String): List<ProcedureEntity>?
+    suspend fun fetchObservationByID(observationId: String): ObservationEntity?
 }

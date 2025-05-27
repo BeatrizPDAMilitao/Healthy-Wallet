@@ -2,6 +2,7 @@ package com.example.ethktprototype.data
 
 import androidx.room.Dao
 import androidx.room.Insert
+import androidx.room.OnConflictStrategy
 import androidx.room.Query
 
 @Dao
@@ -44,5 +45,11 @@ interface TransactionDao {
 
     @Insert
     suspend fun insertPatient(patient: PatientEntity)
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertOrUpdateObservation(observation: ObservationEntity)
+
+    @Query("SELECT * FROM observations WHERE code = :code LIMIT 1")
+    suspend fun findByCode(code: String): ObservationEntity?
 
 }

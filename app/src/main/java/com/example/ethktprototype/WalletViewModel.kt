@@ -16,6 +16,7 @@ import com.example.ethktprototype.data.DiagnosticReportEntity
 import com.example.ethktprototype.data.ImmunizationEntity
 import com.example.ethktprototype.data.MedicationRequestEntity
 import com.example.ethktprototype.data.MedicationStatementEntity
+import com.example.ethktprototype.data.ObservationEntity
 import com.example.ethktprototype.data.PatientEntity
 import com.example.ethktprototype.data.ProcedureEntity
 import com.example.ethktprototype.data.TokenBalance
@@ -30,6 +31,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
 import utils.addressToEnsResolver
@@ -313,6 +315,12 @@ class WalletViewModel(application: Application) : AndroidViewModel(application) 
                 // Handle errors
                 Log.e("ConditionsData", "Error fetching ConditionsData : ${e.message}", e)
             }
+        }
+    }
+
+    fun getConditionRequirement(condition: String): ObservationEntity? {
+        return runBlocking {
+            transactionDao.findByCode(condition)
         }
     }
 

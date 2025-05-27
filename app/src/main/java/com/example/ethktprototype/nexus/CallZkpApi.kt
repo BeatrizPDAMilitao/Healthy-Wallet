@@ -5,6 +5,7 @@ import okhttp3.MediaType.Companion.toMediaTypeOrNull
 import okhttp3.RequestBody.Companion.toRequestBody
 import org.json.JSONObject
 import java.io.IOException
+import java.time.ZonedDateTime
 
 object CallZkpApi {
     private val client = OkHttpClient.Builder()
@@ -13,20 +14,29 @@ object CallZkpApi {
         .writeTimeout(30, java.util.concurrent.TimeUnit.SECONDS)
         .build()
 
-    fun sendHemoglobin(
-        hemoglobin: Int,
+    fun sendValue(
+        value: Int,
+        min: Int? = null,
+        max: Int? = null,
+        timestamp: String,
         onSuccess: (String) -> Unit,
         onError: (String) -> Unit
     ) {
+        val timestampSec = ZonedDateTime.parse(timestamp)
+            .toEpochSecond()
+
         val json = JSONObject().apply {
-            put("hemoglobin", hemoglobin)
+            put("value", value)
+            if (min != null) put("min", min)
+            if (max != null) put("max", max)
+            put("timestamp", timestampSec)
         }
 
         val requestBody = json.toString()
             .toRequestBody("application/json".toMediaTypeOrNull())
 
         val request = Request.Builder()
-            .url("http://192.168.1.218:3000/prove")
+            .url("http://192.168.1.76:3000/prove")
             .post(requestBody)
             .build()
 

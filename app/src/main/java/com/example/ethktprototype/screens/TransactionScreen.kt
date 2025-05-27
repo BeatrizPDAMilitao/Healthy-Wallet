@@ -250,18 +250,36 @@ fun TransactionScreen(
 
                             Spacer(modifier = Modifier.height(8.dp))
                             Button(onClick = {
-                                CallZkpApi.sendHemoglobin(
-                                    hemoglobin = 15,
-                                    onSuccess = { resultJson ->
-                                        val status = JSONObject(resultJson).getString("status")
-                                        val proofUrl = JSONObject(resultJson).getString("proof_url")
-                                        transaction.value!!.qrCodeFileName = proofUrl
-                                        viewModel.updateTransactionQrCode(transaction.value!!.id, proofUrl)
-                                    },
-                                    onError = { error ->
-                                        Log.e("ZKP", error)
-                                    }
-                                )
+                                for (condition in transaction.value!!.conditions!!) {
+                                    Log.d("ZKP", "Condition: ${condition.type}, Value: ${condition.value}, Min: ${condition.min}, Max: ${condition.max}")
+                                }
+                                val cond = transaction.value!!.conditions!![0].value.toString()
+                                val min = transaction.value!!.conditions!![0].min
+                                val max = transaction.value!!.conditions!![0].max
+                                val observation = viewModel.getConditionRequirement(cond)
+                                val value = observation?.valueQuantity?.toString()
+                                val timestamp = observation?.effectiveDateTime.toString()
+
+                                Log.d("ZKP", "Glucose: $value")
+                                if (value != null) {
+                                    CallZkpApi.sendValue(
+                                        value = value.toDouble().toInt(),
+                                        min = min,
+                                        max = max,
+                                        timestamp = timestamp,
+                                        onSuccess = { resultJson ->
+                                            val status = JSONObject(resultJson).getString("status")
+                                            val proofUrl = JSONObject(resultJson).getString("proof_url")
+                                            transaction.value!!.qrCodeFileName = proofUrl
+                                            viewModel.updateTransactionQrCode(transaction.value!!.id, proofUrl)
+                                        },
+                                        onError = { error ->
+                                            Log.e("ZKP", error)
+                                        }
+                                    )
+                                } else {
+                                    Log.e("ZKP", "Condition not met or value not found")
+                                }
                             },
                                 modifier = Modifier
                                     .fillMaxWidth()

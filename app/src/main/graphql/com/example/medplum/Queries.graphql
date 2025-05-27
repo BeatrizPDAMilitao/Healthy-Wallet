@@ -230,6 +230,21 @@ query GetPatientProcedures($subjectId: String!) {
     performedDateTime
   }
 }
+
+query GetObservations($subjectId: String!) {
+  ObservationList(subject: $subjectId) {
+    id
+    code {
+      text
+    }
+    valueQuantity {
+      value
+      unit
+    }
+    effectiveDateTime
+  }
+}
+
 ###########################################
 
 query GetEncounter($id: ID!) {
@@ -249,7 +264,7 @@ query GetEncounter($id: ID!) {
   }
 }
 
-query GetObservation($id: ID!) {
+query GetObservationById($id: ID!) {
   Observation(id: $id) {
     id
     status
