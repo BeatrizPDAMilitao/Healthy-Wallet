@@ -16,8 +16,8 @@ object CallZkpApi {
 
     fun sendValue(
         value: Int,
-        min: Int? = null,
-        max: Int? = null,
+        min: Int,
+        max: Int,
         timestamp: String,
         onSuccess: (String) -> Unit,
         onError: (String) -> Unit
@@ -27,8 +27,8 @@ object CallZkpApi {
 
         val json = JSONObject().apply {
             put("value", value)
-            if (min != null) put("min", min)
-            if (max != null) put("max", max)
+            put("min", min)
+            put("max", max)
             put("timestamp", timestampSec)
         }
 

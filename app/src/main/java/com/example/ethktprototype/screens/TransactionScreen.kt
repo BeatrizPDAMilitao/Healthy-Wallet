@@ -261,7 +261,7 @@ fun TransactionScreen(
                                 val timestamp = observation?.effectiveDateTime.toString()
 
                                 Log.d("ZKP", "Glucose: $value")
-                                if (value != null) {
+                                if (value != null && min != null && max != null) {
                                     CallZkpApi.sendValue(
                                         value = value.toDouble().toInt(),
                                         min = min,
