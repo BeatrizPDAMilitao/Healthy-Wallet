@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.Button
 
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -32,6 +33,8 @@ import androidx.navigation.NavHostController
 import com.example.ethktprototype.WalletViewModel
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextAlign
+import com.example.ethktprototype.HealthyWalletApplication
+import com.example.ethktprototype.MedPlumAPI
 import com.example.ethktprototype.composables.BottomNavigationBar
 
 /**
@@ -211,6 +214,29 @@ fun EHRsScreen(
                     )
                 }
             }*/
+            val application = context.applicationContext as HealthyWalletApplication
+            val authManager = MedPlumAPI(application)
+
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(20.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Button(
+                    onClick = {
+                        authManager.logout(context)
+                        navController.navigate("loginScreen") {
+                            popUpTo("healthSummaryScreen") { inclusive = true }
+                        }
+                    },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = 16.dp)
+                ) {
+                    Text("Logout")
+                }
+            }
         }
 
         // Bottom Navigation Bar

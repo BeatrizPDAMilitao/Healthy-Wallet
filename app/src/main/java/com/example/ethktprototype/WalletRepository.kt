@@ -110,6 +110,24 @@ class WalletRepository(private val application: Application) : IWalletRepository
         }
     }
 
+    fun storeMedPlumToken(medPlumToken: String) {
+        //Store the MedPlum token in SharedPreferences
+        sharedPreferences.edit {
+            putString("medPlumToken", medPlumToken)
+            apply()
+        }
+    }
+
+    fun getMedPlumToken(): String {
+        // Retrieve the MedPlum token from SharedPreferences
+        return sharedPreferences.getString("medPlumToken", null).toString()
+    }
+
+    fun isMedPlumTokenStored(): Boolean {
+        // Check if the MedPlum token is stored in SharedPreferences
+        return sharedPreferences.contains("medPlumToken")
+    }
+
     override fun removeAllWalletData() {
         sharedPreferences.edit().clear().apply()
     }

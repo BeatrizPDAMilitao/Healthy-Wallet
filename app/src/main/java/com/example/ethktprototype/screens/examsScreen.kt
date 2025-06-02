@@ -162,10 +162,10 @@ fun ExamList(diagnosticReports: List<DiagnosticReportEntity>) {
                         Spacer(modifier = Modifier.height(8.dp))
                         Text("ID: ${diagnostic.id}")
                         Text("Status: ${diagnostic.status}")
-                        Text("Results:")
-                        diagnostic.result.split(",").forEach { result ->
-                            Text("  - $result")
-                        }
+                        Text("Results: ${diagnostic.result}")
+                        //diagnostic.result.split(",").forEach { result ->
+                            //Text("  - $result")
+                        //}
                     }
                 }
             }

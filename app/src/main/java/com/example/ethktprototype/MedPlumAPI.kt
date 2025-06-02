@@ -38,26 +38,208 @@ import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
 import org.json.JSONObject
 
+import android.app.Activity
+import android.content.Context
+import android.content.Intent
+import android.net.Uri
+import android.util.Base64
+import java.security.MessageDigest
+import java.security.SecureRandom
+
 
 class MedPlumAPI(private val application: Application) : IMedPlumAPI {
+    val sharedPreferences = application.getSharedPreferences("auth", Context.MODE_PRIVATE)
+
     private val CLIENT_ID = "01968b74-d07a-766d-8331-1cefab3a8922"
     private val CLIENT_SECRET = "a6bcb43c6607ad32e3ae324ff6689b6716d6abcaad6a330e6e5b330616cb71ac"
+    private val redirectUri: String = "myapp://oauth2redirect"
+    private val TAG = "MedplumAuth"
+    private val authUrl = "https://api.medplum.com/oauth2/authorize"
+    private val tokenUrl = "https://api.medplum.com/oauth2/token"
+    private var codeVerifier: String? = null
+
     init {
         getAccessToken()
     }
 
+    fun logout(context: Context) {
+        sharedPreferences.edit()
+            .remove("access_token")
+            .remove("refresh_token")
+            .remove("profile_id")
+            .apply()
+    }
+
+    fun generateCodeVerifier(): String {
+        val secureRandom = SecureRandom()
+        val code = ByteArray(32)
+        secureRandom.nextBytes(code)
+        return Base64.encodeToString(code, Base64.URL_SAFE or Base64.NO_PADDING or Base64.NO_WRAP)
+    }
+
+    fun generateCodeChallenge(verifier: String): String {
+        val bytes = verifier.toByteArray(Charsets.US_ASCII)
+        val digest = MessageDigest.getInstance("SHA-256").digest(bytes)
+        return Base64.encodeToString(digest, Base64.URL_SAFE or Base64.NO_PADDING or Base64.NO_WRAP)
+    }
+
+    fun launchLogin(activity: Activity) {
+        codeVerifier = generateCodeVerifier()
+        val codeChallenge = generateCodeChallenge(codeVerifier!!)
+
+        sharedPreferences.edit().putString("code_verifier", codeVerifier).apply()
+
+        val uri = Uri.parse(authUrl).buildUpon()
+            .appendQueryParameter("response_type", "code")
+            .appendQueryParameter("client_id", CLIENT_ID)
+            .appendQueryParameter("redirect_uri", redirectUri)
+            .appendQueryParameter("scope", "openid profile user/*.read")
+            .appendQueryParameter("code_challenge_method", "S256")
+            .appendQueryParameter("code_challenge", codeChallenge)
+            .build()
+
+        val intent = Intent(Intent.ACTION_VIEW, uri)
+        activity.startActivity(intent)
+    }
+
+    suspend fun handleRedirectAndExchange(intent: Intent, onTokenReceived: (accessToken: String) -> Unit) {
+        val data = intent.data ?: return
+        if (data.host == Uri.parse(redirectUri).host) {
+            val code = data.getQueryParameter("code")
+            if (code == null) {
+                Log.e("LoginActivity", "No auth code in redirect")
+                return
+            }
+            exchangeCodeForToken(code, onTokenReceived)
+        }
+    }
+
+    private suspend fun exchangeCodeForToken(code: String, onTokenReceived: (String) -> Unit) = withContext(Dispatchers.IO) {
+        val codeVerifier = sharedPreferences.getString("code_verifier", null)
+
+        if (codeVerifier.isNullOrBlank()) {
+            Log.e(TAG, "Missing code_verifier")
+            return@withContext
+        }
+
+        val form = "grant_type=authorization_code" +
+                "&code=$code" +
+                "&redirect_uri=$redirectUri" +
+                "&client_id=$CLIENT_ID" +
+                "&code_verifier=${codeVerifier}"
+
+        val request = Request.Builder()
+            .url(tokenUrl)
+            .post(form.toRequestBody("application/x-www-form-urlencoded".toMediaType()))
+            .build()
+
+        try {
+            val client = OkHttpClient()
+            client.newCall(request).execute().use { response ->
+                val body = response.body?.string()
+                if (!response.isSuccessful || body == null) {
+                    Log.e(TAG, "Token exchange failed: $body")
+                    return@use
+                }
+
+                val json = JSONObject(body)
+                val accessToken = json.getString("access_token")
+                val refreshToken = json.optString("refresh_token", null)
+
+                if (refreshToken != null) {
+                    sharedPreferences.edit().putString("refresh_token", refreshToken).apply()
+                } else {
+                    Log.w(TAG, "No refresh token returned")
+                }
+
+                val profileObj = json.optJSONObject("profile")
+                val profileRef = profileObj?.optString("reference", null)
+                if (profileRef != null) {
+                    sharedPreferences.edit().putString("user_profile", profileRef).apply()
+                }
+
+
+                sharedPreferences.edit()
+                    .putString("access_token", accessToken)
+                    .apply()
+
+                Log.d(TAG, "Access token: $accessToken")
+                setupApolloClient(accessToken)
+                onTokenReceived(accessToken)
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Exception during token exchange", e)
+        }
+    }
+
+    private fun setupApolloClient(accessToken: String) {
+        apolloClient = ApolloClient.Builder()
+            .serverUrl("https://api.medplum.com/fhir/R4/\$graphql")
+            .addHttpHeader("Authorization", "Bearer $accessToken")
+            .build()
+    }
+
+    suspend fun refreshAccessTokenIfNeeded(): String? = withContext(Dispatchers.IO) {
+        val refreshToken = sharedPreferences.getString("refresh_token", null) ?: return@withContext null
+
+        val form = "grant_type=refresh_token" +
+                "&refresh_token=$refreshToken" +
+                "&client_id=$CLIENT_ID"
+
+        val request = Request.Builder()
+            .url(tokenUrl)
+            .post(form.toRequestBody("application/x-www-form-urlencoded".toMediaType()))
+            .build()
+
+        try {
+            val client = OkHttpClient()
+            client.newCall(request).execute().use { response ->
+                val body = response.body?.string() ?: return@use null
+                val json = JSONObject(body)
+
+                val newAccessToken = json.getString("access_token")
+                sharedPreferences.edit().putString("access_token", newAccessToken).apply()
+                setupApolloClient(newAccessToken)
+                newAccessToken
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Refresh token failed", e)
+            null
+        }
+    }
+
+    fun getLoggedInPatientId(): String? {
+        return sharedPreferences.getString("user_profile", null)?.removePrefix("Patient/")
+    }
+
+    private suspend fun ensureApolloClientInitialized(): Boolean {
+        if (!::apolloClient.isInitialized) {
+            val token = getAccessToken() ?: refreshAccessTokenIfNeeded()
+            Log.d(TAG, "Access token: $token")
+            if (token == null) {
+                Log.e(TAG, "Unable to initialize ApolloClient - no valid token")
+                return false
+            }
+        }
+        Log.d(TAG, "Access token ${getAccessToken()}")
+        return true
+    }
+
+
     override fun getAccessToken(): String? {
-        return kotlinx.coroutines.runBlocking { getMedplumAccessToken(CLIENT_ID, CLIENT_SECRET) }
-        //return sharedPreferences.getString("medplum_access_token", null)
+        val token = sharedPreferences.getString("access_token", null)
+        if (token != null) {
+            setupApolloClient(token)
+        }
+        return token
     }
 
     private lateinit var apolloClient: ApolloClient
 
     override suspend fun fetchPatient(): PatientEntity? {
         return try {
-            if (!::apolloClient.isInitialized) {
-                getAccessToken()
-            }
+            if (!ensureApolloClientInitialized()) return null
+
             val response = apolloClient.query(GetPatientQuery("01968b59-76f3-7228-aea9-07db748ee2ca")).execute()
             Log.d("MedPlum", "GraphQL response: $response")
 
@@ -96,10 +278,19 @@ class MedPlumAPI(private val application: Application) : IMedPlumAPI {
 
     override suspend fun fetchPatientComplete(patientId: String): PatientEntity? {
         return try {
-            if (!::apolloClient.isInitialized) {
-                getAccessToken()
+            Log.d("MedPlum", "Fetching full patient info for $patientId")
+            if (!ensureApolloClientInitialized()) return null
+            Log.d("MedPlum", "Apollo client initialized")
+
+            val patientId2 = getLoggedInPatientId() ?: return null
+            Log.d("MedPlum", "Patient ID: $patientId2")
+            val response = apolloClient.query(GetPatientCompleteQuery(patientId2)).execute()
+            Log.d("MedPlum", "GraphQL response: $response")
+            if (response.hasErrors()) {
+                Log.e("MedPlum", "GraphQL errors: ${response.errors}")
+                return null
             }
-            val response = apolloClient.query(GetPatientCompleteQuery(patientId)).execute()
+
             val patient = response.data?.Patient ?: return null
 
             // Patient Name
@@ -162,9 +353,8 @@ class MedPlumAPI(private val application: Application) : IMedPlumAPI {
 
     override suspend fun fetchPractitioner(practitionerId: String): PractitionerEntity? {
         return try {
-            if (!::apolloClient.isInitialized) {
-                getAccessToken()
-            }
+            if (!ensureApolloClientInitialized()) return null
+
             val response = apolloClient.query(GetPractitionerQuery(practitionerId)).execute()
             Log.d("MedPlum", "GraphQL response: $response")
 
@@ -244,10 +434,10 @@ class MedPlumAPI(private val application: Application) : IMedPlumAPI {
     }
     override suspend fun fetchConditions(subjectId: String): List<ConditionEntity>? {
         return try {
-            if (!::apolloClient.isInitialized) {
-                getAccessToken()
-            }
+            if (!ensureApolloClientInitialized()) return null
+
             val response = apolloClient.query(GetConditionsForPatientQuery(subjectId)).execute()
+            Log.d("MedPlum", "GraphQL response: $response")
             val data = response.data?.ConditionList ?: return null
 
             data.map {
@@ -268,10 +458,10 @@ class MedPlumAPI(private val application: Application) : IMedPlumAPI {
 
     override suspend fun fetchObservations(subjectId: String): List<ObservationEntity>? {
         return try {
-            if (!::apolloClient.isInitialized) {
-                getAccessToken()
-            }
+            if (!ensureApolloClientInitialized()) return null
+
             val response = apolloClient.query(GetObservationsQuery(subjectId)).execute()
+            Log.d("MedPlum", "GraphQL response: $response")
             val data = response.data?.ObservationList ?: return null
 
             data.map {
@@ -293,10 +483,14 @@ class MedPlumAPI(private val application: Application) : IMedPlumAPI {
 
     override suspend fun fetchDiagnosticReports(subjectId: String): List<DiagnosticReportEntity>? {
         return try {
-            if (!::apolloClient.isInitialized) {
-                getAccessToken()
-            }
+            if (!ensureApolloClientInitialized()) return null
+
             val response = apolloClient.query(GetPatientDiagnosticReportQuery(subjectId)).execute()
+            Log.d("MedPlum", "GraphQL response: $response")
+            if (response.hasErrors()) {
+                Log.e("MedPlum", "GraphQL errors: ${response.errors}")
+            }
+            Log.d("MedPlum", "Raw diagnostic report list: ${response.data}")
             val data = response.data?.DiagnosticReportList ?: return null
             val observationDao = AppDatabase.getDatabase(application).transactionDao()
 
@@ -327,6 +521,7 @@ class MedPlumAPI(private val application: Application) : IMedPlumAPI {
                     // Insert or update observation in your database
                     observationDao.insertObservation(obs)
                 }
+                Log.d("MedPlum", "Diagnostic Report fetched: $diagnostic")
                 diagnostic
             }
         } catch (e: Exception) {
@@ -337,10 +532,10 @@ class MedPlumAPI(private val application: Application) : IMedPlumAPI {
 
     override suspend fun fetchMedicationRequests(subjectId: String): List<MedicationRequestEntity>? {
         return try {
-            if (!::apolloClient.isInitialized) {
-                getAccessToken()
-            }
+            if (!ensureApolloClientInitialized()) return null
+
             val response = apolloClient.query(GetPatientMedicationRequestsQuery(subjectId)).execute()
+            Log.d("MedPlum", "GraphQL response: $response")
             val data = response.data?.MedicationRequestList ?: return null
 
             data.map {
@@ -361,10 +556,10 @@ class MedPlumAPI(private val application: Application) : IMedPlumAPI {
 
     override suspend fun fetchMedicationStatements(subjectId: String): List<MedicationStatementEntity>? {
         return try {
-            if (!::apolloClient.isInitialized) {
-                getAccessToken()
-            }
+            if (!ensureApolloClientInitialized()) return null
+
             val response = apolloClient.query(GetPatientMedicationStatementsQuery(subjectId)).execute()
+            Log.d("MedPlum", "GraphQL response: $response")
             val data = response.data?.MedicationStatementList ?: return null
 
             data.map {
@@ -384,10 +579,10 @@ class MedPlumAPI(private val application: Application) : IMedPlumAPI {
 
     override suspend fun fetchImmunizations(subjectId: String): List<ImmunizationEntity>? {
         return try {
-            if (!::apolloClient.isInitialized) {
-                getAccessToken()
-            }
+            if (!ensureApolloClientInitialized()) return null
+
             val response = apolloClient.query(GetPatientImmunizationsQuery(subjectId)).execute()
+            Log.d("MedPlum", "GraphQL response: $response")
             val data = response.data?.ImmunizationList ?: return null
 
             data.map {
@@ -407,10 +602,10 @@ class MedPlumAPI(private val application: Application) : IMedPlumAPI {
 
     override suspend fun fetchAllergies(subjectId: String): List<AllergyIntoleranceEntity>? {
         return try {
-            if (!::apolloClient.isInitialized) {
-                getAccessToken()
-            }
+            if (!ensureApolloClientInitialized()) return null
+
             val response = apolloClient.query(GetPatientAllergiesQuery(subjectId)).execute()
+            Log.d("MedPlum", "GraphQL response: $response")
             val data = response.data?.AllergyIntoleranceList ?: return null
 
             data.map {
@@ -430,10 +625,10 @@ class MedPlumAPI(private val application: Application) : IMedPlumAPI {
 
     override suspend fun fetchDevices(subjectId: String): List<DeviceEntity>? {
         return try {
-            if (!::apolloClient.isInitialized) {
-                getAccessToken()
-            }
+            if (!ensureApolloClientInitialized()) return null
+
             val response = apolloClient.query(GetPatientDevicesQuery(subjectId)).execute()
+            Log.d("MedPlum", "GraphQL response: $response")
             val data = response.data?.DeviceList ?: return null
 
             data.map {
@@ -452,10 +647,10 @@ class MedPlumAPI(private val application: Application) : IMedPlumAPI {
 
     override suspend fun fetchProcedures(subjectId: String): List<ProcedureEntity>? {
         return try {
-            if (!::apolloClient.isInitialized) {
-                getAccessToken()
-            }
+            if (!ensureApolloClientInitialized()) return null
+
             val response = apolloClient.query(GetPatientProceduresQuery(subjectId)).execute()
+            Log.d("MedPlum", "GraphQL response: $response")
             val data = response.data?.ProcedureList ?: return null
 
             data.map {
@@ -474,10 +669,10 @@ class MedPlumAPI(private val application: Application) : IMedPlumAPI {
 
     override suspend fun fetchObservationByID(observationId: String): ObservationEntity? {
         return try {
-            if (!::apolloClient.isInitialized) {
-                getAccessToken()
-            }
+            //if (!ensureApolloClientInitialized()) return null
+
             val response = apolloClient.query(GetObservationByIdQuery(observationId)).execute()
+            Log.d("MedPlum", "GraphQL response: $response")
             val data = response.data?.Observation ?: return null
 
             ObservationEntity(

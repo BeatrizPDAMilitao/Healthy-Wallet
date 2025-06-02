@@ -40,4 +40,5 @@ data class WalletUiState(
     var showDataDialog: Boolean = false,
     var patientData: PatientEntity? = null,
     var practitionerData: PractitionerEntity? = null,
+    var medPlumToken: Boolean = false,
     )

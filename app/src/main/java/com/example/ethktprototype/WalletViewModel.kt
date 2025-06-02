@@ -278,7 +278,11 @@ class WalletViewModel(application: Application) : AndroidViewModel(application) 
                 val patientData = withContext(Dispatchers.IO) {
                     medPlumAPI.fetchPatientComplete(patientId)
                 }
-                patientData?.let {
+                if (patientData == null) {
+                    Log.e("PatientCompleteData", "Patient data is null")
+                    return@launch
+                }
+                patientData.let {
                     _patient.value = it
                     transactionDao.insertPatient(it)
                 }
@@ -718,6 +722,21 @@ class WalletViewModel(application: Application) : AndroidViewModel(application) 
     fun storeWallet(walletAddress: String) {
         walletRepository.storeWallet(walletAddress)
         updateUiState { it.copy(walletAddress = walletAddress) }
+    }
+
+    fun storeMedPlumToken(token: String) {
+        walletRepository.storeMedPlumToken(token)
+        updateUiState { it.copy(medPlumToken = true) }
+    }
+
+    fun getMedPlumToken(): String {
+        return walletRepository.getMedPlumToken()
+    }
+
+    fun updateMedPlumToken() {
+        if (walletRepository.isMedPlumTokenStored()) {
+            updateUiState { it.copy(medPlumToken = true) }
+        }
     }
 
     /**

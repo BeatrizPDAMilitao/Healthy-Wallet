@@ -25,6 +25,7 @@ import androidx.core.content.ContextCompat
 import com.example.ethktprototype.screens.EHRsScreen
 import com.example.ethktprototype.screens.ExamsScreen
 import com.example.ethktprototype.screens.HealthSummaryScreen
+import com.example.ethktprototype.screens.LoginScreen
 import com.example.ethktprototype.screens.MedicationScreen
 import com.example.ethktprototype.screens.PrescriptionsScreen
 import com.example.ethktprototype.screens.TransactionScreen
@@ -56,6 +57,7 @@ class MainActivity : ComponentActivity() {
         val application = applicationContext as HealthyWalletApplication
         val factory = WalletViewModelFactory(application)
         viewModel = ViewModelProvider(this, factory)[WalletViewModel::class.java]
+        viewModel.updateMedPlumToken()
 
         when {
             ContextCompat.checkSelfPermission(
@@ -73,8 +75,8 @@ class MainActivity : ComponentActivity() {
         setContent {
             val navController = rememberNavController()
             val uiState by viewModel.uiState.collectAsState()
-            val startPoint = if (!uiState.mnemonicLoaded) "importWallet" else "EHRs"
-
+            val startPoint = if (!uiState.mnemonicLoaded) "importWallet" else if (!uiState.medPlumToken) "loginScreen" else "EHRs"
+            Log.d("MainActivityStartPoint", "Start Point: $startPoint")
             EthKtPrototypeTheme {
                 Surface(color = MaterialTheme.colorScheme.background) {
                     NavHost(navController = navController, startDestination = startPoint) {
@@ -118,6 +120,10 @@ class MainActivity : ComponentActivity() {
                         }
                         composable("medicationScreen") {
                             MedicationScreen(navController = navController, viewModel = viewModel)
+                        }
+                        composable("loginScreen") {
+                            LoginScreen(context = this@MainActivity, viewModel = viewModel)
+                            //startActivity(Intent(this@MainActivity, LoginActivity::class.java))
                         }
                     }
                 }
