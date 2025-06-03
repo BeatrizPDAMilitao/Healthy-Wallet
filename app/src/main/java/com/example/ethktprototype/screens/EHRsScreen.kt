@@ -214,6 +214,24 @@ fun EHRsScreen(
                     )
                 }
             }*/
+
+            /// Test Button: Uncomment to test
+            /*Column (modifier = Modifier.fillMaxWidth()) {
+                Button(
+                    onClick = { viewModel.testFetchPrescriptions(patientId) },
+                    shape = RoundedCornerShape(12.dp),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 6.dp)
+                        .height(52.dp)
+                ) {
+                    Text(
+                        text = "Test fetch prescriptions 30 times.",
+                        style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Medium)
+                    )
+                }
+            }*/
+
             val application = context.applicationContext as HealthyWalletApplication
             val authManager = MedPlumAPI(application)
 

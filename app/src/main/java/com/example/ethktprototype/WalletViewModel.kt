@@ -26,6 +26,7 @@ import com.example.ethktprototype.data.ZkpEntity
 import com.example.ethktprototype.data.ZkpExamRequestPayload
 import com.example.ethktprototype.data.toTransaction
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -275,6 +276,44 @@ class WalletViewModel(application: Application) : AndroidViewModel(application) 
     }
 
 
+    //////////////////// MedPlum API Tests with and without blockchain ////////////////////
+
+    fun testFetchPrescriptions(subjectId: String) {
+        viewModelScope.launch {
+            val withBlockchainTimes = mutableListOf<Long>()
+            val withoutBlockchainTimes = mutableListOf<Long>()
+
+            // Measure with blockchain
+            for (i in 1..20) {
+                val duration = withContext(Dispatchers.IO) {
+                    val start = System.currentTimeMillis()
+                    getMedicationRequestsWithBlockchain(subjectId)
+                    System.currentTimeMillis() - start
+                }
+                withBlockchainTimes.add(duration)
+                Log.d("PerformanceTest", "With blockchain [$i]: $duration ms")
+                delay(2000)
+            }
+
+            // Measure without blockchain
+            for (i in 1..20) {
+                val duration = withContext(Dispatchers.IO) {
+                    val start = System.currentTimeMillis()
+                    getMedicationRequestsSuspend(subjectId)
+                    System.currentTimeMillis() - start
+                }
+                withoutBlockchainTimes.add(duration)
+                Log.d("PerformanceTest", "Without blockchain [$i]: $duration ms")
+                delay(2000)
+            }
+
+            val avgWith = withBlockchainTimes.average()
+            val avgWithout = withoutBlockchainTimes.average()
+
+            Log.d("PerformanceTest", "Average WITH blockchain: ${"%.2f".format(avgWith)} ms")
+            Log.d("PerformanceTest", "Average WITHOUT blockchain: ${"%.2f".format(avgWithout)} ms")
+        }
+    }
 
     //////////////////// MedPlum API Calls ////////////////////
 
@@ -437,6 +476,31 @@ class WalletViewModel(application: Application) : AndroidViewModel(application) 
                 null
             }
         }
+    }
+
+    suspend fun getMedicationRequestsSuspend(subjectId: String): List<MedicationRequestEntity>? {
+        return withContext(Dispatchers.IO) {
+            medPlumAPI.fetchMedicationRequests(subjectId)
+        }
+    }
+
+    suspend fun getMedicationRequestsWithBlockchain(subjectId: String) {
+        Log.d("getMedicationRequestsWithBlockchain", "Subject ID: $subjectId")
+        //viewModelScope.launch {
+
+            val requests = withContext(Dispatchers.IO) {
+                withLoggedAccess(
+                    requesterId = uiState.value.walletAddress, //FOR now. Wallet address or medplum user id?
+                    recordIds = listOf(subjectId),
+                    resourcesType = "Patient/"
+                ) {
+                    medPlumAPI.fetchMedicationRequests(subjectId)
+                }
+            }
+            if (requests == null) {
+                Log.e("getMedicationRequestsWithBlockchain", "Access denied or failed")
+            }
+        //}
     }
 
     fun loadMedicationRequestsFromDb() {

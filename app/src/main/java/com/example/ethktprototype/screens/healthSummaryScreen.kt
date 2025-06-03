@@ -71,7 +71,7 @@ fun HealthSummaryScreen(
 
     LaunchedEffect(true) {
         //viewModel.getConditions("019706de-81c4-729c-8ad0-efc79193a8a8")
-        viewModel.getPatientComplete(patientIdWitoutPrefix)
+        //viewModel.getPatientComplete(patientIdWitoutPrefix)
         viewModel.getDiagnosticReports(patientId)
         viewModel.getAllergies(patientId)
         viewModel.getMedicationStatements(patientId)
