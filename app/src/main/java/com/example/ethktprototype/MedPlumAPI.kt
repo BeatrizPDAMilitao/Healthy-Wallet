@@ -67,6 +67,7 @@ class MedPlumAPI(private val application: Application) : IMedPlumAPI {
             .remove("access_token")
             .remove("refresh_token")
             .remove("profile_id")
+            .remove("token_expiration")
             .apply()
     }
 
@@ -157,7 +158,9 @@ class MedPlumAPI(private val application: Application) : IMedPlumAPI {
                 if (profileRef != null) {
                     sharedPreferences.edit().putString("user_profile", profileRef).apply()
                 }
-
+                val expiresIn = json.optInt("expires_in", 3600)
+                val expirationTime = System.currentTimeMillis() + (expiresIn * 1000)
+                sharedPreferences.edit().putLong("token_expiration", expirationTime).apply()
 
                 sharedPreferences.edit()
                     .putString("access_token", accessToken)
@@ -178,6 +181,12 @@ class MedPlumAPI(private val application: Application) : IMedPlumAPI {
             .addHttpHeader("Authorization", "Bearer $accessToken")
             .build()
     }
+
+    private fun isTokenExpired(): Boolean {
+        val expirationTime = sharedPreferences.getLong("token_expiration", 0)
+        return System.currentTimeMillis() > expirationTime
+    }
+
 
     suspend fun refreshAccessTokenIfNeeded(): String? = withContext(Dispatchers.IO) {
         val refreshToken = sharedPreferences.getString("refresh_token", null) ?: return@withContext null
@@ -213,7 +222,7 @@ class MedPlumAPI(private val application: Application) : IMedPlumAPI {
     }
 
     private suspend fun ensureApolloClientInitialized(): Boolean {
-        if (!::apolloClient.isInitialized) {
+        if (!::apolloClient.isInitialized || isTokenExpired()) {
             val token = getAccessToken() ?: refreshAccessTokenIfNeeded()
             Log.d(TAG, "Access token: $token")
             if (token == null) {
@@ -343,8 +352,13 @@ class MedPlumAPI(private val application: Application) : IMedPlumAPI {
                 healthUnit = healthUnit,
                 doctor = doctor
             )
+        } catch (e: ApolloHttpException) {
+            val errorBody = e.body?.use { it.readUtf8() }
+            Log.e("MedPlum", "HTTP error ${e.statusCode}: ${e.message}")
+            Log.e("MedPlum", "Error body: $errorBody")
+            null
         } catch (e: Exception) {
-            Log.e("MedPlum", "Error fetching full patient info", e)
+            Log.e("MedPlum", "Unexpected error", e)
             null
         }
     }

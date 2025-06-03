@@ -249,6 +249,35 @@ class WalletViewModel(application: Application) : AndroidViewModel(application) 
         }
     }
 
+    suspend fun <T> withLoggedAccess(
+        requesterId: String,
+        recordIds: List<String>,
+        resourcesType: String,
+        fetchOperation: suspend () -> T
+    ): T? {
+        val mnemonic = getMnemonic()
+        if (mnemonic.isNullOrEmpty()) return null
+        val credentials = loadBip44Credentials(mnemonic)
+
+        return try {
+            walletRepository.loadAccessesContract(credentials)
+
+            val formattedRecordIds = recordIds.map { resourcesType + it }
+            val receipt = walletRepository.logAccess(formattedRecordIds, credentials)
+
+            Log.d("LogAccess", "TransactionHash: ${receipt.transactionHash}")
+
+            fetchOperation()
+        } catch (e: Exception) {
+            Log.e("AccessControl", "Access log or fetch failed: ${e.message}", e)
+            null
+        }
+    }
+
+
+
+    //////////////////// MedPlum API Calls ////////////////////
+
     fun getPatientData(patientId: String) {
         viewModelScope.launch {
             try {
@@ -273,23 +302,24 @@ class WalletViewModel(application: Application) : AndroidViewModel(application) 
     private val _patient = MutableStateFlow<PatientEntity?>(null)
     val patient: StateFlow<PatientEntity?> = _patient
     fun getPatientComplete(patientId: String) {
+        Log.d("PatientAccess", "Patient ID: $patientId")
         viewModelScope.launch {
-            try {
-                val patientData = withContext(Dispatchers.IO) {
+
+            val patientData = withContext(Dispatchers.IO) {
+                withLoggedAccess(
+                    requesterId = uiState.value.walletAddress, //FOR now. Wallet address or medplum user id?
+                    recordIds = listOf(patientId),
+                    resourcesType = "Patient/"
+                ) {
                     medPlumAPI.fetchPatientComplete(patientId)
                 }
-                if (patientData == null) {
-                    Log.e("PatientCompleteData", "Patient data is null")
-                    return@launch
-                }
-                patientData.let {
-                    _patient.value = it
-                    transactionDao.insertPatient(it)
-                }
-                Log.d("PatientCompleteData", "Patient Complete Data: $patientData")
-            } catch (e: Exception) {
-                // Handle errors
-                Log.e("PatientCompleteData", "Error fetching patient complete data: ${e.message}", e)
+            }
+
+            if (patientData != null) {
+                _patient.value = patientData
+                transactionDao.insertPatient(patientData)
+            } else {
+                Log.e("PatientAccess", "Access denied or failed")
             }
         }
     }
