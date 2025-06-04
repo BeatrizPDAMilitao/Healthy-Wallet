@@ -30,6 +30,7 @@ import com.example.ethktprototype.screens.MedicationScreen
 import com.example.ethktprototype.screens.PrescriptionsScreen
 import com.example.ethktprototype.screens.TransactionScreen
 import com.example.ethktprototype.screens.VaccinationsScreen
+import kotlinx.coroutines.runBlocking
 
 /**
  * MainActivity.kt
@@ -57,7 +58,10 @@ class MainActivity : ComponentActivity() {
         val application = applicationContext as HealthyWalletApplication
         val factory = WalletViewModelFactory(application)
         viewModel = ViewModelProvider(this, factory)[WalletViewModel::class.java]
-        viewModel.updateMedPlumToken()
+        runBlocking {
+            viewModel.updateMedPlumToken()
+        }
+        //Log.d("MedplumAuth", "token: ${viewModel.uiState.value.medPlumToken}")
 
         when {
             ContextCompat.checkSelfPermission(

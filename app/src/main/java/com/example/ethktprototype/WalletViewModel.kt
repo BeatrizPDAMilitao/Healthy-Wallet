@@ -854,14 +854,12 @@ class WalletViewModel(application: Application) : AndroidViewModel(application) 
     fun getMedPlumToken(): String {
         return walletRepository.getMedPlumToken()
     }
-    fun updateMedPlumToken() {
+    suspend fun updateMedPlumToken() {
         if (walletRepository.isMedPlumTokenStored()) {
-            viewModelScope.launch {
-                val token = medPlumAPI.refreshAccessTokenIfNeeded()
-                Log.d("MedplumAuth", "Token before login: $token")
-                if (token != null) {
-                    updateUiState { it.copy(medPlumToken = true) }
-                }
+            val token = medPlumAPI.refreshAccessTokenIfNeeded()
+            Log.d("MedplumAuth", "Token before login: $token")
+            if (token != null) {
+                updateUiState { it.copy(medPlumToken = true) }
             }
         }
     }
