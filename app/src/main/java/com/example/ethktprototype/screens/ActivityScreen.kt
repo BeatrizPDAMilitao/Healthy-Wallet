@@ -329,30 +329,6 @@ fun ActivityScreen(
             containerColor = MaterialTheme.colorScheme.background,
         )
     }
-
-    if (uiState.showDataDialog) {
-        AlertDialog(
-            onDismissRequest = { viewModel.setShowDataDialog(false) },
-            title = { Text("Data") },
-            text = {
-                Column {
-                    Text("ID: ${uiState.patientData?.id}")
-                    Text("Name: ${uiState.patientData?.name}")
-                    Text("Birth Date: ${uiState.patientData?.birthDate}")
-                    Text("Gender: ${uiState.patientData?.gender}")
-                }
-            },
-            confirmButton = {
-                Button(onClick = {
-                    viewModel.setShowDataDialog(false)
-                    viewModel.setPatientData(null)
-                }) {
-                    Text("OK")
-                }
-            },
-            containerColor = MaterialTheme.colorScheme.background,
-        )
-    }
 }
 
 /**

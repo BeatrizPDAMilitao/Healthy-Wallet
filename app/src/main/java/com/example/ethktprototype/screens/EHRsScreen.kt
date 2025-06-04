@@ -13,10 +13,14 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.Button
 
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -49,12 +53,13 @@ fun EHRsScreen(
     val context = LocalContext.current
 
     val patientId = "Patient/019706de-81bf-77d0-a864-2db46cad1d8c"
-    val patientIdWitoutPrefix = patientId.split("/").last()
 
     val patient = viewModel.patient.collectAsState()
 
     LaunchedEffect(true) {
-        viewModel.getPatientComplete(patientIdWitoutPrefix)
+        if (patient.value == null) {
+            viewModel.getPatientComplete()
+        }
     }
 
     Box(
@@ -74,15 +79,31 @@ fun EHRsScreen(
                     .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.9f))
                     .padding(vertical = 24.dp)
             ) {
-                Text(
-                    text = "Welcome ${patient.value?.name ?: "Patient"}!",
-                    style = MaterialTheme.typography.titleLarge.copy(
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 24.sp,
-                        color = Color.White
-                    ),
-                    modifier = Modifier.align(Alignment.Center)
-                )
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Text(
+                        text = "Welcome ${patient.value?.name ?: "Patient"}!",
+                        style = MaterialTheme.typography.titleLarge.copy(
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 24.sp,
+                            color = Color.White
+                        )
+                    )
+                    IconButton(onClick = {
+                        viewModel.getPatientComplete()
+                    }) {
+                        Icon(
+                            imageVector = Icons.Default.Refresh,
+                            contentDescription = "Refresh",
+                            tint = Color.White
+                        )
+                    }
+                }
             }
 
             Spacer(modifier = Modifier.height(24.dp))
@@ -233,7 +254,7 @@ fun EHRsScreen(
             }*/
 
             val application = context.applicationContext as HealthyWalletApplication
-            val authManager = MedPlumAPI(application)
+            val authManager = MedPlumAPI(application, viewModel)
 
             Column(
                 modifier = Modifier

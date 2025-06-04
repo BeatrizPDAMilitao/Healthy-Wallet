@@ -2,6 +2,7 @@ package com.example.ethktprototype.screens
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -16,8 +17,10 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ExpandLess
 import androidx.compose.material.icons.filled.ExpandMore
+import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.Card
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -72,12 +75,24 @@ fun HealthSummaryScreen(
     LaunchedEffect(true) {
         //viewModel.getConditions("019706de-81c4-729c-8ad0-efc79193a8a8")
         //viewModel.getPatientComplete(patientIdWitoutPrefix)
-        viewModel.getDiagnosticReports(patientId)
-        viewModel.getAllergies(patientId)
-        viewModel.getMedicationStatements(patientId)
-        viewModel.getProcedures(patientId)
-        viewModel.getDevices(patientId)
-        viewModel.getImmunizations(patientId)
+        if (conditions.isEmpty()) {
+            viewModel.getDiagnosticReports()
+        }
+        if (allergies.isEmpty()) {
+            viewModel.getAllergies()
+        }
+        if (medications.isEmpty()) {
+            viewModel.getMedicationStatements()
+        }
+        if (procedures.isEmpty()) {
+            viewModel.getProcedures()
+        }
+        if (devices.isEmpty()) {
+            viewModel.getDevices()
+        }
+        if (immunizations.isEmpty()) {
+            viewModel.getImmunizations()
+        }
     }
 
     Box(
@@ -97,15 +112,37 @@ fun HealthSummaryScreen(
                     .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.9f))
                     .padding(vertical = 24.dp)
             ) {
-                Text(
-                    text = "Health Summary",
-                    style = MaterialTheme.typography.titleLarge.copy(
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 24.sp,
-                        color = Color.White
-                    ),
-                    modifier = Modifier.align(Alignment.Center)
-                )
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Text(
+                        text = "Health Summary",
+                        style = MaterialTheme.typography.titleLarge.copy(
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 24.sp,
+                            color = Color.White
+                        )
+                    )
+                    IconButton(onClick = {
+                        viewModel.getPatientComplete()
+                        viewModel.getDiagnosticReports()
+                        viewModel.getAllergies()
+                        viewModel.getMedicationStatements()
+                        viewModel.getProcedures()
+                        viewModel.getDevices()
+                        viewModel.getImmunizations()
+                    }) {
+                        Icon(
+                            imageVector = Icons.Default.Refresh,
+                            contentDescription = "Refresh",
+                            tint = Color.White
+                        )
+                    }
+                }
             }
 
             Spacer(modifier = Modifier.height(24.dp))

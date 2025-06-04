@@ -42,6 +42,7 @@ import java.math.BigDecimal
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+import androidx.navigation.NavHostController
 
 
 /**
@@ -54,9 +55,11 @@ class WalletViewModel(application: Application) : AndroidViewModel(application) 
     private val transactionDao = AppDatabase.getDatabase(application).transactionDao()
 
     private val walletRepository = WalletRepository(application)
-    private val medPlumAPI = MedPlumAPI(application)
+    private val medPlumAPI = MedPlumAPI(application, this)
     private val sharedPreferences =
         application.getSharedPreferences("WalletPrefs", Context.MODE_PRIVATE)
+    private val sharedPreferencesAuth =
+        application.getSharedPreferences("auth", Context.MODE_PRIVATE)
     private val walletAddressKey = "wallet_address"
 
     private val _uiState = MutableStateFlow(WalletUiState())
@@ -93,6 +96,28 @@ class WalletViewModel(application: Application) : AndroidViewModel(application) 
 
         //Add sample transactions for testing
         //addSampleTransactions()
+    }
+
+    fun updatePatientIdUiState() {
+        updateUiState {
+            it.copy(patientId = sharedPreferencesAuth.getString("user_profile", null).toString())
+        }
+    }
+    fun deletePatientIdUiState() {
+        updateUiState {
+            it.copy(patientId = "")
+        }
+    }
+
+    fun getLoggedInPatientId(): String {
+        Log.d("MedplumAuth", "Patient ID: ${uiState.value.patientId}")
+        return sharedPreferencesAuth.getString("user_profile", null).toString()
+    }
+
+    fun redirectToLogin(navController: NavHostController) {
+        navController.navigate("loginScreen") {
+            popUpTo(0) { inclusive = true } // Clears the back stack
+        }
     }
 
     fun callMedSkyContract2() {
@@ -317,7 +342,7 @@ class WalletViewModel(application: Application) : AndroidViewModel(application) 
 
     //////////////////// MedPlum API Calls ////////////////////
 
-    fun getPatientData(patientId: String) {
+    /*fun getPatientData(patientId: String) {
         viewModelScope.launch {
             try {
                 val patientData = withContext(Dispatchers.IO) {
@@ -326,7 +351,6 @@ class WalletViewModel(application: Application) : AndroidViewModel(application) 
                 updateUiState { state ->
                     state.copy(
                         showDataDialog = true,
-                        patientData = patientData
                     )
                 }
                 // Handle the patient data as needed
@@ -336,12 +360,13 @@ class WalletViewModel(application: Application) : AndroidViewModel(application) 
                 Log.e("PatientData", "Error fetching patient data: ${e.message}", e)
             }
         }
-    }
+    }*/
 
     private val _patient = MutableStateFlow<PatientEntity?>(null)
     val patient: StateFlow<PatientEntity?> = _patient
-    fun getPatientComplete(patientId: String) {
-        Log.d("PatientAccess", "Patient ID: $patientId")
+    fun getPatientComplete() {
+        val patientId = getLoggedInPatientId().removePrefix("Patient/")
+        Log.d("MedplumAuth", "Patient ID: $patientId")
         viewModelScope.launch {
 
             val patientData = withContext(Dispatchers.IO) {
@@ -358,7 +383,7 @@ class WalletViewModel(application: Application) : AndroidViewModel(application) 
                 _patient.value = patientData
                 transactionDao.insertPatient(patientData)
             } else {
-                Log.e("PatientAccess", "Access denied or failed")
+                Log.e("MedplumAuth", "Access denied or failed")
             }
         }
     }
@@ -430,7 +455,8 @@ class WalletViewModel(application: Application) : AndroidViewModel(application) 
 
     private val _diagnosticReports = MutableStateFlow<List<DiagnosticReportEntity>>(emptyList())
     val diagnosticReports: StateFlow<List<DiagnosticReportEntity>> = _diagnosticReports
-    fun getDiagnosticReports(subjectId: String) {
+    fun getDiagnosticReports() {
+        val subjectId = getLoggedInPatientId()
         viewModelScope.launch {
             try {
                 val reports = withContext(Dispatchers.IO) {
@@ -460,7 +486,8 @@ class WalletViewModel(application: Application) : AndroidViewModel(application) 
 
     private val _medicationRequests = MutableStateFlow<List<MedicationRequestEntity>>(emptyList())
     val medicationRequests: StateFlow<List<MedicationRequestEntity>> = _medicationRequests
-    fun getMedicationRequests(subjectId: String) {
+    fun getMedicationRequests() {
+        val subjectId = getLoggedInPatientId()
         viewModelScope.launch {
             try {
                 val requests = withContext(Dispatchers.IO) {
@@ -514,7 +541,8 @@ class WalletViewModel(application: Application) : AndroidViewModel(application) 
 
     private val _medicationStatements = MutableStateFlow<List<MedicationStatementEntity>>(emptyList())
     val medicationStatements: StateFlow<List<MedicationStatementEntity>> = _medicationStatements
-    fun getMedicationStatements(subjectId: String) {
+    fun getMedicationStatements() {
+        val subjectId = getLoggedInPatientId()
         viewModelScope.launch {
             try {
                 val statements = withContext(Dispatchers.IO) {
@@ -543,7 +571,8 @@ class WalletViewModel(application: Application) : AndroidViewModel(application) 
 
     private val _immunizations = MutableStateFlow<List<ImmunizationEntity>>(emptyList())
     val immunizations: StateFlow<List<ImmunizationEntity>> = _immunizations
-    fun getImmunizations(subjectId: String) {
+    fun getImmunizations() {
+        val subjectId = getLoggedInPatientId()
         viewModelScope.launch {
             try {
                 val immunizations = withContext(Dispatchers.IO) {
@@ -572,7 +601,8 @@ class WalletViewModel(application: Application) : AndroidViewModel(application) 
 
     private val _allergies = MutableStateFlow<List<AllergyIntoleranceEntity>>(emptyList())
     val allergies: StateFlow<List<AllergyIntoleranceEntity>> = _allergies
-    fun getAllergies(subjectId: String) {
+    fun getAllergies() {
+        val subjectId = getLoggedInPatientId()
         viewModelScope.launch {
             try {
                 val allergies = withContext(Dispatchers.IO) {
@@ -601,7 +631,8 @@ class WalletViewModel(application: Application) : AndroidViewModel(application) 
 
     private val _devices = MutableStateFlow<List<DeviceEntity>>(emptyList())
     val devices: StateFlow<List<DeviceEntity>> = _devices
-    fun getDevices(subjectId: String) {
+    fun getDevices() {
+        val subjectId = getLoggedInPatientId()
         viewModelScope.launch {
             try {
                 val devices = withContext(Dispatchers.IO) {
@@ -630,7 +661,8 @@ class WalletViewModel(application: Application) : AndroidViewModel(application) 
 
     private val _procedures = MutableStateFlow<List<ProcedureEntity>>(emptyList())
     val procedures: StateFlow<List<ProcedureEntity>> = _procedures
-    fun getProcedures(subjectId: String) {
+    fun getProcedures() {
+        val subjectId = getLoggedInPatientId()
         viewModelScope.launch {
             try {
                 val procedures = withContext(Dispatchers.IO) {
@@ -684,10 +716,6 @@ class WalletViewModel(application: Application) : AndroidViewModel(application) 
             }
             _observations.value = cached
         }
-    }
-
-    fun setPatientData(patient: PatientEntity?) {
-        updateUiState { it.copy(patientData = patient) }
     }
 
     fun setShowDataDialog(show: Boolean) {
@@ -826,10 +854,15 @@ class WalletViewModel(application: Application) : AndroidViewModel(application) 
     fun getMedPlumToken(): String {
         return walletRepository.getMedPlumToken()
     }
-
     fun updateMedPlumToken() {
         if (walletRepository.isMedPlumTokenStored()) {
-            updateUiState { it.copy(medPlumToken = true) }
+            viewModelScope.launch {
+                val token = medPlumAPI.refreshAccessTokenIfNeeded()
+                Log.d("MedplumAuth", "Token before login: $token")
+                if (token != null) {
+                    updateUiState { it.copy(medPlumToken = true) }
+                }
+            }
         }
     }
 

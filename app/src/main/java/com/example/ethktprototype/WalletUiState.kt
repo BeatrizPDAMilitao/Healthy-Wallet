@@ -38,7 +38,7 @@ data class WalletUiState(
     val showSyncErrorDialog: Boolean = false,
     var isTransactionProcessing: Boolean = false,
     var showDataDialog: Boolean = false,
-    var patientData: PatientEntity? = null,
     var practitionerData: PractitionerEntity? = null,
     var medPlumToken: Boolean = false,
+    var patientId: String = "",
     )

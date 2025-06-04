@@ -46,8 +46,7 @@ import android.util.Base64
 import java.security.MessageDigest
 import java.security.SecureRandom
 
-
-class MedPlumAPI(private val application: Application) : IMedPlumAPI {
+class MedPlumAPI(private val application: Application, private val viewModel: WalletViewModel) : IMedPlumAPI {
     val sharedPreferences = application.getSharedPreferences("auth", Context.MODE_PRIVATE)
 
     private val CLIENT_ID = "01968b74-d07a-766d-8331-1cefab3a8922"
@@ -58,10 +57,6 @@ class MedPlumAPI(private val application: Application) : IMedPlumAPI {
     private val tokenUrl = "https://api.medplum.com/oauth2/token"
     private var codeVerifier: String? = null
 
-    init {
-        getAccessToken()
-    }
-
     fun logout(context: Context) {
         sharedPreferences.edit()
             .remove("access_token")
@@ -69,6 +64,7 @@ class MedPlumAPI(private val application: Application) : IMedPlumAPI {
             .remove("profile_id")
             .remove("token_expiration")
             .apply()
+        viewModel.deletePatientIdUiState()
     }
 
     fun generateCodeVerifier(): String {
@@ -94,7 +90,7 @@ class MedPlumAPI(private val application: Application) : IMedPlumAPI {
             .appendQueryParameter("response_type", "code")
             .appendQueryParameter("client_id", CLIENT_ID)
             .appendQueryParameter("redirect_uri", redirectUri)
-            .appendQueryParameter("scope", "openid profile user/*.read")
+            .appendQueryParameter("scope", "openid profile user/*.read offline_access")
             .appendQueryParameter("code_challenge_method", "S256")
             .appendQueryParameter("code_challenge", codeChallenge)
             .build()
@@ -146,9 +142,11 @@ class MedPlumAPI(private val application: Application) : IMedPlumAPI {
                 val json = JSONObject(body)
                 val accessToken = json.getString("access_token")
                 val refreshToken = json.optString("refresh_token", null)
+                Log.d(TAG, "refreshToken: $refreshToken")
 
                 if (refreshToken != null) {
                     sharedPreferences.edit().putString("refresh_token", refreshToken).apply()
+                    Log.d(TAG, "sharedPreferences refresh token: ${sharedPreferences.getString("refresh_token", null)}")
                 } else {
                     Log.w(TAG, "No refresh token returned")
                 }
@@ -168,6 +166,7 @@ class MedPlumAPI(private val application: Application) : IMedPlumAPI {
 
                 Log.d(TAG, "Access token: $accessToken")
                 setupApolloClient(accessToken)
+                //viewModel.updatePatientIdUiState()
                 onTokenReceived(accessToken)
             }
         } catch (e: Exception) {
@@ -184,12 +183,20 @@ class MedPlumAPI(private val application: Application) : IMedPlumAPI {
 
     private fun isTokenExpired(): Boolean {
         val expirationTime = sharedPreferences.getLong("token_expiration", 0)
+        Log.d(TAG, "Token expiration: $expirationTime")
         return System.currentTimeMillis() > expirationTime
     }
 
 
     suspend fun refreshAccessTokenIfNeeded(): String? = withContext(Dispatchers.IO) {
-        val refreshToken = sharedPreferences.getString("refresh_token", null) ?: return@withContext null
+
+        val refreshToken = sharedPreferences.getString("refresh_token", null)
+        if (refreshToken.isNullOrBlank()) {
+            Log.e(TAG, "No refresh token available")
+            return@withContext null
+        }
+
+        Log.d(TAG, "Refreshing access token with refresh token: $refreshToken")
 
         val form = "grant_type=refresh_token" +
                 "&refresh_token=$refreshToken" +
@@ -206,8 +213,27 @@ class MedPlumAPI(private val application: Application) : IMedPlumAPI {
                 val body = response.body?.string() ?: return@use null
                 val json = JSONObject(body)
 
+                Log.d(TAG, "Refresh token response: $json")
+                if (json.has("error")) {
+                    Log.e(TAG, "Refresh token error: ${json.optString("error_description", "Unknown error")}")
+                    logout(application.applicationContext)
+
+                    //viewModel.redirectToLogin()
+                    return@use null
+                }
+
                 val newAccessToken = json.getString("access_token")
                 sharedPreferences.edit().putString("access_token", newAccessToken).apply()
+
+                val newRefreshToken = json.optString("refresh_token", null)
+                if (!newRefreshToken.isNullOrBlank()) {
+                    sharedPreferences.edit().putString("refresh_token", newRefreshToken).apply()
+                }
+
+                val expiresIn = json.optInt("expires_in", 3600) // default 1 hour
+                val expirationTime = System.currentTimeMillis() + (expiresIn * 1000)
+                sharedPreferences.edit().putLong("token_expiration", expirationTime).apply()
+
                 setupApolloClient(newAccessToken)
                 newAccessToken
             }
@@ -217,15 +243,17 @@ class MedPlumAPI(private val application: Application) : IMedPlumAPI {
         }
     }
 
-    fun getLoggedInPatientId(): String? {
-        return sharedPreferences.getString("user_profile", null)?.removePrefix("Patient/")
-    }
-
     private suspend fun ensureApolloClientInitialized(): Boolean {
         if (!::apolloClient.isInitialized || isTokenExpired()) {
-            val token = getAccessToken() ?: refreshAccessTokenIfNeeded()
+            var token: String = ""
+            if (isTokenExpired()) {
+                token = refreshAccessTokenIfNeeded() ?: return false
+            }
+            else {
+                token = getAccessToken() ?: return false
+            }
             Log.d(TAG, "Access token: $token")
-            if (token == null) {
+            if (token == "") {
                 Log.e(TAG, "Unable to initialize ApolloClient - no valid token")
                 return false
             }
@@ -291,9 +319,9 @@ class MedPlumAPI(private val application: Application) : IMedPlumAPI {
             if (!ensureApolloClientInitialized()) return null
             Log.d("MedPlum", "Apollo client initialized")
 
-            val patientId2 = getLoggedInPatientId() ?: return null
-            Log.d("MedPlum", "Patient ID: $patientId2")
-            val response = apolloClient.query(GetPatientCompleteQuery(patientId2)).execute()
+            Log.d("MedPlum", "Patient ID: $patientId")
+
+            val response = apolloClient.query(GetPatientCompleteQuery(patientId)).execute()
             Log.d("MedPlum", "GraphQL response: $response")
             if (response.hasErrors()) {
                 Log.e("MedPlum", "GraphQL errors: ${response.errors}")

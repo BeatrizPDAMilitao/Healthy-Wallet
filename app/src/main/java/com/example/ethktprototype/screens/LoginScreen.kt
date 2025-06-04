@@ -20,7 +20,7 @@ import com.example.ethktprototype.WalletViewModel
 fun LoginScreen(context: Context, viewModel: WalletViewModel) {
     val application = context.applicationContext as HealthyWalletApplication
 
-    val authManager = MedPlumAPI(application)
+    val authManager = MedPlumAPI(application, viewModel)
 
     Column(
         modifier = Modifier

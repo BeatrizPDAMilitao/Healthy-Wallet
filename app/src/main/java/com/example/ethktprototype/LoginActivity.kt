@@ -26,9 +26,10 @@ class LoginActivity : ComponentActivity() {
         val factory = WalletViewModelFactory(application)
         viewModel = ViewModelProvider(this, factory)[WalletViewModel::class.java]
 
-        val authManager = MedPlumAPI(application)
+        val authManager = MedPlumAPI(application, viewModel)
 
         lifecycleScope.launch {
+            Log.d("LoginActivity", "Handling redirect")
             authManager.handleRedirectAndExchange(intent) { accessToken ->
                 isTokenReceived = true
                 viewModel.storeMedPlumToken(accessToken)

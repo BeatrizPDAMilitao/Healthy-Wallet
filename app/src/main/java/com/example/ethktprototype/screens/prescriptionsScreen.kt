@@ -2,6 +2,7 @@ package com.example.ethktprototype.screens
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -16,8 +17,10 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ExpandLess
 import androidx.compose.material.icons.filled.ExpandMore
+import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.Card
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -50,7 +53,9 @@ fun PrescriptionsScreen(
     val medicationRequests by viewModel.medicationRequests.collectAsState()
 
     LaunchedEffect(true) {
-        viewModel.getMedicationRequests("Patient/019706de-81bf-77d0-a864-2db46cad1d8c")
+        if (medicationRequests.isEmpty()) {
+            viewModel.getMedicationRequests()
+        }
     }
 
     Box(
@@ -70,15 +75,31 @@ fun PrescriptionsScreen(
                     .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.9f))
                     .padding(vertical = 24.dp)
             ) {
-                Text(
-                    text = "Prescriptions",
-                    style = MaterialTheme.typography.titleLarge.copy(
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 24.sp,
-                        color = Color.White
-                    ),
-                    modifier = Modifier.align(Alignment.Center)
-                )
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Text(
+                        text = "Prescriptions",
+                        style = MaterialTheme.typography.titleLarge.copy(
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 24.sp,
+                            color = Color.White
+                        )
+                    )
+                    IconButton(onClick = {
+                        viewModel.getMedicationRequests()
+                    }) {
+                        Icon(
+                            imageVector = Icons.Default.Refresh,
+                            contentDescription = "Refresh",
+                            tint = Color.White
+                        )
+                    }
+                }
             }
 
             Spacer(modifier = Modifier.height(24.dp))
