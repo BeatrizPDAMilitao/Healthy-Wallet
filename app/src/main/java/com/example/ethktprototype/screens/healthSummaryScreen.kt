@@ -75,22 +75,22 @@ fun HealthSummaryScreen(
     LaunchedEffect(true) {
         //viewModel.getConditions("019706de-81c4-729c-8ad0-efc79193a8a8")
         //viewModel.getPatientComplete(patientIdWitoutPrefix)
-        if (conditions.isEmpty()) {
+        if (!viewModel.uiState.value.hasFetchedDiagnosticReports) {
             viewModel.getDiagnosticReports()
         }
-        if (allergies.isEmpty()) {
+        if (!viewModel.uiState.value.hasFetchedAllergies) {
             viewModel.getAllergies()
         }
-        if (medications.isEmpty()) {
+        if (!viewModel.uiState.value.hasFetchedMedicationStatements) {
             viewModel.getMedicationStatements()
         }
-        if (procedures.isEmpty()) {
+        if (!viewModel.uiState.value.hasFetchedProcedures) {
             viewModel.getProcedures()
         }
-        if (devices.isEmpty()) {
+        if (!viewModel.uiState.value.hasFetchedDevices) {
             viewModel.getDevices()
         }
-        if (immunizations.isEmpty()) {
+        if (!viewModel.uiState.value.hasFetchedImmunizations) {
             viewModel.getImmunizations()
         }
     }

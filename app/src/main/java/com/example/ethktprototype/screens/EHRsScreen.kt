@@ -57,7 +57,7 @@ fun EHRsScreen(
     val patient = viewModel.patient.collectAsState()
 
     LaunchedEffect(true) {
-        if (patient.value == null) {
+        if (!viewModel.uiState.value.hasFetchedPatient) {
             viewModel.getPatientComplete()
         }
     }

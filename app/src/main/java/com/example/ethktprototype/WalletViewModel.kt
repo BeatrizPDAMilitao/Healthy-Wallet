@@ -382,6 +382,11 @@ class WalletViewModel(application: Application) : AndroidViewModel(application) 
             if (patientData != null) {
                 _patient.value = patientData
                 transactionDao.insertPatient(patientData)
+                updateUiState { state ->
+                    state.copy(
+                        hasFetchedPatient = true,
+                    )
+                }
             } else {
                 Log.e("MedplumAuth", "Access denied or failed")
             }
@@ -429,6 +434,11 @@ class WalletViewModel(application: Application) : AndroidViewModel(application) 
                 conditions?.let {
                     _conditions.value = it
                     transactionDao.insertConditions(it)
+                    updateUiState { state ->
+                        state.copy(
+                            hasFetchedConditions = true,
+                        )
+                    }
                 }
                 Log.d("ConditionsData", "Conditions: $conditions")
             } catch (e: Exception) {
@@ -465,6 +475,11 @@ class WalletViewModel(application: Application) : AndroidViewModel(application) 
                 reports?.let {
                     _diagnosticReports.value = it
                     transactionDao.insertDiagnosticReports(it)
+                    updateUiState { state ->
+                        state.copy(
+                            hasFetchedDiagnosticReports = true,
+                        )
+                    }
                 }
                 Log.d("DiagnosticReportsData", "Diagnostic Reports: $reports")
             } catch (e: Exception) {
@@ -496,6 +511,11 @@ class WalletViewModel(application: Application) : AndroidViewModel(application) 
                 requests?.let {
                     _medicationRequests.value = it
                     transactionDao.insertMedicationRequests(it)
+                    updateUiState { state ->
+                        state.copy(
+                            hasFetchedMedicationRequests = true,
+                        )
+                    }
                 }
                 Log.d("MedicationRequestsData", "Medication Requests: $requests")
             } catch (e: Exception) {
@@ -551,6 +571,11 @@ class WalletViewModel(application: Application) : AndroidViewModel(application) 
                 statements?.let {
                     _medicationStatements.value = it
                     transactionDao.insertMedicationStatements(it)
+                    updateUiState { state ->
+                        state.copy(
+                            hasFetchedMedicationStatements = true,
+                        )
+                    }
                 }
                 Log.d("MedicationStatementsData", "Medication Statements: $statements")
             } catch (e: Exception) {
@@ -581,6 +606,11 @@ class WalletViewModel(application: Application) : AndroidViewModel(application) 
                 immunizations?.let {
                     _immunizations.value = it
                     transactionDao.insertImmunizations(it)
+                    updateUiState { state ->
+                        state.copy(
+                            hasFetchedImmunizations = true,
+                        )
+                    }
                 }
                 Log.d("ImmunizationsData", "Medication Requests: $immunizations")
             } catch (e: Exception) {
@@ -611,6 +641,11 @@ class WalletViewModel(application: Application) : AndroidViewModel(application) 
                 allergies?.let {
                     _allergies.value = it
                     transactionDao.insertAllergies(it)
+                    updateUiState { state ->
+                        state.copy(
+                            hasFetchedAllergies = true,
+                        )
+                    }
                 }
                 Log.d("AllergiesData", "Allergies: $allergies")
             } catch (e: Exception) {
@@ -641,6 +676,11 @@ class WalletViewModel(application: Application) : AndroidViewModel(application) 
                 devices?.let {
                     _devices.value = it
                     transactionDao.insertDevices(it)
+                    updateUiState { state ->
+                        state.copy(
+                            hasFetchedDevices = true,
+                        )
+                    }
                 }
                 Log.d("DevicesData", "Devices: $devices")
             } catch (e: Exception) {
@@ -671,6 +711,11 @@ class WalletViewModel(application: Application) : AndroidViewModel(application) 
                 procedures?.let {
                     _procedures.value = it
                     transactionDao.insertProcedures(it)
+                    updateUiState { state ->
+                        state.copy(
+                            hasFetchedProcedures = true,
+                        )
+                    }
                 }
                 Log.d("ProceduresData", "Procedures: $procedures")
             } catch (e: Exception) {
@@ -700,6 +745,11 @@ class WalletViewModel(application: Application) : AndroidViewModel(application) 
                 observations?.let {
                     _observations.value = it
                     transactionDao.insertObservations(it)
+                    updateUiState { state ->
+                        state.copy(
+                            hasFetchedObservations = true,
+                        )
+                    }
                 }
                 Log.d("ObservationsData", "Observations: $observations")
             } catch (e: Exception) {

@@ -53,7 +53,7 @@ fun PrescriptionsScreen(
     val medicationRequests by viewModel.medicationRequests.collectAsState()
 
     LaunchedEffect(true) {
-        if (medicationRequests.isEmpty()) {
+        if (!viewModel.uiState.value.hasFetchedMedicationRequests) {
             viewModel.getMedicationRequests()
         }
     }
