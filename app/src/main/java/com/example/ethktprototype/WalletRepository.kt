@@ -46,6 +46,8 @@ import java.net.URL
 import kotlinx.coroutines.delay
 import com.example.ethktprototype.contracts.MedicalRecordAccess2
 import com.example.ethktprototype.contracts.RecordAccessContract
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 
 import org.web3j.abi.datatypes.DynamicArray
 import org.web3j.abi.datatypes.Utf8String
@@ -709,65 +711,69 @@ class WalletRepository(private val application: Application) : IWalletRepository
         accessesContract = RecordAccessContract.load(accessesContractAddress, web3jService, credentials, DefaultGasProvider())
     }
 
+    private val accessLogMutex = Mutex()
+
     suspend fun logAccess(recordIds: List<String>, credentials: Credentials): TransactionReceipt {
-        val nonce = web3jService.ethGetTransactionCount(
-            credentials.address,
-            DefaultBlockParameterName.LATEST
-        ).send().transactionCount
-        val baseGasPrice = web3jService.ethGasPrice().send().gasPrice
-        val gasPrice = baseGasPrice + (baseGasPrice / BigInteger.TEN) // +10%
+        return accessLogMutex.withLock {
+            val nonce = web3jService.ethGetTransactionCount(
+                credentials.address,
+                DefaultBlockParameterName.LATEST
+            ).send().transactionCount
+            val baseGasPrice = web3jService.ethGasPrice().send().gasPrice
+            val gasPrice = baseGasPrice + (baseGasPrice / BigInteger.TEN) // +10%
 
-        val gasLimit = BigInteger.valueOf(3000000)
+            val gasLimit = BigInteger.valueOf(3000000)
 
-        val accessId = UUID.randomUUID().toString()
+            val accessId = UUID.randomUUID().toString()
 
-        Log.d("SyncedLog", "accessId: $accessId, recordIds: $recordIds")
-        val function = Function(
-            "logAccess",
-            listOf(
-                DynamicArray(Utf8String::class.java, recordIds.map { Utf8String(it) }),
-                Utf8String(accessId)
-            ),
-            emptyList()
-        )
-        Log.d("SyncedLog", "function input: ${function.inputParameters[0].value}")
+            Log.d("SyncedLog", "accessId: $accessId, recordIds: $recordIds")
+            val function = Function(
+                "logAccess",
+                listOf(
+                    DynamicArray(Utf8String::class.java, recordIds.map { Utf8String(it) }),
+                    Utf8String(accessId)
+                ),
+                emptyList()
+            )
+            Log.d("SyncedLog", "function input: ${function.inputParameters[0].value}")
 
-        val encodedFunction = FunctionEncoder.encode(function)
+            val encodedFunction = FunctionEncoder.encode(function)
 
-        val rawTransaction = RawTransaction.createTransaction(
-            nonce,
-            gasPrice,
-            gasLimit,
-            accessesContractAddress,
-            BigInteger.ZERO,
-            encodedFunction
-        )
+            val rawTransaction = RawTransaction.createTransaction(
+                nonce,
+                gasPrice,
+                gasLimit,
+                accessesContractAddress,
+                BigInteger.ZERO,
+                encodedFunction
+            )
 
-        val signedMessage = TransactionEncoder.signMessage(rawTransaction, selectedNetwork.value.chainId, credentials)
-        val hexValue = Numeric.toHexString(signedMessage)
+            val signedMessage = TransactionEncoder.signMessage(rawTransaction, selectedNetwork.value.chainId, credentials)
+            val hexValue = Numeric.toHexString(signedMessage)
 
-        val transactionResponse = web3jService.ethSendRawTransaction(hexValue).send()
-        Log.d("SyncedLog", "Sent logAccess tx: ${transactionResponse.transactionHash}")
-        if (transactionResponse.hasError()) {
-            throw RuntimeException("Transaction failed: ${transactionResponse.error.message}")
-        }
-
-        val maxWaitMs = 60000L
-        val start = System.currentTimeMillis()
-
-        while (System.currentTimeMillis() - start < maxWaitMs) {
-            val receipt = web3jService.ethGetTransactionReceipt(transactionResponse.transactionHash).send().transactionReceipt
-            if (receipt.isPresent) {
-                if (receipt.get().status == "0x0") {
-                    Log.e("TxStatus", "Transaction reverted")
-                    throw RuntimeException("Transaction reverted")
-                }
-                return receipt.get()
+            val transactionResponse = web3jService.ethSendRawTransaction(hexValue).send()
+            Log.d("SyncedLog", "Sent logAccess tx: ${transactionResponse.transactionHash}")
+            if (transactionResponse.hasError()) {
+                throw RuntimeException("Transaction failed: ${transactionResponse.error.message}")
             }
-            delay(1000)
-        }
 
-        throw RuntimeException("Transaction receipt not generated after sending transaction")
+            val maxWaitMs = 60000L
+            val start = System.currentTimeMillis()
+
+            while (System.currentTimeMillis() - start < maxWaitMs) {
+                val receipt = web3jService.ethGetTransactionReceipt(transactionResponse.transactionHash).send().transactionReceipt
+                if (receipt.isPresent) {
+                    if (receipt.get().status == "0x0") {
+                        Log.e("TxStatus", "Transaction reverted")
+                        throw RuntimeException("Transaction reverted")
+                    }
+                    return receipt.get()
+                }
+                delay(1000)
+            }
+
+            throw RuntimeException("Transaction receipt not generated after sending transaction")
+        }
     }
 
 }
