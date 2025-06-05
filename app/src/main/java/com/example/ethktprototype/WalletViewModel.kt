@@ -86,6 +86,7 @@ class WalletViewModel(application: Application) : AndroidViewModel(application) 
         viewModelScope.launch {
             loadPatientFromDb()
             loadConditionsFromDb()
+            loadDiagnosticReportsFromDb()
             loadMedicationRequestsFromDb()
             loadMedicationStatementsFromDb()
             loadImmunizationsFromDb()
@@ -309,7 +310,7 @@ class WalletViewModel(application: Application) : AndroidViewModel(application) 
             val withoutBlockchainTimes = mutableListOf<Long>()
 
             // Measure with blockchain
-            for (i in 1..20) {
+            for (i in 1..30) {
                 val duration = withContext(Dispatchers.IO) {
                     val start = System.currentTimeMillis()
                     getMedicationRequestsWithBlockchain(subjectId)
@@ -321,10 +322,10 @@ class WalletViewModel(application: Application) : AndroidViewModel(application) 
             }
 
             // Measure without blockchain
-            for (i in 1..20) {
+            for (i in 1..30) {
                 val duration = withContext(Dispatchers.IO) {
                     val start = System.currentTimeMillis()
-                    getMedicationRequestsSuspend(subjectId)
+                    getMedicationRequestsWithoutBlockchain()
                     System.currentTimeMillis() - start
                 }
                 withoutBlockchainTimes.add(duration)
@@ -427,23 +428,23 @@ class WalletViewModel(application: Application) : AndroidViewModel(application) 
     val conditions: StateFlow<List<ConditionEntity>> = _conditions
     fun getConditions(subjectId: String) {
         viewModelScope.launch {
-            try {
-                val conditions = withContext(Dispatchers.IO) {
+            val conditions = withContext(Dispatchers.IO) {
+                withLoggedAccess(
+                    requesterId = uiState.value.walletAddress, //FOR now. Wallet address or medplum user id?
+                    recordIds = listOf(subjectId),
+                    resourcesType = "Condition/"
+                ) {
                     medPlumAPI.fetchConditions(subjectId)
                 }
-                conditions?.let {
-                    _conditions.value = it
-                    transactionDao.insertConditions(it)
-                    updateUiState { state ->
-                        state.copy(
-                            hasFetchedConditions = true,
-                        )
-                    }
+            }
+            conditions?.let {
+                _conditions.value = it
+                transactionDao.insertConditions(it)
+                updateUiState { state ->
+                    state.copy(
+                        hasFetchedConditions = true,
+                    )
                 }
-                Log.d("ConditionsData", "Conditions: $conditions")
-            } catch (e: Exception) {
-                // Handle errors
-                Log.e("ConditionsData", "Error fetching ConditionsData : ${e.message}", e)
             }
         }
     }
@@ -468,24 +469,25 @@ class WalletViewModel(application: Application) : AndroidViewModel(application) 
     fun getDiagnosticReports() {
         val subjectId = getLoggedInPatientId()
         viewModelScope.launch {
-            try {
-                val reports = withContext(Dispatchers.IO) {
+            val reports = withContext(Dispatchers.IO) {
+                withLoggedAccess(
+                    requesterId = uiState.value.walletAddress, //FOR now. Wallet address or medplum user id?
+                    recordIds = listOf(subjectId),
+                    resourcesType = "DiagnosticReport/"
+                ) {
                     medPlumAPI.fetchDiagnosticReports(subjectId)
                 }
-                reports?.let {
-                    _diagnosticReports.value = it
-                    transactionDao.insertDiagnosticReports(it)
-                    updateUiState { state ->
-                        state.copy(
-                            hasFetchedDiagnosticReports = true,
-                        )
-                    }
-                }
-                Log.d("DiagnosticReportsData", "Diagnostic Reports: $reports")
-            } catch (e: Exception) {
-                Log.e("DiagnosticReportsData", "Error fetching diagnostic reports: ${e.message}", e)
-                null
             }
+            reports?.let {
+                _diagnosticReports.value = it
+                transactionDao.insertDiagnosticReports(it)
+                updateUiState { state ->
+                    state.copy(
+                        hasFetchedDiagnosticReports = true,
+                    )
+                }
+            }
+            Log.d("DiagnosticReportsData", "Diagnostic Reports: $reports")
         }
     }
 
@@ -504,30 +506,53 @@ class WalletViewModel(application: Application) : AndroidViewModel(application) 
     fun getMedicationRequests() {
         val subjectId = getLoggedInPatientId()
         viewModelScope.launch {
-            try {
-                val requests = withContext(Dispatchers.IO) {
+            val requests = withContext(Dispatchers.IO) {
+                withLoggedAccess(
+                    requesterId = uiState.value.walletAddress, //FOR now. Wallet address or medplum user id?
+                    recordIds = listOf(subjectId),
+                    resourcesType = "MedicationRequest/"
+                ) {
                     medPlumAPI.fetchMedicationRequests(subjectId)
                 }
-                requests?.let {
-                    _medicationRequests.value = it
-                    transactionDao.insertMedicationRequests(it)
-                    updateUiState { state ->
-                        state.copy(
-                            hasFetchedMedicationRequests = true,
-                        )
-                    }
-                }
-                Log.d("MedicationRequestsData", "Medication Requests: $requests")
-            } catch (e: Exception) {
-                Log.e("MedicationRequestsData", "Error fetching medication requests: ${e.message}", e)
-                null
             }
+            requests?.let {
+                _medicationRequests.value = it
+                transactionDao.insertMedicationRequests(it)
+                updateUiState { state ->
+                    state.copy(
+                        hasFetchedMedicationRequests = true,
+                    )
+                }
+            }
+            Log.d("MedicationRequestsData", "Medication Requests: $requests")
         }
     }
 
     suspend fun getMedicationRequestsSuspend(subjectId: String): List<MedicationRequestEntity>? {
         return withContext(Dispatchers.IO) {
             medPlumAPI.fetchMedicationRequests(subjectId)
+        }
+    }
+
+    suspend fun getMedicationRequestsWithoutBlockchain() {
+        val subjectId = getLoggedInPatientId()
+        try {
+            val requests = withContext(Dispatchers.IO) {
+                medPlumAPI.fetchMedicationRequests(subjectId)
+            }
+            requests?.let {
+                _medicationRequests.value = it
+                transactionDao.insertMedicationRequests(it)
+                updateUiState { state ->
+                    state.copy(
+                        hasFetchedMedicationRequests = true,
+                    )
+                }
+            }
+            Log.d("MedicationRequestsData", "Medication Requests: $requests")
+        } catch (e: Exception) {
+            Log.e("MedicationRequestsData", "Error fetching medication requests: ${e.message}", e)
+            null
         }
     }
 
@@ -539,7 +564,7 @@ class WalletViewModel(application: Application) : AndroidViewModel(application) 
                 withLoggedAccess(
                     requesterId = uiState.value.walletAddress, //FOR now. Wallet address or medplum user id?
                     recordIds = listOf(subjectId),
-                    resourcesType = "Patient/"
+                    resourcesType = "MedicationRequest/"
                 ) {
                     medPlumAPI.fetchMedicationRequests(subjectId)
                 }
@@ -564,24 +589,25 @@ class WalletViewModel(application: Application) : AndroidViewModel(application) 
     fun getMedicationStatements() {
         val subjectId = getLoggedInPatientId()
         viewModelScope.launch {
-            try {
-                val statements = withContext(Dispatchers.IO) {
+            val statements = withContext(Dispatchers.IO) {
+                withLoggedAccess(
+                    requesterId = uiState.value.walletAddress, //FOR now. Wallet address or medplum user id?
+                    recordIds = listOf(subjectId),
+                    resourcesType = "MedicationStatement/"
+                ) {
                     medPlumAPI.fetchMedicationStatements(subjectId)
                 }
-                statements?.let {
-                    _medicationStatements.value = it
-                    transactionDao.insertMedicationStatements(it)
-                    updateUiState { state ->
-                        state.copy(
-                            hasFetchedMedicationStatements = true,
-                        )
-                    }
-                }
-                Log.d("MedicationStatementsData", "Medication Statements: $statements")
-            } catch (e: Exception) {
-                Log.e("MedicationStatementsData", "Error fetching medication statements: ${e.message}", e)
-                null
             }
+            statements?.let {
+                _medicationStatements.value = it
+                transactionDao.insertMedicationStatements(it)
+                updateUiState { state ->
+                    state.copy(
+                        hasFetchedMedicationStatements = true,
+                    )
+                }
+            }
+            Log.d("MedicationStatementsData", "Medication Statements: $statements")
         }
     }
 
@@ -599,24 +625,25 @@ class WalletViewModel(application: Application) : AndroidViewModel(application) 
     fun getImmunizations() {
         val subjectId = getLoggedInPatientId()
         viewModelScope.launch {
-            try {
-                val immunizations = withContext(Dispatchers.IO) {
+            val immunizations = withContext(Dispatchers.IO) {
+                withLoggedAccess(
+                    requesterId = uiState.value.walletAddress, //FOR now. Wallet address or medplum user id?
+                    recordIds = listOf(subjectId),
+                    resourcesType = "Immunization/"
+                ) {
                     medPlumAPI.fetchImmunizations(subjectId)
                 }
-                immunizations?.let {
-                    _immunizations.value = it
-                    transactionDao.insertImmunizations(it)
-                    updateUiState { state ->
-                        state.copy(
-                            hasFetchedImmunizations = true,
-                        )
-                    }
-                }
-                Log.d("ImmunizationsData", "Medication Requests: $immunizations")
-            } catch (e: Exception) {
-                Log.e("ImmunizationsData", "Error fetching immunizations: ${e.message}", e)
-                null
             }
+            immunizations?.let {
+                _immunizations.value = it
+                transactionDao.insertImmunizations(it)
+                updateUiState { state ->
+                    state.copy(
+                        hasFetchedImmunizations = true,
+                    )
+                }
+            }
+            Log.d("ImmunizationsData", "Medication Requests: $immunizations")
         }
     }
 
@@ -634,24 +661,25 @@ class WalletViewModel(application: Application) : AndroidViewModel(application) 
     fun getAllergies() {
         val subjectId = getLoggedInPatientId()
         viewModelScope.launch {
-            try {
-                val allergies = withContext(Dispatchers.IO) {
+            val allergies = withContext(Dispatchers.IO) {
+                withLoggedAccess(
+                    requesterId = uiState.value.walletAddress, //FOR now. Wallet address or medplum user id?
+                    recordIds = listOf(subjectId),
+                    resourcesType = "AllergyIntolerance/"
+                ) {
                     medPlumAPI.fetchAllergies(subjectId)
                 }
-                allergies?.let {
-                    _allergies.value = it
-                    transactionDao.insertAllergies(it)
-                    updateUiState { state ->
-                        state.copy(
-                            hasFetchedAllergies = true,
-                        )
-                    }
-                }
-                Log.d("AllergiesData", "Allergies: $allergies")
-            } catch (e: Exception) {
-                Log.e("AllergiesData", "Error fetching allergies: ${e.message}", e)
-                null
             }
+            allergies?.let {
+                _allergies.value = it
+                transactionDao.insertAllergies(it)
+                updateUiState { state ->
+                    state.copy(
+                        hasFetchedAllergies = true,
+                    )
+                }
+            }
+            Log.d("AllergiesData", "Allergies: $allergies")
         }
     }
 
@@ -669,24 +697,25 @@ class WalletViewModel(application: Application) : AndroidViewModel(application) 
     fun getDevices() {
         val subjectId = getLoggedInPatientId()
         viewModelScope.launch {
-            try {
-                val devices = withContext(Dispatchers.IO) {
+            val devices = withContext(Dispatchers.IO) {
+                withLoggedAccess(
+                    requesterId = uiState.value.walletAddress, //FOR now. Wallet address or medplum user id?
+                    recordIds = listOf(subjectId),
+                    resourcesType = "Device/"
+                ) {
                     medPlumAPI.fetchDevices(subjectId)
                 }
-                devices?.let {
-                    _devices.value = it
-                    transactionDao.insertDevices(it)
-                    updateUiState { state ->
-                        state.copy(
-                            hasFetchedDevices = true,
-                        )
-                    }
-                }
-                Log.d("DevicesData", "Devices: $devices")
-            } catch (e: Exception) {
-                Log.e("DevicesData", "Error fetching devices: ${e.message}", e)
-                null
             }
+            devices?.let {
+                _devices.value = it
+                transactionDao.insertDevices(it)
+                updateUiState { state ->
+                    state.copy(
+                        hasFetchedDevices = true,
+                    )
+                }
+            }
+            Log.d("AllergiesData", "Allergies: $allergies")
         }
     }
 
@@ -704,24 +733,25 @@ class WalletViewModel(application: Application) : AndroidViewModel(application) 
     fun getProcedures() {
         val subjectId = getLoggedInPatientId()
         viewModelScope.launch {
-            try {
-                val procedures = withContext(Dispatchers.IO) {
+            val procedures = withContext(Dispatchers.IO) {
+                withLoggedAccess(
+                    requesterId = uiState.value.walletAddress, //FOR now. Wallet address or medplum user id?
+                    recordIds = listOf(subjectId),
+                    resourcesType = "Procedure/"
+                ) {
                     medPlumAPI.fetchProcedures(subjectId)
                 }
-                procedures?.let {
-                    _procedures.value = it
-                    transactionDao.insertProcedures(it)
-                    updateUiState { state ->
-                        state.copy(
-                            hasFetchedProcedures = true,
-                        )
-                    }
-                }
-                Log.d("ProceduresData", "Procedures: $procedures")
-            } catch (e: Exception) {
-                Log.e("ProceduresData", "Error fetching procedures: ${e.message}", e)
-                null
             }
+            procedures?.let {
+                _procedures.value = it
+                transactionDao.insertProcedures(it)
+                updateUiState { state ->
+                    state.copy(
+                        hasFetchedProcedures = true,
+                    )
+                }
+            }
+            Log.d("ProceduresData", "Procedures: $procedures")
         }
     }
 
@@ -738,24 +768,25 @@ class WalletViewModel(application: Application) : AndroidViewModel(application) 
     val observations: StateFlow<List<ObservationEntity>> = _observations
     fun getObservations(subjectId: String) {
         viewModelScope.launch {
-            try {
-                val observations = withContext(Dispatchers.IO) {
+            val observations = withContext(Dispatchers.IO) {
+                withLoggedAccess(
+                    requesterId = uiState.value.walletAddress, //FOR now. Wallet address or medplum user id?
+                    recordIds = listOf(subjectId),
+                    resourcesType = "Observation/"
+                ) {
                     medPlumAPI.fetchObservations(subjectId)
                 }
-                observations?.let {
-                    _observations.value = it
-                    transactionDao.insertObservations(it)
-                    updateUiState { state ->
-                        state.copy(
-                            hasFetchedObservations = true,
-                        )
-                    }
-                }
-                Log.d("ObservationsData", "Observations: $observations")
-            } catch (e: Exception) {
-                Log.e("ObservationsData", "Error fetching observations: ${e.message}", e)
-                null
             }
+            observations?.let {
+                _observations.value = it
+                transactionDao.insertObservations(it)
+                updateUiState { state ->
+                    state.copy(
+                        hasFetchedObservations = true,
+                    )
+                }
+            }
+            Log.d("ObservationsData", "Observations: $observations")
         }
     }
 
