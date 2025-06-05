@@ -61,6 +61,7 @@ class MainActivity : ComponentActivity() {
         runBlocking {
             viewModel.updateMedPlumToken()
         }
+        viewModel.updateIsAppLoading(true)
         //Log.d("MedplumAuth", "token: ${viewModel.uiState.value.medPlumToken}")
 
         when {

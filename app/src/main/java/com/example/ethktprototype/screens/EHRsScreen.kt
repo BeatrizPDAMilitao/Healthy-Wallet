@@ -19,6 +19,7 @@ import androidx.compose.material3.Button
 
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -62,140 +63,145 @@ fun EHRsScreen(
         }
     }
 
-    Box(
-        Modifier
-            .fillMaxSize()
-            .background(MaterialTheme.colorScheme.background)
-    ) {
-        Column(
+    if (uiState.isAppLoading) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(MaterialTheme.colorScheme.background),
+            contentAlignment = Alignment.Center
+        ) {
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
+                Spacer(modifier = Modifier.height(16.dp))
+                Text(
+                    text = "Loading...",
+                    style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium)
+                )
+            }
+        }
+    }
+    else {
+        Box(
             Modifier
                 .fillMaxSize()
-                .padding(bottom = 56.dp)
+                .background(MaterialTheme.colorScheme.background)
         ) {
-            // Header
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.9f))
-                    .padding(vertical = 24.dp)
+            Column(
+                Modifier
+                    .fillMaxSize()
+                    .padding(bottom = 56.dp)
             ) {
-                Row(
+                // Header
+                Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 16.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.SpaceBetween
+                        .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.9f))
+                        .padding(vertical = 24.dp)
                 ) {
-                    Text(
-                        text = "Welcome ${patient.value?.name ?: "Patient"}!",
-                        style = MaterialTheme.typography.titleLarge.copy(
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 24.sp,
-                            color = Color.White
-                        )
-                    )
-                    IconButton(onClick = {
-                        viewModel.getPatientComplete()
-                    }) {
-                        Icon(
-                            imageVector = Icons.Default.Refresh,
-                            contentDescription = "Refresh",
-                            tint = Color.White
-                        )
-                    }
-                }
-            }
-
-            Spacer(modifier = Modifier.height(24.dp))
-            Card(
-                shape = RoundedCornerShape(16.dp),
-                modifier = Modifier
-                    .padding(horizontal = 20.dp)
-                    .fillMaxWidth(),
-                elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
-            ) {
-                Column(modifier = Modifier.padding(16.dp)) {
-                    if (patient.value?.doctor == null || patient.value?.doctor == "") {
-                        Text("👨‍⚕️ Doctor: Unknown", style = MaterialTheme.typography.bodyMedium.copy(fontSize = 18.sp))
-                    }
-                    else {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
                         Text(
-                            "👨‍⚕️ Doctor: ${patient.value?.doctor}",
-                            style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold, fontSize = 18.sp)
+                            text = "Welcome ${patient.value?.name ?: "Patient"}!",
+                            style = MaterialTheme.typography.titleLarge.copy(
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 24.sp,
+                                color = Color.White
+                            )
                         )
-                    }
-                    Spacer(modifier = Modifier.height(4.dp))
-                    if (patient.value?.healthUnit == null || patient.value?.healthUnit == "") {
-                        Text("🏥 Health Unit: Unknown", style = MaterialTheme.typography.bodyMedium.copy(fontSize = 18.sp))
-                    }
-                    else {
-                        Text("🏥 Health Unit: Unknown", style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold, fontSize = 18.sp))
+                        IconButton(onClick = {
+                            viewModel.getPatientComplete()
+                        }) {
+                            Icon(
+                                imageVector = Icons.Default.Refresh,
+                                contentDescription = "Refresh",
+                                tint = Color.White
+                            )
+                        }
                     }
                 }
-            }
-            // Feature Buttons
-            Spacer(modifier = Modifier.height(24.dp))
 
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 20.dp)
-            ) {
-                val features = listOf(
-                    "Health Summary" to "healthSummaryScreen",
-                    "Exams" to "examsScreen",
-                    "Prescriptions" to "prescriptionsScreen",
-                    "Regular Medication" to "medicationScreen",
-                    "Vaccination Record" to "vaccinationsScreen"
-                )
+                Spacer(modifier = Modifier.height(24.dp))
+                Card(
+                    shape = RoundedCornerShape(16.dp),
+                    modifier = Modifier
+                        .padding(horizontal = 20.dp)
+                        .fillMaxWidth(),
+                    elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
+                ) {
+                    Column(modifier = Modifier.padding(16.dp)) {
+                        if (patient.value?.doctor == null || patient.value?.doctor == "") {
+                            Text("👨‍⚕️ Doctor: Unknown", style = MaterialTheme.typography.bodyMedium.copy(fontSize = 18.sp))
+                        }
+                        else {
+                            Text(
+                                "👨‍⚕️ Doctor: ${patient.value?.doctor}",
+                                style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold, fontSize = 18.sp)
+                            )
+                        }
+                        Spacer(modifier = Modifier.height(4.dp))
+                        if (patient.value?.healthUnit == null || patient.value?.healthUnit == "") {
+                            Text("🏥 Health Unit: Unknown", style = MaterialTheme.typography.bodyMedium.copy(fontSize = 18.sp))
+                        }
+                        else {
+                            Text("🏥 Health Unit: Unknown", style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold, fontSize = 18.sp))
+                        }
+                    }
+                }
+                // Feature Buttons
+                Spacer(modifier = Modifier.height(24.dp))
 
-                features.chunked(2).forEach { row ->
-                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                        row.forEach { (label, route) ->
-                            Card(
-                                shape = RoundedCornerShape(18.dp),
-                                modifier = Modifier
-                                    .weight(1f)
-                                    .height(100.dp)
-                                    .clickable { navController.navigate(route) },
-                                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primary),
-                                elevation = CardDefaults.cardElevation(2.dp)
-                            ) {
-                                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                                    Text(
-                                        text = label,
-                                        style = MaterialTheme.typography.bodyLarge.copy(
-                                            fontWeight = FontWeight.Medium
-                                        ),
-                                        modifier = Modifier.padding(8.dp),
-                                        textAlign = TextAlign.Center
-                                    )
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 20.dp)
+                ) {
+                    val features = listOf(
+                        "Health Summary" to "healthSummaryScreen",
+                        "Exams" to "examsScreen",
+                        "Prescriptions" to "prescriptionsScreen",
+                        "Regular Medication" to "medicationScreen",
+                        "Vaccination Record" to "vaccinationsScreen"
+                    )
+
+                    features.chunked(2).forEach { row ->
+                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                            row.forEach { (label, route) ->
+                                Card(
+                                    shape = RoundedCornerShape(18.dp),
+                                    modifier = Modifier
+                                        .weight(1f)
+                                        .height(100.dp)
+                                        .clickable { navController.navigate(route) },
+                                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primary),
+                                    elevation = CardDefaults.cardElevation(2.dp)
+                                ) {
+                                    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                                        Text(
+                                            text = label,
+                                            style = MaterialTheme.typography.bodyLarge.copy(
+                                                fontWeight = FontWeight.Medium
+                                            ),
+                                            modifier = Modifier.padding(8.dp),
+                                            textAlign = TextAlign.Center
+                                        )
+                                    }
                                 }
                             }
+                            if (row.size == 1) Spacer(modifier = Modifier.weight(1f)) // Fill space in odd row
                         }
-                        if (row.size == 1) Spacer(modifier = Modifier.weight(1f)) // Fill space in odd row
+                        Spacer(modifier = Modifier.height(12.dp))
                     }
-                    Spacer(modifier = Modifier.height(12.dp))
                 }
-            }
 
-            /*Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 20.dp),
-                horizontalAlignment = Alignment.CenterHorizontally
-            ) {
-                val buttons = listOf(
-                    "Health Summary" to "healthSummaryScreen",
-                    "Exams" to "examsScreen",
-                    "Prescriptions" to "prescriptionsScreen",
-                    "Regular Medication" to "medicationScreen",
-                    "Vaccination Record" to "vaccinationsScreen"
-                )
-
-                buttons.forEach { (label, route) ->
+                /// Test Button: Uncomment to test
+                /*Column (modifier = Modifier.fillMaxWidth()) {
                     Button(
-                        onClick = { navController.navigate(route) },
+                        onClick = { viewModel.testFetchPrescriptions(patientId) },
                         shape = RoundedCornerShape(12.dp),
                         modifier = Modifier
                             .fillMaxWidth()
@@ -203,91 +209,48 @@ fun EHRsScreen(
                             .height(52.dp)
                     ) {
                         Text(
-                            text = label,
+                            text = "Test fetch prescriptions 30 times.",
                             style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Medium)
                         )
                     }
-                }
-            }
-            */
-            //Spacer(modifier = Modifier.height(24.dp))
+                }*/
 
-            // Doctor Info Card
-            /*Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 20.dp)
-                    /*.background(
-                        color = MaterialTheme.colorScheme.surfaceVariant,
-                        shape = RoundedCornerShape(12.dp)
-                    )*/
-                    .padding(16.dp)
-            ) {
-                Column {
-                    Text(
-                        text = "Doctor: Dr. John Doe",
-                        style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold)
-                    )
-                    Spacer(modifier = Modifier.height(4.dp))
-                    Text(
-                        text = "Followed at: General Hospital",
-                        style = MaterialTheme.typography.bodyMedium
-                    )
-                }
-            }*/
+                val application = context.applicationContext as HealthyWalletApplication
+                val authManager = MedPlumAPI(application, viewModel)
 
-            /// Test Button: Uncomment to test
-            /*Column (modifier = Modifier.fillMaxWidth()) {
-                Button(
-                    onClick = { viewModel.testFetchPrescriptions(patientId) },
-                    shape = RoundedCornerShape(12.dp),
+                Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(vertical = 6.dp)
-                        .height(52.dp)
+                        .padding(20.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
                 ) {
-                    Text(
-                        text = "Test fetch prescriptions 30 times.",
-                        style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Medium)
-                    )
-                }
-            }*/
-
-            val application = context.applicationContext as HealthyWalletApplication
-            val authManager = MedPlumAPI(application, viewModel)
-
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(20.dp),
-                horizontalAlignment = Alignment.CenterHorizontally
-            ) {
-                Button(
-                    onClick = {
-                        authManager.logout(context)
-                        navController.navigate("loginScreen") {
-                            popUpTo("healthSummaryScreen") { inclusive = true }
-                        }
-                    },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(top = 16.dp)
-                ) {
-                    Text("Logout")
+                    Button(
+                        onClick = {
+                            authManager.logout(context)
+                            navController.navigate("loginScreen") {
+                                popUpTo("healthSummaryScreen") { inclusive = true }
+                            }
+                        },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(top = 16.dp)
+                    ) {
+                        Text("Logout")
+                    }
                 }
             }
-        }
 
-        // Bottom Navigation Bar
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .align(Alignment.BottomCenter)
-        ) {
-            BottomNavigationBar(
-                navController = navController,
-                currentRoute = "EHRs"
-            )
+            // Bottom Navigation Bar
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .align(Alignment.BottomCenter)
+            ) {
+                BottomNavigationBar(
+                    navController = navController,
+                    currentRoute = "EHRs"
+                )
+            }
         }
     }
 }

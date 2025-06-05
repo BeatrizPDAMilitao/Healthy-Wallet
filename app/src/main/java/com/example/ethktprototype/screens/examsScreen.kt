@@ -106,6 +106,15 @@ fun ExamsScreen(
 
             Spacer(modifier = Modifier.height(24.dp))
 
+            if (uiState.isDiagnosticReportsLoading) {
+                androidx.compose.material3.CircularProgressIndicator(
+                    modifier = Modifier
+                        .align(Alignment.CenterHorizontally)
+                        .padding(horizontal = 16.dp),
+                    color = Color.White
+                )
+            }
+
             // Health Summary Content
             Column(
                 modifier = Modifier

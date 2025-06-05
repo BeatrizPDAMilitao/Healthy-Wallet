@@ -157,6 +157,7 @@ fun HealthSummaryScreen(
                 HealthSection(
                     title = "Identification",
                     isExpanded = showPatient,
+                    isLoading = uiState.isPatientLoading,
                     onToggle = { showPatient = !showPatient }
                 ) {
                     if (patient == null) {
@@ -184,6 +185,7 @@ fun HealthSummaryScreen(
                 HealthSection(
                     title = "Allergies",
                     isExpanded = showAllergies,
+                    isLoading = uiState.isAllergiesLoading,
                     onToggle = { showAllergies = !showAllergies }
                 ) {
                     if (allergies.isEmpty()) {
@@ -197,6 +199,7 @@ fun HealthSummaryScreen(
                 HealthSection(
                     title = "Diagnostic Reports",
                     isExpanded = showDiagnosticReports,
+                    isLoading = uiState.isDiagnosticReportsLoading,
                     onToggle = { showDiagnosticReports = !showDiagnosticReports }
                 ) {
                     if (diagnosticReports.isEmpty()) {
@@ -210,6 +213,7 @@ fun HealthSummaryScreen(
                 HealthSection(
                     title = "Medications",
                     isExpanded = showMedications,
+                    isLoading = uiState.isMedicationStatementsLoading,
                     onToggle = { showMedications = !showMedications }
                 ) {
                     if (medications.isEmpty()) {
@@ -223,6 +227,7 @@ fun HealthSummaryScreen(
                 HealthSection(
                     title = "Medical Devices",
                     isExpanded = showDevices,
+                    isLoading = uiState.isDevicesLoading,
                     onToggle = { showDevices = !showDevices }
                 ) {
                     if (devices.isEmpty()) {
@@ -236,6 +241,7 @@ fun HealthSummaryScreen(
                 HealthSection(
                     title = "Procedures",
                     isExpanded = showProcedures,
+                    isLoading = uiState.isProceduresLoading,
                     onToggle = { showProcedures = !showProcedures }
                 ) {
                     if (procedures.isEmpty()) {
@@ -249,6 +255,7 @@ fun HealthSummaryScreen(
                 HealthSection(
                     title = "Immunizations",
                     isExpanded = showImmunizations,
+                    isLoading = uiState.isImmunizationsLoading,
                     onToggle = { showImmunizations = !showImmunizations }
                 ) {
                     if (procedures.isEmpty()) {
@@ -280,6 +287,7 @@ fun HealthSummaryScreen(
 fun HealthSection(
     title: String,
     isExpanded: Boolean,
+    isLoading: Boolean,
     onToggle: () -> Unit,
     content: @Composable () -> Unit
 ) {
@@ -309,7 +317,20 @@ fun HealthSection(
                     )
                 }
                 if (isExpanded) {
-                    content()
+                    if (isLoading) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 8.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            androidx.compose.material3.CircularProgressIndicator(
+                                color = MaterialTheme.colorScheme.primary
+                            )
+                        }
+                    } else {
+                        content()
+                    }
                 }
             }
         }
