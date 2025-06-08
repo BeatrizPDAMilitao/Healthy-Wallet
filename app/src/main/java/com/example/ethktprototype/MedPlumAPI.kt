@@ -43,11 +43,12 @@ import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import android.util.Base64
+import com.example.ethktprototype.data.HealthSummaryResult
 import java.security.MessageDigest
 import java.security.SecureRandom
 
 class MedPlumAPI(private val application: Application, private val viewModel: WalletViewModel) : IMedPlumAPI {
-    val sharedPreferences = application.getSharedPreferences("auth", Context.MODE_PRIVATE)
+    val sharedPreferences = application.getSharedPreferences("WalletPrefs", Context.MODE_PRIVATE)
 
     private val CLIENT_ID = "01968b74-d07a-766d-8331-1cefab3a8922"
     private val CLIENT_SECRET = "a6bcb43c6607ad32e3ae324ff6689b6716d6abcaad6a330e6e5b330616cb71ac"
@@ -63,8 +64,11 @@ class MedPlumAPI(private val application: Application, private val viewModel: Wa
             .remove("refresh_token")
             .remove("profile_id")
             .remove("token_expiration")
+            .remove("user_profile")
+            .remove("code_verifier")
             .apply()
         viewModel.deletePatientIdUiState()
+        viewModel.deleteAllDataFromDb()
     }
 
     fun generateCodeVerifier(): String {
@@ -731,4 +735,16 @@ class MedPlumAPI(private val application: Application, private val viewModel: Wa
             null
         }
     }
+
+    suspend fun fetchHealthSummary(patientId: String): HealthSummaryResult {
+        val diagnostics = fetchDiagnosticReports(patientId)
+        val allergies = fetchAllergies(patientId)
+        val meds = fetchMedicationStatements(patientId)
+        val procedures = fetchProcedures(patientId)
+        val devices = fetchDevices(patientId)
+        val immunizations = fetchImmunizations(patientId)
+
+        return HealthSummaryResult(diagnostics, allergies, meds, procedures, devices, immunizations)
+    }
+
 }

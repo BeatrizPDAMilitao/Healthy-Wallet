@@ -33,6 +33,15 @@ data class ZkpExamRequestPayload(
     val issuer: String
 )
 
+data class HealthSummaryResult(
+    val diagnostics: List<DiagnosticReportEntity>?,
+    val allergies: List<AllergyIntoleranceEntity>?,
+    val meds: List<MedicationStatementEntity>?,
+    val procedures: List<ProcedureEntity>?,
+    val devices: List<DeviceEntity>?,
+    val immunizations: List<ImmunizationEntity>?
+)
+
 @Serializable
 data class GraphQLData(
     val nftUsersTokens: NftUsersTokens?

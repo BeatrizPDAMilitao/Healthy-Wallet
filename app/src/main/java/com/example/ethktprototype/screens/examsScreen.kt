@@ -55,7 +55,7 @@ fun ExamsScreen(
     val diagnosticReports by viewModel.diagnosticReports.collectAsState()
 
     LaunchedEffect(true) {
-        if (!viewModel.uiState.value.hasFetchedDiagnosticReports) {
+        if (!viewModel.uiState.value.hasFetched.getOrDefault("DiagnosticReports", false)) {
             viewModel.getDiagnosticReports()
         }
     }

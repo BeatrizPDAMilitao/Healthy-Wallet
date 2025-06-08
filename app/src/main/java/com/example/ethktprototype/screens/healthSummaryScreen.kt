@@ -75,7 +75,10 @@ fun HealthSummaryScreen(
     LaunchedEffect(true) {
         //viewModel.getConditions("019706de-81c4-729c-8ad0-efc79193a8a8")
         //viewModel.getPatientComplete(patientIdWitoutPrefix)
-        if (!viewModel.uiState.value.hasFetchedDiagnosticReports) {
+        if (!viewModel.uiState.value.hasFetched.getOrDefault("HealthSummary", false)) {
+            viewModel.getHealthSummaryData()
+        }
+        /* (!viewModel.uiState.value.hasFetchedDiagnosticReports) {
             viewModel.getDiagnosticReports()
         }
         if (!viewModel.uiState.value.hasFetchedAllergies) {
@@ -92,7 +95,7 @@ fun HealthSummaryScreen(
         }
         if (!viewModel.uiState.value.hasFetchedImmunizations) {
             viewModel.getImmunizations()
-        }
+        }*/
     }
 
     Box(
@@ -128,13 +131,14 @@ fun HealthSummaryScreen(
                         )
                     )
                     IconButton(onClick = {
-                        viewModel.getPatientComplete()
+                        /*viewModel.getPatientComplete()
                         viewModel.getDiagnosticReports()
                         viewModel.getAllergies()
                         viewModel.getMedicationStatements()
                         viewModel.getProcedures()
                         viewModel.getDevices()
-                        viewModel.getImmunizations()
+                        viewModel.getImmunizations()*/
+                        viewModel.getHealthSummaryData()
                     }) {
                         Icon(
                             imageVector = Icons.Default.Refresh,
@@ -146,6 +150,15 @@ fun HealthSummaryScreen(
             }
 
             Spacer(modifier = Modifier.height(24.dp))
+
+            if (uiState.isHealthSummaryLoading) {
+                androidx.compose.material3.CircularProgressIndicator(
+                    modifier = Modifier
+                        .align(Alignment.CenterHorizontally)
+                        .padding(horizontal = 16.dp),
+                    color = Color.White
+                )
+            }
 
             Column(
                 Modifier

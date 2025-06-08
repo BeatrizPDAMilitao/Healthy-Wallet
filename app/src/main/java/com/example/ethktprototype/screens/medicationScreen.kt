@@ -53,7 +53,7 @@ fun MedicationScreen(
     val medicationStatements by viewModel.medicationStatements.collectAsState()
 
     LaunchedEffect(true) {
-        if (!viewModel.uiState.value.hasFetchedMedicationStatements) {
+        if (!viewModel.uiState.value.hasFetched.getOrDefault("MedicationStatements", false)) {
             viewModel.getMedicationStatements()
         }
     }

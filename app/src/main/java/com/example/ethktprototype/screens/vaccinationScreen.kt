@@ -53,7 +53,7 @@ fun VaccinationsScreen(
     val immunizations by viewModel.immunizations.collectAsState()
 
     LaunchedEffect(true) {
-        if (!viewModel.uiState.value.hasFetchedImmunizations) {
+        if (!viewModel.uiState.value.hasFetched.getOrDefault("Immunizations", false)) {
             viewModel.getImmunizations()
         }
     }

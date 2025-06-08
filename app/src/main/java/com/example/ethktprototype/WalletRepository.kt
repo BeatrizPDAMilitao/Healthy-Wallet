@@ -130,6 +130,18 @@ class WalletRepository(private val application: Application) : IWalletRepository
         return sharedPreferences.contains("medPlumToken")
     }
 
+    fun getLastAccessTime(key: String): Long {
+        return sharedPreferences.getLong("access_time_$key", 0)
+    }
+
+    fun updateLastAccessTime(key: String, time: Long) {
+        sharedPreferences.edit().putLong("access_time_$key", time).apply()
+    }
+
+    fun removeLastAccessTime(key: String) {
+        sharedPreferences.edit().remove("access_time_$key").apply()
+    }
+
     override fun removeAllWalletData() {
         sharedPreferences.edit().clear().apply()
     }

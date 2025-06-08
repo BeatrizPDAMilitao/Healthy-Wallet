@@ -117,5 +117,33 @@ interface TransactionDao {
     @Query("SELECT * FROM procedures")
     suspend fun getProcedures(): List<ProcedureEntity>
 
+    @Query("DELETE FROM patients")
+    suspend fun deleteAllPatients()
 
+    @Query("DELETE FROM observations")
+    suspend fun deleteAllObservations()
+
+    @Query("DELETE FROM conditions")
+    suspend fun deleteAllConditions()
+
+    @Query("DELETE FROM diagnostic_reports")
+    suspend fun deleteAllDiagnosticReports()
+
+    @Query("DELETE FROM medication_requests")
+    suspend fun deleteAllMedicationRequests()
+
+    @Query("DELETE FROM medication_statements")
+    suspend fun deleteAllMedicationStatements()
+
+    @Query("DELETE FROM immunizations")
+    suspend fun deleteAllImmunizations()
+
+    @Query("DELETE FROM allergies")
+    suspend fun deleteAllAllergies()
+
+    @Query("DELETE FROM devices")
+    suspend fun deleteAllDevices()
+
+    @Query("DELETE FROM procedures")
+    suspend fun deleteAllProcedures()
 }
