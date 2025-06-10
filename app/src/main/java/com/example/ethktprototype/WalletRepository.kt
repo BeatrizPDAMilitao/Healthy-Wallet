@@ -69,7 +69,7 @@ class WalletRepository(private val application: Application) : IWalletRepository
     private val sharedPreferences =
         context.getSharedPreferences("WalletPrefs", Context.MODE_PRIVATE)
     private val walletAddressKey = "wallet_address"
-    private val _selectedNetwork = mutableStateOf(Network.SEPOLIA)
+    private val _selectedNetwork = mutableStateOf(Network.ARBITRUM_SEPOLIA_TESTNET)
     private val selectedNetwork: MutableState<Network> = _selectedNetwork
     private val mnemonicLoaded = MutableLiveData<Boolean>()
 
@@ -439,7 +439,17 @@ class WalletRepository(private val application: Application) : IWalletRepository
     private lateinit var medskyContract: MedskyContract
 
     private val healthyWalletAdressOld = "0x9A8ea6736DF00Af70D1cD70b1Daf3619C8c0D7F4"
-    private val healthyWalletAdress = "0x257F027faAc9eA80F8269a7024FE33a8730223D5" //"0x503Adf07dE6a7B1C23F793aa6b422A0C59Fa219e" //"0x6410E8e6321f46B7A34B9Ea9649a4c84563d8045"
+    //private val healthyWalletAdress = "0x257F027faAc9eA80F8269a7024FE33a8730223D5" //"0x503Adf07dE6a7B1C23F793aa6b422A0C59Fa219e" //"0x6410E8e6321f46B7A34B9Ea9649a4c84563d8045"
+    //0x8d91fa1054f8f53e01661f4147e450edd090336d
+
+    private val healthyWalletAddresses = mapOf(
+        Network.ARBITRUM_SEPOLIA_TESTNET to "0x257F027faAc9eA80F8269a7024FE33a8730223D5",
+        Network.SEPOLIA to "0x257F027faAc9eA80F8269a7024FE33a8730223D5",
+    )
+
+    private val healthyWalletAdress: String
+        get() = healthyWalletAddresses[selectedNetwork.value] ?: throw IllegalStateException("No address for that network.")
+
     private lateinit var healthyContract: MedicalRecordAccess2
 
     val web3jService = Web3jService.build(selectedNetwork.value)
@@ -716,8 +726,17 @@ class WalletRepository(private val application: Application) : IWalletRepository
 
     //////////////////// Accesse Con Functions ////////////////////
 
-    private val accessesContractAddress = "0xe9354B6CfEAaC38636AcACB397F8E5566dc559fD"//"0xcCbB217F782bBa59aAD9BdF0291E1B325461E146"
+    // val accessesContractAddress = "0xe9354B6CfEAaC38636AcACB397F8E5566dc559fD"//"0xcCbB217F782bBa59aAD9BdF0291E1B325461E146"
     private lateinit var accessesContract: RecordAccessContract
+
+    private val accessesContractAddresses = mapOf(
+    Network.ARBITRUM_SEPOLIA_TESTNET to "0xF443c9B544E4020777cf751E344C34754e1A0F40",//"0xF62421b05A67344AC8aAC01Fe93add614A995dd7", //O contrato comentado é com o getLastAccess
+    Network.SEPOLIA to "0xe9354B6CfEAaC38636AcACB397F8E5566dc559fD",
+    )
+
+    private val accessesContractAddress: String
+        get() = accessesContractAddresses[selectedNetwork.value] ?: throw IllegalStateException("No address for that network.")
+
 
     fun loadAccessesContract(credentials: Credentials) {
         accessesContract = RecordAccessContract.load(accessesContractAddress, web3jService, credentials, DefaultGasProvider())

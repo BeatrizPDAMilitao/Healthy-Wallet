@@ -43,15 +43,16 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 import androidx.navigation.NavHostController
+import com.example.ethktprototype.data.GraphQLQueries.buildGetPatientAllergiesQuery
+import com.example.ethktprototype.data.GraphQLQueries.buildGetPatientDevicesQuery
+import com.example.ethktprototype.data.GraphQLQueries.buildGetPatientDiagnosticReportQuery
+import com.example.ethktprototype.data.GraphQLQueries.buildGetPatientImmunizationsQuery
+import com.example.ethktprototype.data.GraphQLQueries.buildGetPatientMedicationRequestsQuery
+import com.example.ethktprototype.data.GraphQLQueries.buildGetPatientMedicationStatementsQuery
+import com.example.ethktprototype.data.GraphQLQueries.buildGetPatientProceduresQuery
+import com.example.ethktprototype.data.GraphQLQueries.buildPatientCompleteQuery
 import com.example.ethktprototype.data.HealthSummaryResult
-import com.example.medplum.GetPatientAllergiesQuery
-import com.example.medplum.GetPatientCompleteQuery
-import com.example.medplum.GetPatientDevicesQuery
 import com.example.medplum.GetPatientDiagnosticReportQuery
-import com.example.medplum.GetPatientImmunizationsQuery
-import com.example.medplum.GetPatientMedicationRequestsQuery
-import com.example.medplum.GetPatientMedicationStatementsQuery
-import com.example.medplum.GetPatientProceduresQuery
 
 
 /**
@@ -357,6 +358,7 @@ class WalletViewModel(application: Application) : AndroidViewModel(application) 
         if ( uiState.value.hasFetched[screen] != true ||(now - lastAccessTime >= twentyFourHoursMillis) || lastAccessTime == 0L) {
             return try {
                 walletRepository.loadAccessesContract(credentials)
+                Log.d("AccessControl", "[$screen] Loaded contract")
                 val receipt = walletRepository.logAccess(queries, credentials)
                 walletRepository.updateLastAccessTime(key, now)
                 Log.d("AccessControl", "[$screen] Access logged: ${receipt.transactionHash}")
@@ -409,7 +411,9 @@ class WalletViewModel(application: Application) : AndroidViewModel(application) 
             val avgWithout = withoutBlockchainTimes.average()
 
             Log.d("PerformanceTest", "Average WITH blockchain: ${"%.2f".format(avgWith)} ms")
+            Log.d("PerformanceTest", "Values With blockchain: $withBlockchainTimes")
             Log.d("PerformanceTest", "Average WITHOUT blockchain: ${"%.2f".format(avgWithout)} ms")
+            Log.d("PerformanceTest", "Values Without blockchain: $withoutBlockchainTimes")
         }
     }
 
@@ -440,12 +444,12 @@ class WalletViewModel(application: Application) : AndroidViewModel(application) 
         val patientId = getLoggedInPatientId()
         Log.d("MedplumAuth", GetPatientDiagnosticReportQuery(patientId).document())
         val queries = listOf(
-            GetPatientDiagnosticReportQuery(patientId).document(),
-            GetPatientAllergiesQuery(patientId).document(),
-            GetPatientMedicationStatementsQuery(patientId).document(),
-            GetPatientProceduresQuery(patientId).document(),
-            GetPatientDevicesQuery(patientId).document(),
-            GetPatientImmunizationsQuery(patientId).document(),
+            buildGetPatientDiagnosticReportQuery(patientId),
+            buildGetPatientAllergiesQuery(patientId),
+            buildGetPatientMedicationStatementsQuery(patientId),
+            buildGetPatientProceduresQuery(patientId),
+            buildGetPatientDevicesQuery(patientId),
+            buildGetPatientImmunizationsQuery(patientId),
         )
 
         viewModelScope.launch {
@@ -517,7 +521,7 @@ class WalletViewModel(application: Application) : AndroidViewModel(application) 
     val patient: StateFlow<PatientEntity?> = _patient
     fun getPatientComplete() {
         val patientId = getLoggedInPatientId().removePrefix("Patient/")
-        val query = GetPatientCompleteQuery(patientId).document()
+        val query = buildPatientCompleteQuery(patientId)
         Log.d("MedplumAuth", "Patient ID: $patientId")
         viewModelScope.launch {
             _uiState.update { it.copy(isPatientLoading = true) }
@@ -624,7 +628,7 @@ class WalletViewModel(application: Application) : AndroidViewModel(application) 
     val diagnosticReports: StateFlow<List<DiagnosticReportEntity>> = _diagnosticReports
     fun getDiagnosticReports() {
         val subjectId = getLoggedInPatientId()
-        val query = GetPatientDiagnosticReportQuery(subjectId).document()
+        val query = buildGetPatientDiagnosticReportQuery(subjectId)
         viewModelScope.launch {
             _uiState.update { it.copy(isDiagnosticReportsLoading = true) }
             try {
@@ -665,7 +669,7 @@ class WalletViewModel(application: Application) : AndroidViewModel(application) 
     val medicationRequests: StateFlow<List<MedicationRequestEntity>> = _medicationRequests
     fun getMedicationRequests() {
         val subjectId = getLoggedInPatientId()
-        val query = GetPatientMedicationRequestsQuery(subjectId).document()
+        val query = buildGetPatientMedicationRequestsQuery(subjectId)
         viewModelScope.launch {
             _uiState.update { it.copy(isMedicationRequestsLoading = true) }
             try {
@@ -748,7 +752,7 @@ class WalletViewModel(application: Application) : AndroidViewModel(application) 
     val medicationStatements: StateFlow<List<MedicationStatementEntity>> = _medicationStatements
     fun getMedicationStatements() {
         val subjectId = getLoggedInPatientId()
-        val query = GetPatientMedicationStatementsQuery(subjectId).document()
+        val query = buildGetPatientMedicationStatementsQuery(subjectId)
         viewModelScope.launch {
             _uiState.update { it.copy(isMedicationStatementsLoading = true) }
             try {
@@ -788,7 +792,7 @@ class WalletViewModel(application: Application) : AndroidViewModel(application) 
     val immunizations: StateFlow<List<ImmunizationEntity>> = _immunizations
     fun getImmunizations() {
         val subjectId = getLoggedInPatientId()
-        val query = GetPatientImmunizationsQuery(subjectId).document()
+        val query = buildGetPatientImmunizationsQuery(subjectId)
         viewModelScope.launch {
             _uiState.update { it.copy(isImmunizationsLoading = true) }
             try {

@@ -25,7 +25,7 @@ enum class Network(
     SEPOLIA(
         "Sepolia",
         "https://sepolia.infura.io/v3/$INFURA_API_KEY",
-        11155111, // TODO: confirm this chain ID
+        11155111,
         covalentChainName = "eth-sepolia"
     ),
     QUORUM(
@@ -33,6 +33,12 @@ enum class Network(
         "http://192.168.1.76:8545", //192.168.1.76    172.26.146.19
         1337, // TODO: confirm this chain ID
         covalentChainName = "quorum"
+    ),
+    ARBITRUM_SEPOLIA_TESTNET(
+        "Arbitrum Sepolia Testnet",
+        "https://arbitrum-sepolia.infura.io/v3/$INFURA_API_KEY",
+        421614,
+        covalentChainName = "arbitrum-sepolia"
     ),
     POLYGON_MAINNET(
         "Polygon",
