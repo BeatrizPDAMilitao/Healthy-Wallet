@@ -443,7 +443,7 @@ class WalletRepository(private val application: Application) : IWalletRepository
     //0x8d91fa1054f8f53e01661f4147e450edd090336d
 
     private val healthyWalletAddresses = mapOf(
-        Network.ARBITRUM_SEPOLIA_TESTNET to "0x257F027faAc9eA80F8269a7024FE33a8730223D5",
+        Network.ARBITRUM_SEPOLIA_TESTNET to "0xE75A51E1dD78fddc3a24c351Ea160eD6aa7d01a2",
         Network.SEPOLIA to "0x257F027faAc9eA80F8269a7024FE33a8730223D5",
     )
 

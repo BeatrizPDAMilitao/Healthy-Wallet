@@ -213,6 +213,19 @@ fun EHRsScreen(
                             style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Medium)
                         )
                     }
+                    Button(
+                        onClick = { viewModel.getGasFees() },
+                        shape = RoundedCornerShape(12.dp),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 6.dp)
+                            .height(52.dp)
+                    ) {
+                        Text(
+                            text = "Get gas fees",
+                            style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Medium)
+                        )
+                    }
                 }*/
 
                 val application = context.applicationContext as HealthyWalletApplication

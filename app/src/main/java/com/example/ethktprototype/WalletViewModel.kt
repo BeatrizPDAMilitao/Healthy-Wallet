@@ -53,6 +53,8 @@ import com.example.ethktprototype.data.GraphQLQueries.buildGetPatientProceduresQ
 import com.example.ethktprototype.data.GraphQLQueries.buildPatientCompleteQuery
 import com.example.ethktprototype.data.HealthSummaryResult
 import com.example.medplum.GetPatientDiagnosticReportQuery
+import org.web3j.utils.Numeric
+import java.math.BigInteger
 
 
 /**
@@ -324,13 +326,23 @@ class WalletViewModel(application: Application) : AndroidViewModel(application) 
             val receipt = walletRepository.logAccess(formattedRecordIds, credentials)
 
             Log.d("LogAccess", "TransactionHash: ${receipt.transactionHash}")
+            val gasPriceHex = receipt.effectiveGasPrice
 
+            val gasPrice = Numeric.decodeQuantity(
+                if (gasPriceHex.startsWith("0x")) gasPriceHex else "0x$gasPriceHex"
+            )
+            val gasUsed = receipt.gasUsed
+            val gasFee = gasUsed * gasPrice
+            Log.d("AccessControl", "Gas fee: $gasFee, Gas used: $gasUsed, Gas price: $gasPrice")
+            gasFees.add(gasFee)
             fetchOperation()
         } catch (e: Exception) {
             Log.e("AccessControl", "Access log or fetch failed: ${e.message}", e)
             null
         }
     }
+
+    val gasFees = mutableListOf<BigInteger>()
 
     suspend fun <T> withLoggedAccessPerScreen(
         screen: String,
@@ -360,6 +372,15 @@ class WalletViewModel(application: Application) : AndroidViewModel(application) 
                 walletRepository.loadAccessesContract(credentials)
                 Log.d("AccessControl", "[$screen] Loaded contract")
                 val receipt = walletRepository.logAccess(queries, credentials)
+                val gasPriceHex = receipt.effectiveGasPrice
+
+                val gasPrice = Numeric.decodeQuantity(
+                    if (gasPriceHex.startsWith("0x")) gasPriceHex else "0x$gasPriceHex"
+                )
+                val gasUsed = receipt.gasUsed
+                val gasFee = gasUsed * gasPrice
+                Log.d("AccessControl", "[$screen] Gas fee: $gasFee, Gas used: $gasUsed, Gas price: $gasPrice")
+                gasFees.add(gasFee)
                 walletRepository.updateLastAccessTime(key, now)
                 Log.d("AccessControl", "[$screen] Access logged: ${receipt.transactionHash}")
                 true
@@ -373,13 +394,21 @@ class WalletViewModel(application: Application) : AndroidViewModel(application) 
         return true
     }
 
+    fun getGasFees() {
+        Log.d("GasStats", "Gas fees: $gasFees")
+        if (!gasFees.isEmpty()) {
+            val meanGasFee = gasFees.reduce(BigInteger::add).divide(BigInteger.valueOf(gasFees.size.toLong()))
+            Log.d("GasStats", "Mean gas fee: $meanGasFee")
 
+        }
+    }
 
 
     //////////////////// MedPlum API Tests with and without blockchain ////////////////////
 
     fun testFetchPrescriptions(subjectId: String) {
         viewModelScope.launch {
+            //gasFees.removeAll { it > BigInteger.ZERO } // Clear previous gas fees
             val withBlockchainTimes = mutableListOf<Long>()
             val withoutBlockchainTimes = mutableListOf<Long>()
 
@@ -409,6 +438,14 @@ class WalletViewModel(application: Application) : AndroidViewModel(application) 
 
             val avgWith = withBlockchainTimes.average()
             val avgWithout = withoutBlockchainTimes.average()
+
+            Log.d("GasStats", "Gas fees: $gasFees")
+            if (!gasFees.isEmpty()) {
+                val meanGasFee = gasFees.reduce(BigInteger::add).divide(BigInteger.valueOf(gasFees.size.toLong()))
+                Log.d("GasStats", "Mean gas fee: $meanGasFee")
+
+            }
+
 
             Log.d("PerformanceTest", "Average WITH blockchain: ${"%.2f".format(avgWith)} ms")
             Log.d("PerformanceTest", "Values With blockchain: $withBlockchainTimes")
@@ -1434,14 +1471,24 @@ class WalletViewModel(application: Application) : AndroidViewModel(application) 
      * @param transaction The transaction associated with the notification.
      */
     suspend fun onNotificationReceived(context: Context, id: String) {
+        var type = ""
+        var i = getTransactionId()
+        if ( i % 3 == 0) {
+            type = "Head CT"
+        }
+        else if (i % 3 == 1) {
+            type = "Blood Test"
+        } else {
+            type = "MRI"
+        }
         var newTransaction = Transaction(
             id = id,
             date = getCurrentDate(),
             status = "pending",
             recordId = "local$id",
-            practitionerId = "dsa987654321",
+            practitionerId = "01968b55-08af-70ce-8159-23b14e09a48a",
             practitionerAddress = "0xd0c4753de208449772e0a7e43f7ecda79df32bc7",
-            type = "Head CT",
+            type = type,
             patientId = "01968b59-76f3-7228-aea9-07db748ee2ca"
         )
         val mnemonic = getMnemonic()
