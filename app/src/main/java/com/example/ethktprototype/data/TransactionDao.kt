@@ -50,6 +50,12 @@ interface TransactionDao {
     suspend fun getPatientById(patientId: String): PatientEntity?
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertPractitioner(practitioner: PractitionerEntity)
+
+    @Query("SELECT * FROM practitioners WHERE id = :practitionerId")
+    suspend fun getPractitionerById(practitionerId: String): PractitionerEntity?
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertObservation(observation: ObservationEntity)
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
@@ -146,4 +152,7 @@ interface TransactionDao {
 
     @Query("DELETE FROM procedures")
     suspend fun deleteAllProcedures()
+
+    @Query("DELETE FROM practitioners")
+    suspend fun deleteAllPractitioners()
 }

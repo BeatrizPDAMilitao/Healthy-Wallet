@@ -53,13 +53,13 @@ fun EHRsScreen(
     val uiState by viewModel.uiState.collectAsState()
     val context = LocalContext.current
 
-    val patientId = "Patient/019706de-81bf-77d0-a864-2db46cad1d8c"
-
     val patient = viewModel.patient.collectAsState()
+
+    val practitioner = viewModel.practitioner.collectAsState()
 
     LaunchedEffect(true) {
         if (!viewModel.uiState.value.hasFetched.getOrDefault("Patient", false)) {
-            viewModel.getPatientComplete()
+            viewModel.getUser()
         }
     }
 
@@ -105,16 +105,38 @@ fun EHRsScreen(
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.SpaceBetween
                     ) {
-                        Text(
-                            text = "Welcome ${patient.value?.name ?: "Patient"}!",
-                            style = MaterialTheme.typography.titleLarge.copy(
-                                fontWeight = FontWeight.Bold,
-                                fontSize = 24.sp,
-                                color = Color.White
+                        if (patient.value != null) {
+                            Text(
+                                text = "Welcome ${patient.value?.name ?: "Patient"}!",
+                                style = MaterialTheme.typography.titleLarge.copy(
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 24.sp,
+                                    color = Color.White
+                                )
                             )
-                        )
+                        }
+                        else if (practitioner.value != null) {
+                            Text(
+                                text = "Practitioner: ${practitioner.value?.name ?: "Practitioner"}!",
+                                style = MaterialTheme.typography.bodyMedium.copy(
+                                    fontWeight = FontWeight.Medium,
+                                    fontSize = 16.sp,
+                                    color = Color.White
+                                )
+                            )
+                        }
+                        else {
+                            Text(
+                                text = "User: Unknown",
+                                style = MaterialTheme.typography.bodyMedium.copy(
+                                    fontWeight = FontWeight.Medium,
+                                    fontSize = 16.sp,
+                                    color = Color.White
+                                )
+                            )
+                        }
                         IconButton(onClick = {
-                            viewModel.getPatientComplete()
+                            viewModel.getUser()
                         }) {
                             Icon(
                                 imageVector = Icons.Default.Refresh,
@@ -126,82 +148,107 @@ fun EHRsScreen(
                 }
 
                 Spacer(modifier = Modifier.height(24.dp))
-                Card(
-                    shape = RoundedCornerShape(16.dp),
-                    modifier = Modifier
-                        .padding(horizontal = 20.dp)
-                        .fillMaxWidth(),
-                    elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
-                ) {
-                    Column(modifier = Modifier.padding(16.dp)) {
-                        if (patient.value?.doctor == null || patient.value?.doctor == "") {
-                            Text("👨‍⚕️ Doctor: Unknown", style = MaterialTheme.typography.bodyMedium.copy(fontSize = 18.sp))
+
+                if (patient.value != null) {
+                    Card(
+                        shape = RoundedCornerShape(16.dp),
+                        modifier = Modifier
+                            .padding(horizontal = 20.dp)
+                            .fillMaxWidth(),
+                        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
+                    ) {
+                        Column(modifier = Modifier.padding(16.dp)) {
+                            if (patient.value?.doctor == null || patient.value?.doctor == "") {
+                                Text("👨‍⚕️ Doctor: Unknown", style = MaterialTheme.typography.bodyMedium.copy(fontSize = 18.sp))
+                            }
+                            else {
+                                Text(
+                                    "👨‍⚕️ Doctor: ${patient.value?.doctor}",
+                                    style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold, fontSize = 18.sp)
+                                )
+                            }
+                            Spacer(modifier = Modifier.height(4.dp))
+                            if (patient.value?.healthUnit == null || patient.value?.healthUnit == "") {
+                                Text("🏥 Health Unit: Unknown", style = MaterialTheme.typography.bodyMedium.copy(fontSize = 18.sp))
+                            }
+                            else {
+                                Text("🏥 Health Unit: ${patient.value?.healthUnit}", style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold, fontSize = 18.sp))
+                            }
                         }
-                        else {
-                            Text(
-                                "👨‍⚕️ Doctor: ${patient.value?.doctor}",
-                                style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold, fontSize = 18.sp)
-                            )
-                        }
-                        Spacer(modifier = Modifier.height(4.dp))
-                        if (patient.value?.healthUnit == null || patient.value?.healthUnit == "") {
-                            Text("🏥 Health Unit: Unknown", style = MaterialTheme.typography.bodyMedium.copy(fontSize = 18.sp))
-                        }
-                        else {
-                            Text("🏥 Health Unit: Unknown", style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold, fontSize = 18.sp))
+                    }
+                    // Feature Buttons
+                    Spacer(modifier = Modifier.height(24.dp))
+
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 20.dp)
+                    ) {
+                        val features = listOf(
+                            "Health Summary" to "healthSummaryScreen",
+                            "Exams" to "examsScreen",
+                            "Prescriptions" to "prescriptionsScreen",
+                            "Regular Medication" to "medicationScreen",
+                            "Vaccination Record" to "vaccinationsScreen"
+                        )
+
+                        features.chunked(2).forEach { row ->
+                            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                                row.forEach { (label, route) ->
+                                    Card(
+                                        shape = RoundedCornerShape(18.dp),
+                                        modifier = Modifier
+                                            .weight(1f)
+                                            .height(100.dp)
+                                            .clickable { navController.navigate(route) },
+                                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primary),
+                                        elevation = CardDefaults.cardElevation(2.dp)
+                                    ) {
+                                        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                                            Text(
+                                                text = label,
+                                                style = MaterialTheme.typography.bodyLarge.copy(
+                                                    fontWeight = FontWeight.Medium
+                                                ),
+                                                modifier = Modifier.padding(8.dp),
+                                                textAlign = TextAlign.Center
+                                            )
+                                        }
+                                    }
+                                }
+                                if (row.size == 1) Spacer(modifier = Modifier.weight(1f)) // Fill space in odd row
+                            }
+                            Spacer(modifier = Modifier.height(12.dp))
                         }
                     }
                 }
-                // Feature Buttons
-                Spacer(modifier = Modifier.height(24.dp))
 
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 20.dp)
-                ) {
-                    val features = listOf(
-                        "Health Summary" to "healthSummaryScreen",
-                        "Exams" to "examsScreen",
-                        "Prescriptions" to "prescriptionsScreen",
-                        "Regular Medication" to "medicationScreen",
-                        "Vaccination Record" to "vaccinationsScreen"
-                    )
-
-                    features.chunked(2).forEach { row ->
-                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                            row.forEach { (label, route) ->
-                                Card(
-                                    shape = RoundedCornerShape(18.dp),
-                                    modifier = Modifier
-                                        .weight(1f)
-                                        .height(100.dp)
-                                        .clickable { navController.navigate(route) },
-                                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primary),
-                                    elevation = CardDefaults.cardElevation(2.dp)
-                                ) {
-                                    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                                        Text(
-                                            text = label,
-                                            style = MaterialTheme.typography.bodyLarge.copy(
-                                                fontWeight = FontWeight.Medium
-                                            ),
-                                            modifier = Modifier.padding(8.dp),
-                                            textAlign = TextAlign.Center
-                                        )
-                                    }
-                                }
-                            }
-                            if (row.size == 1) Spacer(modifier = Modifier.weight(1f)) // Fill space in odd row
+                if (practitioner.value != null) {
+                    Card(
+                        shape = RoundedCornerShape(16.dp),
+                        modifier = Modifier
+                            .padding(horizontal = 20.dp)
+                            .fillMaxWidth(),
+                        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
+                    ) {
+                        Column(modifier = Modifier.padding(16.dp)) {
+                            Text(
+                                text = "Practitioner: ${practitioner.value?.name ?: "Unknown"}",
+                                style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold, fontSize = 18.sp)
+                            )
+                            Spacer(modifier = Modifier.height(4.dp))
+                            Text(
+                                text = "Qualification: ${practitioner.value?.qualification ?: "Unknown"}",
+                                style = MaterialTheme.typography.bodyMedium.copy(fontSize = 18.sp)
+                            )
                         }
-                        Spacer(modifier = Modifier.height(12.dp))
                     }
                 }
 
                 /// Test Button: Uncomment to test
                 /*Column (modifier = Modifier.fillMaxWidth()) {
                     Button(
-                        onClick = { viewModel.testFetchPrescriptions(patientId) },
+                        onClick = { viewModel.testFetchPrescriptions(patient.value?.id ?: "") },
                         shape = RoundedCornerShape(12.dp),
                         modifier = Modifier
                             .fillMaxWidth()
@@ -209,12 +256,12 @@ fun EHRsScreen(
                             .height(52.dp)
                     ) {
                         Text(
-                            text = "Test fetch prescriptions 30 times.",
+                            text = "Test Read.",
                             style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Medium)
                         )
                     }
                     Button(
-                        onClick = { viewModel.getGasFees() },
+                        onClick = { viewModel.getSimulateTransactionFees() },
                         shape = RoundedCornerShape(12.dp),
                         modifier = Modifier
                             .fillMaxWidth()
@@ -223,6 +270,19 @@ fun EHRsScreen(
                     ) {
                         Text(
                             text = "Get gas fees",
+                            style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Medium)
+                        )
+                    }
+                    Button(
+                        onClick = { viewModel.showSimulateTransactionTimes() },
+                        shape = RoundedCornerShape(12.dp),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 6.dp)
+                            .height(52.dp)
+                    ) {
+                        Text(
+                            text = "Get times",
                             style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Medium)
                         )
                     }

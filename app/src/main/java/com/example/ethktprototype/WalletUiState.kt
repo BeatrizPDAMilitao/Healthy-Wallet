@@ -52,7 +52,8 @@ data class WalletUiState(
         "Allergies" to false,
         "Devices" to false,
         "Procedures" to false,
-        "HealthSummary" to false
+        "HealthSummary" to false,
+        "Practitioner" to false,
     ),
     var isAppLoading: Boolean = false,
     var isPatientLoading: Boolean = false,

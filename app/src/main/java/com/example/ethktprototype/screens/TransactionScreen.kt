@@ -377,6 +377,8 @@ fun TransactionScreen(
                         Text("Practitioner ID: ${uiState.practitionerData?.id}")
                         Text("Name: ${uiState.practitionerData?.name}")
                         Text("Telecom: ${uiState.practitionerData?.telecom}")
+                        Text("Address: ${uiState.practitionerData?.address}")
+                        Text("Qualification: ${uiState.practitionerData?.qualification}")
                     }
                 },
                 confirmButton = {

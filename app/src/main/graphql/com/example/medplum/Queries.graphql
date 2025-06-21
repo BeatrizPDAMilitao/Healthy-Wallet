@@ -73,6 +73,44 @@ query GetPractitioner($id: ID!) {
   }
 }
 
+query GetPractitionerComplete($id: ID!) {
+  Practitioner(id: $id) {
+    id
+    name {
+      given
+      family
+    }
+    gender
+    telecom {
+      system
+      value
+      use
+    }
+    address {
+      line
+      city
+      state
+      postalCode
+      country
+    }
+    qualification {
+      code {
+        coding {
+          display
+        }
+      }
+      period {
+        start
+        end
+      }
+    }
+    identifier {
+      system
+      value
+    }
+  }
+}
+
 query GetDocumentReference($id: ID!) {
   DocumentReference(id: $id) {
     id

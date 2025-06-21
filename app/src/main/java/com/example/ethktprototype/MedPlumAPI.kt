@@ -44,6 +44,7 @@ import android.content.Intent
 import android.net.Uri
 import android.util.Base64
 import com.example.ethktprototype.data.HealthSummaryResult
+import com.example.medplum.GetPractitionerCompleteQuery
 import java.security.MessageDigest
 import java.security.SecureRandom
 
@@ -401,7 +402,7 @@ class MedPlumAPI(private val application: Application, private val viewModel: Wa
         return try {
             if (!ensureApolloClientInitialized()) return null
 
-            val response = apolloClient.query(GetPractitionerQuery(practitionerId)).execute()
+            val response = apolloClient.query(GetPractitionerCompleteQuery(practitionerId)).execute()
             Log.d("MedPlum", "GraphQL response: $response")
 
             if (response.hasErrors()) {
@@ -411,17 +412,50 @@ class MedPlumAPI(private val application: Application, private val viewModel: Wa
 
             val practitioner = response.data?.Practitioner ?: return null
 
+            // Name
             val given = practitioner.name?.firstOrNull()?.given?.firstOrNull() ?: ""
             val family = practitioner.name?.firstOrNull()?.family ?: ""
             val name = "$given $family".trim()
 
+            // Identifier (take the first one if present)
+            val identifier = practitioner.identifier?.firstOrNull()?.value ?: ""
+
+            // Gender
+            val gender = practitioner.gender ?: "unknown"
+
+            // Telecom (take the first available contact method)
+            val telecom = practitioner.telecom?.firstOrNull()?.value ?: ""
+
+            val qualification = practitioner.qualification?.firstOrNull()?.let { qual ->
+                val codeDisplay = qual.code.coding?.firstOrNull()?.display ?: "Unknown"
+                val start = qual.period?.start ?: ""
+                val end = qual.period?.end ?: ""
+
+                if (start.isNotEmpty() && end.isNotEmpty()) {
+                    "$codeDisplay ($start - $end)"
+                } else {
+                    codeDisplay
+                }
+            } ?: "N/A"
+
+            // Address (format first address as string)
+            val addressObj = practitioner.address?.firstOrNull()
+            val address = listOfNotNull(
+                addressObj?.line?.firstOrNull(),
+                addressObj?.city,
+                addressObj?.state,
+                addressObj?.postalCode,
+                addressObj?.country
+            ).joinToString(", ")
+
             return PractitionerEntity(
                 id = practitioner.id ?: "unknown",
                 name = name,
-                //gender = practitioner.gender ?: "unknown",
-                //identifier = "", // not returned in this query yet
-                telecom = "", // not returned in this query yet
-                address = ""     // not returned in this query yet
+                gender = gender,
+                identifier = identifier,
+                telecom = telecom,
+                address = address,
+                qualification = qualification
             )
 
         } catch (e: ApolloHttpException) {
@@ -746,5 +780,124 @@ class MedPlumAPI(private val application: Application, private val viewModel: Wa
 
         return HealthSummaryResult(diagnostics, allergies, meds, procedures, devices, immunizations)
     }
+
+    suspend fun createConsentResource(
+        patientId: String,
+        practitionerId: String,
+        resourceId: String
+    ): Boolean = withContext(Dispatchers.IO) {
+        val accessToken = getAccessToken()
+        if (accessToken == null) {
+            Log.e("MedPlum", "No access token available.")
+            return@withContext false
+        }
+
+        val json = JSONObject().apply {
+            put("resourceType", "Consent")
+            put("status", "active")
+            put("scope", JSONObject().apply {
+                put("coding", listOf(JSONObject().apply {
+                    put("system", "http://terminology.hl7.org/CodeSystem/consentscope")
+                    put("code", "patient-privacy")
+                }))
+            })
+            put("patient", JSONObject().apply {
+                put("reference", "Patient/$patientId")
+            })
+            put("performer", listOf(JSONObject().apply {
+                put("reference", "Practitioner/$practitionerId")
+            }))
+            put("provision", JSONObject().apply {
+                put("type", "permit")
+                put("actor", listOf(JSONObject().apply {
+                    put("role", JSONObject().apply {
+                        put("coding", listOf(JSONObject().apply {
+                            put("system", "http://terminology.hl7.org/CodeSystem/consentactorrole")
+                            put("code", "PRCP")
+                        }))
+                    })
+                    put("reference", JSONObject().apply {
+                        put("reference", "Practitioner/$practitionerId")
+                    })
+                }))
+                put("resource", listOf(JSONObject().apply {
+                    put("reference", resourceId)  // e.g. "DiagnosticReport/abc123"
+                }))
+            })
+        }
+
+        val body = json.toString().toRequestBody("application/fhir+json".toMediaType())
+        val request = Request.Builder()
+            .url("https://api.medplum.com/fhir/R4/Consent")
+            .addHeader("Authorization", "Bearer $accessToken")
+            .post(body)
+            .build()
+
+        try {
+            val client = OkHttpClient()
+            client.newCall(request).execute().use { response ->
+                if (response.isSuccessful) {
+                    Log.d("MedPlum", "Consent created successfully")
+                    return@withContext true
+                } else {
+                    Log.e("MedPlum", "Failed to create Consent: ${response.code}")
+                    Log.e("MedPlum", "Response body: ${response.body?.string()}")
+                    return@withContext false
+                }
+            }
+        } catch (e: Exception) {
+            Log.e("MedPlum", "Error creating Consent", e)
+            return@withContext false
+        }
+    }
+
+    suspend fun createAccessPolicy(
+        name: String,
+        resourceType: String,
+        resourceId: String,
+        practitionerId: String
+    ): Boolean = withContext(Dispatchers.IO) {
+        val accessToken = getAccessToken()
+        if (accessToken == null) {
+            Log.e("MedPlum", "No access token available.")
+            return@withContext false
+        }
+
+        val json = JSONObject().apply {
+            put("resourceType", "AccessPolicy")
+            put("name", name)  // e.g., "AllowDrSmithAccessToXray"
+            put("resource", "$resourceType/$resourceId")  // e.g., "DiagnosticReport/xyz123"
+            put("action", listOf("read"))  // or "write", "read,write", etc.
+            put("condition", JSONObject().apply {
+                put("expression", "requester.id == 'Practitioner/$practitionerId'")
+            })
+        }
+
+        val body = json.toString().toRequestBody("application/fhir+json".toMediaType())
+        val request = Request.Builder()
+            .url("https://api.medplum.com/fhir/R4/AccessPolicy")
+            .addHeader("Authorization", "Bearer $accessToken")
+            .post(body)
+            .build()
+
+        try {
+            val client = OkHttpClient()
+            client.newCall(request).execute().use { response ->
+                if (response.isSuccessful) {
+                    Log.d("MedPlum", "AccessPolicy created successfully")
+                    return@withContext true
+                } else {
+                    Log.e("MedPlum", "Failed to create AccessPolicy: ${response.code}")
+                    Log.e("MedPlum", "Response body: ${response.body?.string()}")
+                    return@withContext false
+                }
+            }
+        } catch (e: Exception) {
+            Log.e("MedPlum", "Error creating AccessPolicy", e)
+            return@withContext false
+        }
+    }
+
+
 
 }

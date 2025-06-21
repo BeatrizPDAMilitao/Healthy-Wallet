@@ -7,6 +7,9 @@ import androidx.room.PrimaryKey
 data class PractitionerEntity(
     @PrimaryKey val id: String,
     val name: String,
+    val gender: String,
     val telecom: String,
-    val address: String
+    val address: String,
+    val qualification: String,
+    val identifier: String? = null,
 )

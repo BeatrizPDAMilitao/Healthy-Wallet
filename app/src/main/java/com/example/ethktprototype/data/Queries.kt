@@ -267,6 +267,47 @@ object GraphQLQueries {
         }
     }
 
+    fun buildPractitionerCompleteQuery(practitionerId: String): String {
+        return """
+        query {
+          Practitioner(id: "$practitionerId") {
+            id
+            name {
+              given
+              family
+            }
+            gender
+            telecom {
+              system
+              value
+              use
+            }
+            address {
+              line
+              city
+              state
+              postalCode
+              country
+            }
+            qualification {
+              code {
+                coding {
+                  display
+                }
+              }
+              period {
+                start
+                end
+              }
+            }
+            identifier {
+              system
+              value
+            }
+          }
+        }
+    """.trimIndent()
+    }
 
 
 }
