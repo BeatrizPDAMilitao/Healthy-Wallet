@@ -46,8 +46,14 @@ interface TransactionDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertPatient(patient: PatientEntity)
 
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertPatients(patients: List<PatientEntity>)
+
     @Query("SELECT * FROM patients WHERE id = :patientId")
     suspend fun getPatientById(patientId: String): PatientEntity?
+
+    @Query("SELECT * FROM patients")
+    suspend fun getPatients(): List<PatientEntity>
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertPractitioner(practitioner: PractitionerEntity)

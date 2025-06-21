@@ -243,6 +243,47 @@ fun EHRsScreen(
                             )
                         }
                     }
+                    // Feature Buttons
+                    Spacer(modifier = Modifier.height(24.dp))
+
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 20.dp)
+                    ) {
+                        val features = listOf(
+                            "Patients" to "patientsListScreen"
+                        )
+
+                        features.chunked(2).forEach { row ->
+                            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                                row.forEach { (label, route) ->
+                                    Card(
+                                        shape = RoundedCornerShape(18.dp),
+                                        modifier = Modifier
+                                            .weight(1f)
+                                            .height(100.dp)
+                                            .clickable { navController.navigate(route) },
+                                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primary),
+                                        elevation = CardDefaults.cardElevation(2.dp)
+                                    ) {
+                                        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                                            Text(
+                                                text = label,
+                                                style = MaterialTheme.typography.bodyLarge.copy(
+                                                    fontWeight = FontWeight.Medium
+                                                ),
+                                                modifier = Modifier.padding(8.dp),
+                                                textAlign = TextAlign.Center
+                                            )
+                                        }
+                                    }
+                                }
+                                if (row.size == 1) Spacer(modifier = Modifier.weight(1f)) // Fill space in odd row
+                            }
+                            Spacer(modifier = Modifier.height(12.dp))
+                        }
+                    }
                 }
 
                 /// Test Button: Uncomment to test

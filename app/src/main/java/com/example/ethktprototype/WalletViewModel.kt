@@ -48,6 +48,7 @@ import com.example.ethktprototype.data.GraphQLQueries.buildGetPatientAllergiesQu
 import com.example.ethktprototype.data.GraphQLQueries.buildGetPatientDevicesQuery
 import com.example.ethktprototype.data.GraphQLQueries.buildGetPatientDiagnosticReportQuery
 import com.example.ethktprototype.data.GraphQLQueries.buildGetPatientImmunizationsQuery
+import com.example.ethktprototype.data.GraphQLQueries.buildGetPatientListForPractitionerQuery
 import com.example.ethktprototype.data.GraphQLQueries.buildGetPatientMedicationRequestsQuery
 import com.example.ethktprototype.data.GraphQLQueries.buildGetPatientMedicationStatementsQuery
 import com.example.ethktprototype.data.GraphQLQueries.buildGetPatientProceduresQuery
@@ -120,6 +121,8 @@ class WalletViewModel(application: Application) : AndroidViewModel(application) 
             loadAllergiesFromDb()
             loadDevicesFromDb()
             loadProceduresFromDb()
+            loadPractitionerFromDb()
+            loadPatientsFromDb()
         }
 
         //Add sample transactions for testing
@@ -604,11 +607,56 @@ class WalletViewModel(application: Application) : AndroidViewModel(application) 
     }
 
     fun loadPatientFromDb() {
+        if (!getLoggedInUsertId().startsWith("Patient/")) return
         viewModelScope.launch {
             val cached = withContext(Dispatchers.IO) {
-                transactionDao.getPatientById("019706de-81bf-77d0-a864-2db46cad1d8c")
+                transactionDao.getPatientById(getLoggedInUsertId().removePrefix("Patient/"))
             }
             _patient.value = cached
+        }
+    }
+
+    private val _patients = MutableStateFlow<List<PatientEntity?>>(emptyList())
+    val patients: StateFlow<List<PatientEntity?>> = _patients
+    fun getPatientListForPractitioner() {
+        val subjectId = getLoggedInUsertId()
+        val query = buildGetPatientListForPractitionerQuery(subjectId)
+        Log.d("MedplumAuth", "User ID: $subjectId")
+        viewModelScope.launch {
+            _uiState.update { it.copy(isPatientLoading = true) }
+            try {
+                val result = withContext(Dispatchers.IO) {
+                    var patients: List<PatientEntity>? = null
+                    val success = withLoggedAccessPerScreen(PATIENT_KEY, listOf(query)) {
+                        val data = medPlumAPI.fetchPatientListOfPractitioner(subjectId)
+                        patients = data
+                        data != null
+                    }
+                    if (success) patients else null
+                }
+                result?.let {
+                    _patients.value = it
+                    transactionDao.insertPatients(it)
+                    updateHasFetched(PATIENT_KEY, true)
+                }
+                Log.d("PatientsListData", "Patients List: $result")
+            } catch (e: Exception) {
+                Log.e("Exams", "Error fetching", e)
+            } finally {
+                _uiState.update {
+                    it.copy(isPatientLoading = false, isAppLoading = false)
+                }
+            }
+        }
+    }
+
+    fun loadPatientsFromDb() {
+        if (!getLoggedInUsertId().startsWith("Practitioner/")) return
+        viewModelScope.launch {
+            val cached = withContext(Dispatchers.IO) {
+                transactionDao.getPatients()
+            }
+            _patients.value = cached
         }
     }
 
@@ -664,6 +712,16 @@ class WalletViewModel(application: Application) : AndroidViewModel(application) 
         }
     }
 
+    fun loadPractitionerFromDb() {
+        if (!getLoggedInUsertId().startsWith("Practitioner/")) return
+        viewModelScope.launch {
+            val cached = withContext(Dispatchers.IO) {
+                transactionDao.getPractitionerById(getLoggedInUsertId().removePrefix("Practitioner/"))
+            }
+            _practitioner.value = cached
+        }
+    }
+
     private val _conditions = MutableStateFlow<List<ConditionEntity>>(emptyList())
     val conditions: StateFlow<List<ConditionEntity>> = _conditions
     fun getConditions(subjectId: String) {
@@ -709,8 +767,7 @@ class WalletViewModel(application: Application) : AndroidViewModel(application) 
 
     private val _diagnosticReports = MutableStateFlow<List<DiagnosticReportEntity>>(emptyList())
     val diagnosticReports: StateFlow<List<DiagnosticReportEntity>> = _diagnosticReports
-    fun getDiagnosticReports() {
-        val subjectId = getLoggedInUsertId()
+    fun getDiagnosticReports(subjectId: String = getLoggedInUsertId()) {
         val query = buildGetPatientDiagnosticReportQuery(subjectId)
         viewModelScope.launch {
             _uiState.update { it.copy(isDiagnosticReportsLoading = true) }
@@ -1531,6 +1588,49 @@ class WalletViewModel(application: Application) : AndroidViewModel(application) 
         return transactionDao.countTransactions() + 1
     }
 
+    suspend fun requestAccess(recordId: String, recordType: String) {
+        try {
+            val mnemonic = getMnemonic()
+            if (!mnemonic.isNullOrEmpty()) {
+                val credentials = loadBip44Credentials(mnemonic)
+                credentials.let {
+                    val hash = withContext(Dispatchers.IO) {
+                        walletRepository.loadHealthyContract(credentials)
+                    }
+                }
+                try {
+                    val receipt = withContext(Dispatchers.IO) {
+                        walletRepository.requestAccess(
+                            uiState.value.walletAddress,
+                            uiState.value.walletAddress,
+                            getLoggedInUsertId().removePrefix("Practitioner/"),
+                            recordId,
+                            recordType,
+                            credentials
+                        )
+                    }
+                    val gasPriceHex = receipt.effectiveGasPrice
+
+                    val gasPrice = Numeric.decodeQuantity(
+                        if (gasPriceHex.startsWith("0x")) gasPriceHex else "0x$gasPriceHex"
+                    )
+                    val gasUsed = receipt.gasUsed
+                    val gasFee = gasUsed * gasPrice
+                    Log.d(
+                        "RequestAccess",
+                        "Gas fee: $gasFee, Gas used: $gasUsed, Gas price: $gasPrice"
+                    )
+                    simulateTransactionFees.add(gasFee)
+                    Log.d("RequestAccess", "Access requested: ${receipt.transactionHash}")
+                } catch (e: Exception) {
+                    Log.e("RequestAccess", "Exception caught", e)
+                }
+            }
+        } catch (e: Exception) {
+            Log.d("RequestAccess", "Error loading contract: ${e.message}")
+        }
+    }
+
     /**
      * Handles the notification received for a transaction.
      *
@@ -1658,6 +1758,12 @@ class WalletViewModel(application: Application) : AndroidViewModel(application) 
     suspend fun getTransactionById(transactionId: String): Transaction? {
         return withContext(Dispatchers.IO) {
             transactionDao.getTransactionWithProofById(transactionId)?.toTransaction()
+        }
+    }
+
+    suspend fun getPatientById(patientId: String): PatientEntity? {
+        return withContext(Dispatchers.IO) {
+            transactionDao.getPatientById(patientId)
         }
     }
 

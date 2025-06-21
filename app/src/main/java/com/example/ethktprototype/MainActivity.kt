@@ -27,6 +27,8 @@ import com.example.ethktprototype.screens.ExamsScreen
 import com.example.ethktprototype.screens.HealthSummaryScreen
 import com.example.ethktprototype.screens.LoginScreen
 import com.example.ethktprototype.screens.MedicationScreen
+import com.example.ethktprototype.screens.PatientDetailsScreen
+import com.example.ethktprototype.screens.PatientsListScreen
 import com.example.ethktprototype.screens.PrescriptionsScreen
 import com.example.ethktprototype.screens.TransactionScreen
 import com.example.ethktprototype.screens.VaccinationsScreen
@@ -129,6 +131,13 @@ class MainActivity : ComponentActivity() {
                         composable("loginScreen") {
                             LoginScreen(context = this@MainActivity, viewModel = viewModel)
                             //startActivity(Intent(this@MainActivity, LoginActivity::class.java))
+                        }
+                        composable("patientsListScreen") {
+                            PatientsListScreen(navController = navController, viewModel = viewModel)
+                        }
+                        composable("patientDetails/{patientId}") { backStackEntry ->
+                            val patientId = backStackEntry.arguments?.getString("patientId")
+                            PatientDetailsScreen(navController = navController, viewModel = viewModel, patientId = patientId.toString())
                         }
                     }
                 }

@@ -30,6 +30,7 @@ import com.example.medplum.GetPatientAllergiesQuery
 import com.example.medplum.GetPatientCompleteQuery
 import com.example.medplum.GetPatientDevicesQuery
 import com.example.medplum.GetPatientProceduresQuery
+import com.example.medplum.GetPatientListForPractitionerQuery
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import okhttp3.MediaType.Companion.toMediaType
@@ -468,6 +469,55 @@ class MedPlumAPI(private val application: Application, private val viewModel: Wa
             null
         }
     }
+
+    suspend fun fetchPatientListOfPractitioner(practitionerId: String): List<PatientEntity>? {
+        return try {
+            if (!ensureApolloClientInitialized()) return null
+
+            val response = apolloClient.query(GetPatientListForPractitionerQuery(practitionerId)).execute()
+            Log.d("MedPlum", "GraphQL response: $response")
+
+            if (response.hasErrors()) {
+                Log.e("MedPlum", "GraphQL errors: ${response.errors}")
+                return null
+            }
+
+            val patients = response.data?.PatientList ?: return null
+
+            patients.mapNotNull { patient ->
+                val id = patient?.id ?: return@mapNotNull null
+
+                val given = patient.name?.firstOrNull()?.given?.firstOrNull() ?: ""
+                val family = patient.name?.firstOrNull()?.family ?: ""
+                val name = "$given $family".trim()
+
+                val gender = patient.gender ?: "unknown"
+                val birthDate = patient.birthDate ?: "unknown"
+
+                // Use empty strings for fields not included in the lightweight query
+                PatientEntity(
+                    id = id,
+                    name = name,
+                    birthDate = birthDate,
+                    gender = gender,
+                    identifier = "",
+                    address = "",
+                    healthUnit = "",
+                    doctor = ""
+                )
+            }
+
+        } catch (e: ApolloHttpException) {
+            Log.e("MedPlum", "HTTP error ${e.statusCode}: ${e.message}", e)
+            val errorBody = e.body?.use { it.readUtf8() }
+            Log.e("MedPlum", "Error body: $errorBody")
+            null
+        } catch (e: Exception) {
+            Log.e("MedPlum", "Unexpected error", e)
+            null
+        }
+    }
+
 
 
     override suspend fun getMedplumAccessToken(

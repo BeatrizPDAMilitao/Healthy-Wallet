@@ -111,6 +111,18 @@ query GetPractitionerComplete($id: ID!) {
   }
 }
 
+query GetPatientListForPractitioner($id: String!) {
+  PatientList(general_practitioner: $id) {
+    id
+    name {
+      given
+      family
+    }
+    gender
+    birthDate
+  }
+}
+
 query GetDocumentReference($id: ID!) {
   DocumentReference(id: $id) {
     id

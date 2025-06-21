@@ -15,8 +15,6 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ExpandLess
-import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.Card
 import androidx.compose.material3.Icon
@@ -28,9 +26,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -38,27 +33,23 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.lifecycle.viewModelScope
 import androidx.navigation.NavHostController
 import com.example.ethktprototype.WalletViewModel
 import com.example.ethktprototype.composables.BottomNavigationBar
-import com.example.ethktprototype.data.DiagnosticReportEntity
-import kotlinx.coroutines.launch
-import kotlin.code
+import com.example.ethktprototype.data.PatientEntity
 
 @Composable
-fun ExamsScreen(
+fun PatientsListScreen(
     navController: NavHostController,
     viewModel: WalletViewModel,
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val context = LocalContext.current
-    val conditions by viewModel.conditions.collectAsState()
-    val diagnosticReports by viewModel.diagnosticReports.collectAsState()
+    val patients by viewModel.patients.collectAsState()
 
     LaunchedEffect(true) {
-        if (!viewModel.uiState.value.hasFetched.getOrDefault("DiagnosticReports", false)) {
-            viewModel.getDiagnosticReports()
+        if (!viewModel.uiState.value.hasFetched.getOrDefault("Patient", false)) {
+            viewModel.getPatientListForPractitioner()
         }
     }
 
@@ -87,7 +78,7 @@ fun ExamsScreen(
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
                     Text(
-                        text = "Exams",
+                        text = "Patients List",
                         style = MaterialTheme.typography.titleLarge.copy(
                             fontWeight = FontWeight.Bold,
                             fontSize = 24.sp,
@@ -95,7 +86,7 @@ fun ExamsScreen(
                         )
                     )
                     IconButton(onClick = {
-                        viewModel.getDiagnosticReports()
+                        viewModel.getPatientListForPractitioner()
                     }) {
                         Icon(
                             imageVector = Icons.Default.Refresh,
@@ -108,7 +99,7 @@ fun ExamsScreen(
 
             Spacer(modifier = Modifier.height(24.dp))
 
-            if (uiState.isDiagnosticReportsLoading) {
+            if (uiState.isPatientLoading) {
                 androidx.compose.material3.CircularProgressIndicator(
                     modifier = Modifier
                         .align(Alignment.CenterHorizontally)
@@ -117,16 +108,15 @@ fun ExamsScreen(
                 )
             }
 
-            // Health Summary Content
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(horizontal = 20.dp)
             ) {
-                if (diagnosticReports.isEmpty()) {
-                    Text("No exams found.")
+                if (patients.isEmpty()) {
+                    Text("No patients found.")
                 } else {
-                    ExamList(diagnosticReports, true, viewModel)
+                    PatientList(patients, navController)
                 }
             }
         }
@@ -146,20 +136,18 @@ fun ExamsScreen(
 }
 
 @Composable
-fun ExamList(diagnosticReports: List<DiagnosticReportEntity>, isPatient: Boolean, viewModel: WalletViewModel) {
+fun PatientList(patients: List<PatientEntity?>, navController: NavHostController) {
     LazyColumn(
         modifier = Modifier
             .fillMaxSize()
             .padding(16.dp)
     ) {
-        items(diagnosticReports) { diagnostic ->
-            var isExpanded by remember { mutableStateOf(false) }
+        items(patients) { patient ->
 
             Card(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(vertical = 8.dp)
-                    .clickable { isExpanded = !isExpanded },
+                    .padding(vertical = 8.dp),
                 shape = RoundedCornerShape(12.dp),
                 //elevation = 4.dp
             ) {
@@ -167,6 +155,9 @@ fun ExamList(diagnosticReports: List<DiagnosticReportEntity>, isPatient: Boolean
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(16.dp)
+                        .clickable {
+                            navController.navigate("patientDetails/${patient?.id}")
+                        },
                 ) {
                     Row(
                         modifier = Modifier.fillMaxWidth(),
@@ -174,39 +165,17 @@ fun ExamList(diagnosticReports: List<DiagnosticReportEntity>, isPatient: Boolean
                     ) {
                         Column(modifier = Modifier.weight(1f)) {
                             Text(
-                                text = "Date: ${diagnostic.effectiveDateTime}",
+                                text = "Name: ${patient?.name}",
                                 style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold)
                             )
                             Text(
-                                text = "Code: ${diagnostic.code}",
+                                text = "Gender: ${patient?.gender}",
                                 style = MaterialTheme.typography.bodyMedium
                             )
-                        }
-                        Icon(
-                            imageVector = if (isExpanded) Icons.Filled.ExpandLess else Icons.Filled.ExpandMore,
-                            contentDescription = if (isExpanded) "Collapse" else "Expand"
-                        )
-                    }
-
-                    // Expandable content
-                    if (isExpanded) {
-                        Spacer(modifier = Modifier.height(8.dp))
-                        Text("ID: ${diagnostic.id}")
-                        Text("Status: ${diagnostic.status}")
-                        Text("Results: ${diagnostic.result}")
-
-                        if (!isPatient) {
-                            Spacer(modifier = Modifier.height(16.dp))
-                            androidx.compose.material3.Button(
-                                onClick = {
-                                    viewModel.viewModelScope.launch {
-                                        viewModel.requestAccess(diagnostic.id, "DiagnosticReport")
-                                    }
-                                },
-                                modifier = Modifier.fillMaxWidth()
-                            ) {
-                                Text("Request full access.")
-                            }
+                            Text(
+                                text = "Birth Date: ${patient?.birthDate}",
+                                style = MaterialTheme.typography.bodyMedium
+                            )
                         }
                     }
                 }
