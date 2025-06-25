@@ -46,6 +46,7 @@ import android.net.Uri
 import android.util.Base64
 import com.example.ethktprototype.data.HealthSummaryResult
 import com.example.medplum.GetPractitionerCompleteQuery
+import org.json.JSONArray
 import java.security.MessageDigest
 import java.security.SecureRandom
 
@@ -96,7 +97,7 @@ class MedPlumAPI(private val application: Application, private val viewModel: Wa
             .appendQueryParameter("response_type", "code")
             .appendQueryParameter("client_id", CLIENT_ID)
             .appendQueryParameter("redirect_uri", redirectUri)
-            .appendQueryParameter("scope", "openid profile user/*.read offline_access")
+            .appendQueryParameter("scope", "openid profile user/*.* offline_access")
             .appendQueryParameter("code_challenge_method", "S256")
             .appendQueryParameter("code_challenge", codeChallenge)
             .build()
@@ -830,6 +831,187 @@ class MedPlumAPI(private val application: Application, private val viewModel: Wa
 
         return HealthSummaryResult(diagnostics, allergies, meds, procedures, devices, immunizations)
     }
+
+    suspend fun postRecordToMedplum(jsonBody: String, resourceType: String): String? = withContext(Dispatchers.IO) {
+        val accessToken = getAccessToken()
+        if (accessToken.isNullOrEmpty()) {
+            Log.e("MedPlum", "Access token is missing.")
+            return@withContext null
+        }
+
+        val mediaType = "application/fhir+json".toMediaType()
+        val requestBody = jsonBody.toRequestBody(mediaType)
+
+        val request = Request.Builder()
+            .url("https://api.medplum.com/fhir/R4/$resourceType")
+            .addHeader("Authorization", "Bearer $accessToken")
+            .addHeader("Content-Type", "application/fhir+json")
+            .post(requestBody)
+            .build()
+
+        try {
+            val client = OkHttpClient()
+            client.newCall(request).execute().use { response ->
+                val responseBody = response.body?.string()
+                if (response.isSuccessful && responseBody != null) {
+                    val json = JSONObject(responseBody)
+                    val id = json.optString("id", null)
+                    Log.d("MedPlum", "Successfully created $resourceType with ID: $id")
+                    return@withContext id
+                } else {
+                    Log.e("MedPlum", "Failed to create $resourceType: ${response.code}")
+                    Log.e("MedPlum", "Response body: $responseBody")
+                    return@withContext null
+                }
+            }
+        } catch (e: Exception) {
+            Log.e("MedPlum", "Error posting $resourceType to MedPlum", e)
+            return@withContext null
+        }
+    }
+
+
+     suspend fun createMedplumRecord(recordType: String, record: Any, patientId: String, performerId: String): String {
+         val jsonBody = when (recordType) {
+            "DiagnosticReport" -> createDiagnosticReport(record as DiagnosticReportEntity, patientId, performerId)
+            "Immunization" -> createImmunization(record as ImmunizationEntity)
+            "Allergy" -> createAllergy(record as AllergyIntoleranceEntity)
+            "Condition" -> createCondition(record as ConditionEntity)
+            "Observation" -> createObservation(record as ObservationEntity)
+            "MedicationRequest" -> createMedicationRequest(record as MedicationRequestEntity)
+            "Procedure" -> createProcedure(record as ProcedureEntity, patientId)
+            else -> throw IllegalArgumentException("Unsupported record type: $recordType")
+        }
+         return postRecordToMedplum(jsonBody, recordType) ?: throw Exception("Failed to create $recordType on MedPlum")
+     }
+
+    fun createDiagnosticReport(record: DiagnosticReportEntity, patientId: String, performerId: String): String {
+        Log.d("EffectiveDateTime", "Effective DateTime: ${record.effectiveDateTime}")
+        val json = JSONObject().apply {
+            put("resourceType", "DiagnosticReport")
+            put("status", "final")
+            put("code", JSONObject().apply {
+                put("text", record.code)
+            })
+            put("subject", JSONObject().apply {
+                put("reference", "Patient/${patientId}")
+            })
+            put("performer", JSONArray().apply {
+                put(JSONObject().apply {
+                    put("reference", performerId)
+                })
+            })
+            put("effectiveDateTime", record.effectiveDateTime)
+            put("result", JSONArray().apply {
+                // Add result references if needed
+            })
+        }
+
+        return json.toString()
+    }
+
+    fun createImmunization(record: ImmunizationEntity): String {
+        val json = JSONObject().apply {
+            put("resourceType", "Immunization")
+            put("status", record.status)
+            put("vaccineCode", JSONObject().apply {
+                put("text", record.vaccine)
+            })
+            put("occurrenceDateTime", record.occurrenceDateTime)
+            put("lotNumber", record.lotNumber)
+        }
+
+        return json.toString()
+    }
+
+    fun createAllergy(record: AllergyIntoleranceEntity): String {
+        val json = JSONObject().apply {
+            put("resourceType", "AllergyIntolerance")
+            put("clinicalStatus", JSONObject().apply {
+                put("text", record.status)
+            })
+            put("code", JSONObject().apply {
+                put("text", record.code)
+            })
+            put("onsetDateTime", record.onset)
+            put("recordedDate", record.recordedDate)
+        }
+
+        return json.toString()
+    }
+
+    fun createCondition(record: ConditionEntity): String {
+        val json = JSONObject().apply {
+            put("resourceType", "Condition")
+            put("clinicalStatus", JSONObject().apply {
+                put("text", record.clinicalStatus)
+            })
+            put("code", JSONObject().apply {
+                put("text", record.code)
+            })
+            put("onsetDateTime", record.onsetDateTime)
+            put("subject", JSONObject().apply {
+                put("reference", "Patient/${record.subjectId}")
+            })
+        }
+
+        return json.toString()
+    }
+
+    fun createObservation(record: ObservationEntity): String {
+        val json = JSONObject().apply {
+            put("resourceType", "Observation")
+            put("status", record.status)
+            put("code", JSONObject().apply {
+                put("text", record.code)
+            })
+            put("subject", JSONObject().apply {
+                put("reference", "Patient/${record.subjectId}")
+            })
+            put("effectiveDateTime", record.effectiveDateTime)
+            put("valueQuantity", JSONObject().apply {
+                put("value", record.valueQuantity)
+                put("unit", record.unit)
+            })
+        }
+
+        return json.toString()
+    }
+
+    fun createMedicationRequest(record: MedicationRequestEntity): String {
+        val json = JSONObject().apply {
+            put("resourceType", "MedicationRequest")
+            put("status", record.status)
+            put("medicationCodeableConcept", JSONObject().apply {
+                put("text", record.medication)
+            })
+            put("authoredOn", record.authoredOn)
+            put("dosageInstruction", JSONArray().apply {
+                put(JSONObject().apply {
+                    put("text", record.dosage)
+                })
+            })
+        }
+
+        return json.toString()
+    }
+
+    fun createProcedure(record: ProcedureEntity, patientId: String): String {
+        val json = JSONObject().apply {
+            put("resourceType", "Procedure")
+            put("status", record.status)
+            put("code", JSONObject().apply {
+                put("text", record.code)
+            })
+            put("performedDateTime", record.performedDateTime)
+            put("subject", JSONObject().apply {
+                put("reference", "Patient/${patientId}")
+            })
+        }
+
+        return json.toString()
+    }
+
 
     suspend fun createConsentResource(
         patientId: String,

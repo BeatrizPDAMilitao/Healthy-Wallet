@@ -57,8 +57,11 @@ import com.example.ethktprototype.data.GraphQLQueries.buildPractitionerCompleteQ
 import com.example.ethktprototype.data.HealthSummaryResult
 import com.example.ethktprototype.data.PractitionerEntity
 import com.example.medplum.GetPatientDiagnosticReportQuery
+import kotlinx.serialization.InternalSerializationApi
+import org.json.JSONObject
 import org.web3j.utils.Numeric
 import java.math.BigInteger
+import kotlin.collections.mapOf
 
 
 /**
@@ -314,6 +317,59 @@ class WalletViewModel(application: Application) : AndroidViewModel(application) 
             }
             setTransactionProcessing(false)
         }
+    }
+
+    fun callCreateRecordContract(recordType: String, record: Any, hash: String, patientId: String) {
+        val mnemonic = getMnemonic()
+        viewModelScope.launch {
+            setTransactionProcessing(true)
+            try {
+                if (!mnemonic.isNullOrEmpty()) {
+                    val recordId = withContext(Dispatchers.IO) {
+                        medPlumAPI.createMedplumRecord(recordType, record, patientId, getLoggedInUsertId())
+                    }
+
+                    val credentials = loadBip44Credentials(mnemonic)
+                    credentials.let {
+                        val hash = withContext(Dispatchers.IO) {
+                            walletRepository.loadHealthyContract(credentials)
+                        }
+                    }
+                    try {
+                        val receipt = withContext(Dispatchers.IO) {
+                            walletRepository.createRecord(recordId, hash, credentials)
+                        }
+                        Log.d("CreateRecord", "Record Created: ${receipt.transactionHash}")
+                        // Handle the result as needed
+                        updateUiState { state ->
+                            state.copy(
+                                transactionHash = receipt.transactionHash,
+                                showPayDialog = false,
+                                showDenyDialog = true,
+                                showSuccessModal = false,
+                                showWalletModal = false,
+                            )
+                        }
+                    } catch (e: Exception) {
+                        // Handle errors
+                        Log.e("DenyContract", "Exception caught", e)
+                    }
+                }
+            } catch (e: Exception) {
+                // Handle errors
+                //updateUiState { it.copy(showPayDialog = false) }
+                Log.d("DenyContract", "Error loading contract: ${e.message}")
+            }
+            setTransactionProcessing(false)
+        }
+    }
+
+    @OptIn(InternalSerializationApi::class)
+    fun calculateRecordHash(fields: Map<String, String>): String { //TODO: Devia ser Any. E ter um para cada tipo de record
+        val jsonString = JSONObject(fields).toString()
+        val digest = java.security.MessageDigest.getInstance("SHA-256")
+        val hashBytes = digest.digest(jsonString.toByteArray())
+        return hashBytes.joinToString("") { "%02x".format(it) }
     }
 
     suspend fun <T> withLoggedAccess(
@@ -620,6 +676,7 @@ class WalletViewModel(application: Application) : AndroidViewModel(application) 
     val patients: StateFlow<List<PatientEntity?>> = _patients
     fun getPatientListForPractitioner() {
         val subjectId = getLoggedInUsertId()
+        Log.d("MedplumAuth", "Subject ID: $subjectId")
         val query = buildGetPatientListForPractitionerQuery(subjectId)
         Log.d("MedplumAuth", "User ID: $subjectId")
         viewModelScope.launch {
@@ -1586,6 +1643,106 @@ class WalletViewModel(application: Application) : AndroidViewModel(application) 
      */
     suspend fun getTransactionId(): Int { //TODO: Move to repository (SharedPreferences)
         return transactionDao.countTransactions() + 1
+    }
+
+    fun getDiagnosticReportById(recordId: String): DiagnosticReportEntity? {
+        return runBlocking {
+            transactionDao.getDiagnosticReportById(recordId)
+        }
+    }
+    fun getMedicationRequestById(recordId: String): MedicationRequestEntity? {
+        return runBlocking {
+            transactionDao.getMedicationRequestById(recordId)
+        }
+    }
+    fun getObservationById(recordId: String): ObservationEntity? {
+        return runBlocking {
+            transactionDao.getObservationById(recordId)
+        }
+    }
+    fun getConditionById(recordId: String): ConditionEntity? {
+        return runBlocking {
+            transactionDao.getConditionById(recordId)
+        }
+    }
+    fun getAllergyById(recordId: String): AllergyIntoleranceEntity? {
+        return runBlocking {
+            transactionDao.getAllergyById(recordId)
+        }
+    }
+    fun getDeviceById(recordId: String): DeviceEntity? {
+        return runBlocking {
+            transactionDao.getDeviceById(recordId)
+        }
+    }
+    fun getProcedureById(recordId: String): ProcedureEntity? {
+        return runBlocking {
+            transactionDao.getProcedureById(recordId)
+        }
+    }
+    fun getImmunizationById(recordId: String): ImmunizationEntity? {
+        return runBlocking {
+            transactionDao.getImmunizationById(recordId)
+        }
+    }
+    fun getMedicationStatementById(recordId: String): MedicationStatementEntity? {
+        return runBlocking {
+            transactionDao.getMedicationStatementById(recordId)
+        }
+    }
+
+    fun <T> getResource(recordType: String, recordId: String): T? {
+        when (recordType) {
+            "DiagnosticReport" -> {
+                if (!uiState.value.hasFetched.getOrDefault(DIAGNOSTIC_REPORTS_KEY, false)) {
+                    getDiagnosticReports()
+                }
+                return getDiagnosticReportById(recordId) as? T
+            }
+            "MedicationRequest" -> {
+                if (!uiState.value.hasFetched.getOrDefault(MEDICATION_REQUESTS_KEY, false)) {
+                    getMedicationRequests()
+                }
+                return getMedicationRequestById(recordId) as? T
+            }
+            "MedicationStatement" -> {
+                if (!uiState.value.hasFetched.getOrDefault(MEDICATION_STATEMENTS_KEY, false)) {
+                    getMedicationStatements()
+                }
+                return getMedicationStatementById(recordId) as? T
+            }
+            "Immunization" -> {
+                if (!uiState.value.hasFetched.getOrDefault(IMMUNIZATIONS_KEY, false)) {
+                    getImmunizations()
+                }
+                return getImmunizationById(recordId) as? T
+            }
+            "AllergyIntolerance" -> {
+                if (!uiState.value.hasFetched.getOrDefault(ALLERGIES_KEY, false)) {
+                    getAllergies()
+                }
+                return getAllergyById(recordId) as? T
+            }
+            "Device" -> {
+                if (!uiState.value.hasFetched.getOrDefault(DEVICES_KEY, false)) {
+                    getDevices()
+                }
+                return getDeviceById(recordId) as? T
+            }
+            "Procedure" -> {
+                if (!uiState.value.hasFetched.getOrDefault(PROCEDURES_KEY, false)) {
+                    getProcedures()
+                }
+                return getProcedureById(recordId) as? T
+            }
+            "Observation" -> {
+                if (!uiState.value.hasFetched.getOrDefault(OBSERVATIONS_KEY, false)) {
+                    getObservations(getLoggedInUsertId())
+                }
+                return getObservationById(recordId) as? T
+            }
+            else -> return null
+        }
     }
 
     suspend fun requestAccess(recordId: String, recordType: String) {

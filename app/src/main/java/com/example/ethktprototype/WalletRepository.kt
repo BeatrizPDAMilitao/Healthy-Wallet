@@ -443,7 +443,7 @@ class WalletRepository(private val application: Application) : IWalletRepository
     //0x8d91fa1054f8f53e01661f4147e450edd090336d
 
     private val healthyWalletAddresses = mapOf(
-        Network.ARBITRUM_SEPOLIA_TESTNET to "0xE75A51E1dD78fddc3a24c351Ea160eD6aa7d01a2",
+        Network.ARBITRUM_SEPOLIA_TESTNET to "0x94c35e1Ca0B33dAFB7e13a3a951791a3E384377c",//""0xD18CcEEC300d7f81ad2A69175DA510A97184B5A0",//""0xE75A51E1dD78fddc3a24c351Ea160eD6aa7d01a2",
         Network.SEPOLIA to "0x257F027faAc9eA80F8269a7024FE33a8730223D5",
     )
 
@@ -458,9 +458,9 @@ class WalletRepository(private val application: Application) : IWalletRepository
         medskyContract = MedskyContract.load(medskyAdress, web3jService, credentials, DefaultGasProvider())
     }
 
-    suspend fun createRecord(recordId: String, hash: String): TransactionReceipt {
+    /*suspend fun createRecord(recordId: String, hash: String): TransactionReceipt {
         return medskyContract.createRecord(recordId, hash).send()
-    }
+    }*/
 
     suspend fun deleteRecord(recordId: String, actionId: String): TransactionReceipt {
         return medskyContract.deleteRecord(recordId, actionId).send()
@@ -723,6 +723,59 @@ class WalletRepository(private val application: Application) : IWalletRepository
 
         throw RuntimeException("Transaction receipt not generated after sending transaction")
     }
+
+    suspend fun createRecord(recordId: String, hash: String, credentials: Credentials): TransactionReceipt {
+        val nonce = web3jService.ethGetTransactionCount(
+            credentials.address,
+            DefaultBlockParameterName.LATEST
+        ).send().transactionCount
+
+        val gasPrice = web3jService.ethGasPrice().send().gasPrice
+        val gasLimit = BigInteger.valueOf(3000000)
+
+        val function = Function(
+            "createRecord",
+            listOf(Utf8String(recordId), Utf8String(hash)),
+            emptyList()
+        )
+        val encodedFunction = FunctionEncoder.encode(function)
+
+        val rawTransaction = RawTransaction.createTransaction(
+            nonce,
+            gasPrice,
+            gasLimit,
+            healthyWalletAdress,
+            BigInteger.ZERO,
+            encodedFunction
+        )
+
+        val signedMessage = TransactionEncoder.signMessage(rawTransaction, selectedNetwork.value.chainId, credentials)
+        val hexValue = Numeric.toHexString(signedMessage)
+
+        val transactionResponse = web3jService.ethSendRawTransaction(hexValue).send()
+        Log.d("SyncedLog", "Sent createRecord tx: ${transactionResponse.transactionHash}")
+        if (transactionResponse.hasError()) {
+            throw RuntimeException("Transaction failed: ${transactionResponse.error.message}")
+        }
+
+        val maxWaitMs = 60000L
+        val start = System.currentTimeMillis()
+
+        while (System.currentTimeMillis() - start < maxWaitMs) {
+            val receipt = web3jService.ethGetTransactionReceipt(transactionResponse.transactionHash).send().transactionReceipt
+            if (receipt.isPresent) {
+                if (receipt.get().status == "0x0") {
+                    Log.e("TxStatus", "Transaction reverted")
+                    throw RuntimeException("Transaction reverted")
+                }
+                return receipt.get()
+            }
+            delay(1000)
+        }
+
+        throw RuntimeException("Transaction receipt not generated after sending transaction")
+    }
+
 
     //////////////////// Accesse Con Functions ////////////////////
 

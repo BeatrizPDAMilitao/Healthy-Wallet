@@ -22,6 +22,7 @@ import android.util.Log
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.runtime.LaunchedEffect
 import androidx.core.content.ContextCompat
+import com.example.ethktprototype.screens.CreateEHRScreen
 import com.example.ethktprototype.screens.EHRsScreen
 import com.example.ethktprototype.screens.ExamsScreen
 import com.example.ethktprototype.screens.HealthSummaryScreen
@@ -138,6 +139,10 @@ class MainActivity : ComponentActivity() {
                         composable("patientDetails/{patientId}") { backStackEntry ->
                             val patientId = backStackEntry.arguments?.getString("patientId")
                             PatientDetailsScreen(navController = navController, viewModel = viewModel, patientId = patientId.toString())
+                        }
+                        composable("createEHR/{patientId}") { backStackEntry ->
+                            val patientId = backStackEntry.arguments?.getString("patientId")
+                            CreateEHRScreen(navController = navController, viewModel = viewModel, patientId = patientId.toString())
                         }
                     }
                 }

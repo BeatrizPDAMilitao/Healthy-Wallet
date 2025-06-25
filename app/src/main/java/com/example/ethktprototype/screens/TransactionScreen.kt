@@ -54,6 +54,7 @@ import com.example.ethktprototype.nexus.CallZkpApi
 import org.json.JSONObject
 import net.glxn.qrgen.android.QRCode
 import com.example.ethktprototype.composables.BottomNavigationBar
+import com.example.ethktprototype.data.DiagnosticReportEntity
 
 /**
  * TransactionScreen is a Composable function that displays the transaction details.
@@ -223,6 +224,50 @@ fun TransactionScreen(
                                 else -> MaterialTheme.colorScheme.onSurface
                             }
                         )
+                        Spacer(modifier = Modifier.height(16.dp))
+                        //Get the resource
+                        when (transaction.value!!.type) {
+                            "DiagnosticReport" -> {
+                                var resource: DiagnosticReportEntity? = viewModel.getResource(transaction.value!!.type, transaction.value!!.recordId)
+                                if (resource != null) {
+                                    Spacer(modifier = Modifier.height(8.dp))
+                                    Text(
+                                        text = "Resource ID: ${resource.id}",
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        color = MaterialTheme.colorScheme.onSurface
+                                    )
+                                    Text(
+                                        text = "Status: ${resource.status}",
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        color = MaterialTheme.colorScheme.onSurface
+                                    )
+                                    Text(
+                                        text = "Code: ${resource.code}",
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        color = MaterialTheme.colorScheme.onSurface
+                                    )
+                                    Text(
+                                        text = "Effective Date: ${resource.effectiveDateTime}",
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        color = MaterialTheme.colorScheme.onSurface
+                                    )
+                                    Text(
+                                        text = "Results: ${resource.result}",
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        color = MaterialTheme.colorScheme.onSurface
+                                    )
+                                } else {
+                                    Spacer(modifier = Modifier.height(8.dp))
+                                    Text(
+                                        text = "Resource not found",
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        color = MaterialTheme.colorScheme.error
+                                    )
+                                }
+                            }
+                            // TODO: Handle other resource types
+                            else -> null // ou um tipo padrão, se aplicável
+                        }
 
                         if (qrCodeBitmap.value != null) {
                             Spacer(modifier = Modifier.height(16.dp))
@@ -298,7 +343,8 @@ fun TransactionScreen(
                                             val transactionId = transaction.value!!.id
                                             val recordId = transaction.value!!.recordId
                                             val requester = transaction.value!!.practitionerAddress
-                                            viewModel.callAcceptContract(transactionId, recordId, requester)
+                                            val practitionerId = transaction.value!!.practitionerId
+                                            viewModel.callAcceptContract(transactionId, practitionerId, recordId, requester)
                                         }
                                     },
                                     modifier = Modifier.weight(1f),
