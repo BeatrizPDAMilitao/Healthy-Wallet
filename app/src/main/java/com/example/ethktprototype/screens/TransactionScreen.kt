@@ -79,6 +79,10 @@ fun TransactionScreen(
 
     val qrCodeBitmap = remember { mutableStateOf<Bitmap?>(null) }
 
+    val executed = remember { mutableStateOf(false) }
+
+    var resource: Any? = remember { mutableStateOf(null) }
+
     LaunchedEffect(transactionId) {
         transaction.value = viewModel.getTransactionById(transactionId.toString())
         Log.d("ExampleTestSample", "Found transaction: ${transaction.value?.id}")
@@ -228,31 +232,35 @@ fun TransactionScreen(
                         //Get the resource
                         when (transaction.value!!.type) {
                             "DiagnosticReport" -> {
-                                var resource: DiagnosticReportEntity? = viewModel.getResource(transaction.value!!.type, transaction.value!!.recordId)
+                                if (!executed.value) {
+                                    executed.value = true
+                                    resource = viewModel.getResource(transaction.value!!.type, transaction.value!!.recordId)
+                                }
                                 if (resource != null) {
+                                    val diagnosticReport = resource as DiagnosticReportEntity
                                     Spacer(modifier = Modifier.height(8.dp))
                                     Text(
-                                        text = "Resource ID: ${resource.id}",
+                                        text = "Resource ID: ${diagnosticReport.id}",
                                         style = MaterialTheme.typography.bodyMedium,
                                         color = MaterialTheme.colorScheme.onSurface
                                     )
                                     Text(
-                                        text = "Status: ${resource.status}",
+                                        text = "Status: ${diagnosticReport.status}",
                                         style = MaterialTheme.typography.bodyMedium,
                                         color = MaterialTheme.colorScheme.onSurface
                                     )
                                     Text(
-                                        text = "Code: ${resource.code}",
+                                        text = "Code: ${diagnosticReport.code}",
                                         style = MaterialTheme.typography.bodyMedium,
                                         color = MaterialTheme.colorScheme.onSurface
                                     )
                                     Text(
-                                        text = "Effective Date: ${resource.effectiveDateTime}",
+                                        text = "Effective Date: ${diagnosticReport.effectiveDateTime}",
                                         style = MaterialTheme.typography.bodyMedium,
                                         color = MaterialTheme.colorScheme.onSurface
                                     )
                                     Text(
-                                        text = "Results: ${resource.result}",
+                                        text = "Results: ${diagnosticReport.result}",
                                         style = MaterialTheme.typography.bodyMedium,
                                         color = MaterialTheme.colorScheme.onSurface
                                     )

@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ExpandLess
 import androidx.compose.material.icons.filled.ExpandMore
+import androidx.compose.material3.Button
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExposedDropdownMenuBox
@@ -391,7 +392,7 @@ fun CreateEHRScreen(
                             }
 
                             if (record != null) {
-                                val recordHash = viewModel.calculateRecordHash(formFields)
+                                val recordHash = viewModel.calculateRecordHash(record)
                                 viewModel.viewModelScope.launch {
                                     viewModel.callCreateRecordContract(selectedEHRType, record, recordHash, patientId)
                                 }
@@ -413,6 +414,34 @@ fun CreateEHRScreen(
                         style = MaterialTheme.typography.bodyMedium
                     )
                 }
+
+                /*var diagnosticReport = DiagnosticReportEntity(id = "", code = "test", status = "final", effectiveDateTime = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ssXXX", Locale.getDefault()).format(Date()), result = "test result")
+                val recordHash = viewModel.calculateRecordHash(diagnosticReport)
+                Button(
+                    onClick = {
+                        viewModel.viewModelScope.launch {
+                            for (i in 1..30) {
+                                viewModel.callCreateRecordContract(
+                                    "DiagnosticReport",
+                                    diagnosticReport,
+                                    recordHash,
+                                    patientId
+                                )
+                            }
+                        }
+                    },
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text("Test Create")
+                }
+                Button(
+                    onClick = {
+                        viewModel.printCreateEHR()
+                    },
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text("Get times and fees")
+                }*/
             }
         }
 

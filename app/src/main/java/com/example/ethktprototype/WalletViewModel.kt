@@ -62,6 +62,9 @@ import org.json.JSONObject
 import org.web3j.utils.Numeric
 import java.math.BigInteger
 import kotlin.collections.mapOf
+import com.google.gson.Gson
+import com.google.gson.GsonBuilder
+import java.security.MessageDigest
 
 
 /**
@@ -97,6 +100,7 @@ class WalletViewModel(application: Application) : AndroidViewModel(application) 
     private val PROCEDURES_KEY = "Procedures"
     private val OBSERVATIONS_KEY = "Observations"
     private val PRACTITIONER_KEY = "Practitioner"
+    private val projectId = "01968b55-0883-771d-8f28-b35784bda289"
 
 
     init {
@@ -220,7 +224,7 @@ class WalletViewModel(application: Application) : AndroidViewModel(application) 
         }
     }
 
-    fun callAcceptContract(transactionId: String, recordId: String, requester: String) {
+    fun callAcceptContract(transactionId: String, practitionerId: String, recordId: String, requester: String) {
         val mnemonic = getMnemonic()
         viewModelScope.launch {
             setTransactionProcessing(true)
@@ -244,6 +248,12 @@ class WalletViewModel(application: Application) : AndroidViewModel(application) 
                             )
                         }
                         updateTransactionStatus(transactionId, "accepted")
+
+                        Log.d("MedPlumGrant", "Granting policy...")
+                        val granted = withContext(Dispatchers.IO) {
+                            medPlumAPI.grantFullDiagnosticReportAccess(recordId, practitionerId, projectId)
+                        }
+                        Log.d("MedPlumGrant", "Policy granted: $granted")
                     } catch (e: Exception) {
                         // Handle errors
                         Log.e("AcceptContract", "Exception caught", e)
@@ -319,9 +329,13 @@ class WalletViewModel(application: Application) : AndroidViewModel(application) 
         }
     }
 
-    fun callCreateRecordContract(recordType: String, record: Any, hash: String, patientId: String) {
+    val simulateCreateTimes = mutableListOf<Long>()
+    val simulateCreateFees = mutableListOf<BigInteger>()
+    suspend fun callCreateRecordContract(recordType: String, record: Any, hash: String, patientId: String) {
         val mnemonic = getMnemonic()
-        viewModelScope.launch {
+
+        val duration = withContext(Dispatchers.IO) {
+            val start = System.currentTimeMillis()
             setTransactionProcessing(true)
             try {
                 if (!mnemonic.isNullOrEmpty()) {
@@ -339,6 +353,15 @@ class WalletViewModel(application: Application) : AndroidViewModel(application) 
                         val receipt = withContext(Dispatchers.IO) {
                             walletRepository.createRecord(recordId, hash, credentials)
                         }
+                        val gasPriceHex = receipt.effectiveGasPrice
+
+                        val gasPrice = Numeric.decodeQuantity(
+                            if (gasPriceHex.startsWith("0x")) gasPriceHex else "0x$gasPriceHex"
+                        )
+                        val gasUsed = receipt.gasUsed
+                        val gasFee = gasUsed * gasPrice
+                        Log.d("CreateRecord", "Gas fee: $gasFee, Gas used: $gasUsed, Gas price: $gasPrice")
+                        simulateCreateFees.add(gasFee)
                         Log.d("CreateRecord", "Record Created: ${receipt.transactionHash}")
                         // Handle the result as needed
                         updateUiState { state ->
@@ -361,13 +384,43 @@ class WalletViewModel(application: Application) : AndroidViewModel(application) 
                 Log.d("DenyContract", "Error loading contract: ${e.message}")
             }
             setTransactionProcessing(false)
+            System.currentTimeMillis() - start
         }
+        simulateCreateTimes.add(duration)
+    }
+
+    fun printCreateEHR(){
+        Log.d("CreateEHR", "Create EHR Times: $simulateCreateTimes")
+        Log.d("CreateEHR", "Mean Create EHR Time: ${simulateCreateTimes.average()}")
+        Log.d("CreateEHR", "Create EHR Fees: $simulateCreateFees")
+        if (simulateCreateFees.isNotEmpty()) {
+            val meanGasFee = simulateCreateFees.reduce(BigInteger::add)
+                .divide(BigInteger.valueOf(simulateCreateFees.size.toLong()))
+            Log.d("CreateEHR", "Mean Create EHR Gas Fee: $meanGasFee")
+        }
+    }
+
+    val gson: Gson = GsonBuilder()
+        .serializeNulls()
+        .disableHtmlEscaping()
+        .setPrettyPrinting()
+        .create()
+
+    fun calculateRecordHash(record: Any): String {
+        // Serialize the object to canonical JSON
+        val jsonString = gson.toJson(record)
+
+        // Calculate SHA-256 hash
+        val digest = MessageDigest.getInstance("SHA-256")
+        val hashBytes = digest.digest(jsonString.toByteArray())
+
+        return hashBytes.joinToString("") { "%02x".format(it) }
     }
 
     @OptIn(InternalSerializationApi::class)
     fun calculateRecordHash(fields: Map<String, String>): String { //TODO: Devia ser Any. E ter um para cada tipo de record
         val jsonString = JSONObject(fields).toString()
-        val digest = java.security.MessageDigest.getInstance("SHA-256")
+        val digest = MessageDigest.getInstance("SHA-256")
         val hashBytes = digest.digest(jsonString.toByteArray())
         return hashBytes.joinToString("") { "%02x".format(it) }
     }

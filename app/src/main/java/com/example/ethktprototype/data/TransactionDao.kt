@@ -73,12 +73,18 @@ interface TransactionDao {
     @Query("SELECT * FROM observations")
     suspend fun getObservations(): List<ObservationEntity>
 
+    @Query("SELECT * FROM observations WHERE id = :observationId")
+    suspend fun getObservationById(observationId: String): ObservationEntity?
+
     // CONDITIONS
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertConditions(conditions: List<ConditionEntity>)
 
     @Query("SELECT * FROM conditions")
     suspend fun getConditions(): List<ConditionEntity>
+
+    @Query("SELECT * FROM conditions WHERE id = :conditionId")
+    suspend fun getConditionById(conditionId: String): ConditionEntity?
 
     // DIAGNOSTIC REPORTS
     @Insert(onConflict = OnConflictStrategy.REPLACE)
@@ -87,12 +93,18 @@ interface TransactionDao {
     @Query("SELECT * FROM diagnostic_reports")
     suspend fun getDiagnosticReports(): List<DiagnosticReportEntity>
 
+    @Query("SELECT * FROM diagnostic_reports WHERE id = :reportId")
+    suspend fun getDiagnosticReportById(reportId: String): DiagnosticReportEntity?
+
     // MEDICATION REQUESTS
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertMedicationRequests(requests: List<MedicationRequestEntity>)
 
     @Query("SELECT * FROM medication_requests")
     suspend fun getMedicationRequests(): List<MedicationRequestEntity>
+
+    @Query("SELECT * FROM medication_requests WHERE id = :requestId")
+    suspend fun getMedicationRequestById(requestId: String): MedicationRequestEntity?
 
     // MEDICATION STATEMENTS
     @Insert(onConflict = OnConflictStrategy.REPLACE)
@@ -101,12 +113,18 @@ interface TransactionDao {
     @Query("SELECT * FROM medication_statements")
     suspend fun getMedicationStatements(): List<MedicationStatementEntity>
 
+    @Query("SELECT * FROM medication_statements WHERE id = :statementId")
+    suspend fun getMedicationStatementById(statementId: String): MedicationStatementEntity?
+
     // IMMUNIZATIONS
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertImmunizations(immunizations: List<ImmunizationEntity>)
 
     @Query("SELECT * FROM immunizations")
     suspend fun getImmunizations(): List<ImmunizationEntity>
+
+    @Query("SELECT * FROM immunizations WHERE id = :immunizationId")
+    suspend fun getImmunizationById(immunizationId: String): ImmunizationEntity?
 
     // ALLERGIES
     @Insert(onConflict = OnConflictStrategy.REPLACE)
@@ -115,6 +133,9 @@ interface TransactionDao {
     @Query("SELECT * FROM allergies")
     suspend fun getAllergies(): List<AllergyIntoleranceEntity>
 
+    @Query("SELECT * FROM allergies WHERE id = :allergyId")
+    suspend fun getAllergyById(allergyId: String): AllergyIntoleranceEntity?
+
     // DEVICES
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertDevices(devices: List<DeviceEntity>)
@@ -122,12 +143,18 @@ interface TransactionDao {
     @Query("SELECT * FROM devices")
     suspend fun getDevices(): List<DeviceEntity>
 
+    @Query("SELECT * FROM devices WHERE id = :deviceId")
+    suspend fun getDeviceById(deviceId: String): DeviceEntity?
+
     // PROCEDURES
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertProcedures(procedures: List<ProcedureEntity>)
 
     @Query("SELECT * FROM procedures")
     suspend fun getProcedures(): List<ProcedureEntity>
+
+    @Query("SELECT * FROM procedures WHERE id = :procedureId")
+    suspend fun getProcedureById(procedureId: String): ProcedureEntity?
 
     @Query("DELETE FROM patients")
     suspend fun deleteAllPatients()

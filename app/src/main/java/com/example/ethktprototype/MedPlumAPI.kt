@@ -1130,6 +1130,130 @@ class MedPlumAPI(private val application: Application, private val viewModel: Wa
         }
     }
 
+    // Adds an AccessPolicy allowing a doctor to fully access a specific DiagnosticReport
+    suspend fun grantFullDiagnosticReportAccess(
+        resourceId: String,
+        practitionerId: String,
+        projectId: String
+    ): Boolean = withContext(Dispatchers.IO) {
+        val accessToken = getAccessToken() ?: return@withContext false
+
+        val accessPolicy = JSONObject().apply {
+            put("resourceType", "AccessPolicy")
+            put("name", "FullAccessToReport_$resourceId$practitionerId")
+            put("resource", JSONArray().apply {
+                put(JSONObject().apply {
+                    put("resourceType", "DiagnosticReport")
+                    put("criteria", "DiagnosticReport?_id=$resourceId")
+                })
+            })
+            put("meta", JSONObject().apply {
+                put("project", projectId)
+                put("compartment", JSONArray().apply {
+                    put(JSONObject().apply {
+                        put("reference", "Project/$projectId")
+                    })
+                })
+            })
+        }
+
+        val body = accessPolicy.toString().toRequestBody("application/fhir+json".toMediaType())
+        val request = Request.Builder()
+            .url("https://api.medplum.com/fhir/R4/AccessPolicy")
+            .addHeader("Authorization", "Bearer $accessToken")
+            .post(body)
+            .build()
+
+        try {
+            OkHttpClient().newCall(request).execute().use { response ->
+                if (response.isSuccessful) {
+                    Log.d("MedPlum", "AccessPolicy created successfully")
+                    return@withContext true
+                } else {
+                    Log.e("MedPlum", "Failed to create AccessPolicy: ${response.code}")
+                    Log.e("MedPlum", "Response body: ${response.body?.string()}")
+                    return@withContext false
+                }
+            }
+        } catch (e: Exception) {
+            Log.e("MedPlum", "Error creating AccessPolicy", e)
+            return@withContext false
+        }
+    }
+
+    private suspend fun linkPolicyToProjectMembership(
+        practitionerId: String,
+        projectId: String,
+        policyId: String
+    ): Boolean = withContext(Dispatchers.IO) {
+        val accessToken = getAccessToken() ?: return@withContext false
+
+        val membershipId = getMembershipIdForPractitioner(practitionerId, projectId) ?: return@withContext false
+
+        val patchBody = JSONArray().apply {
+            put(JSONObject().apply {
+                put("op", "replace")
+                put("path", "/accessPolicy")
+                put("value", JSONObject().apply {
+                    put("reference", "AccessPolicy/$policyId")
+                })
+            })
+        }
+
+        val body = patchBody.toString().toRequestBody("application/json-patch+json".toMediaType())
+        val request = Request.Builder()
+            .url("https://api.medplum.com/fhir/R4/ProjectMembership/$membershipId")
+            .addHeader("Authorization", "Bearer $accessToken")
+            .patch(body)
+            .build()
+
+        try {
+            OkHttpClient().newCall(request).execute().use { response ->
+                if (response.isSuccessful) {
+                    Log.d("MedPlum", "ProjectMembership patched successfully")
+                    return@withContext true
+                } else {
+                    Log.e("MedPlum", "Failed to patch ProjectMembership: ${response.code}")
+                    return@withContext false
+                }
+            }
+        } catch (e: Exception) {
+            Log.e("MedPlum", "Error patching ProjectMembership", e)
+            return@withContext false
+        }
+    }
 
 
+
+
+    // Optional helper to get ProjectMembership ID for a Practitioner
+    private suspend fun getMembershipIdForPractitioner(
+        practitionerId: String,
+        projectId: String
+    ): String? = withContext(Dispatchers.IO) {
+        val accessToken = getAccessToken() ?: return@withContext null
+
+        val query = "ProjectMembership?profile=Practitioner/$practitionerId&_project=$projectId"
+        val request = Request.Builder()
+            .url("https://api.medplum.com/fhir/R4/$query")
+            .addHeader("Authorization", "Bearer $accessToken")
+            .get()
+            .build()
+
+        try {
+            OkHttpClient().newCall(request).execute().use { response ->
+                if (response.isSuccessful) {
+                    val bundle = JSONObject(response.body?.string() ?: return@use null)
+                    val entry = bundle.optJSONArray("entry")?.optJSONObject(0)?.optJSONObject("resource")
+                    return@withContext entry?.optString("id")
+                } else {
+                    Log.e("MedPlum", "Failed to retrieve ProjectMembership: ${response.code}")
+                    return@withContext null
+                }
+            }
+        } catch (e: Exception) {
+            Log.e("MedPlum", "Error retrieving ProjectMembership", e)
+            return@withContext null
+        }
+    }
 }

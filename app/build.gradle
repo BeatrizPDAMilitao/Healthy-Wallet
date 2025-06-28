@@ -127,4 +127,6 @@ dependencies {
 
 
     implementation 'com.github.kenglxn.QRGen:android:2.7.0'
+
+    implementation("com.google.code.gson:gson:2.7")
 }
