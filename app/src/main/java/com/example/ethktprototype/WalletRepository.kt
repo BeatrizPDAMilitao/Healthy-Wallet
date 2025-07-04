@@ -52,6 +52,7 @@ import kotlinx.coroutines.sync.withLock
 import org.web3j.abi.datatypes.DynamicArray
 import org.web3j.abi.datatypes.Utf8String
 import java.util.UUID
+import kotlin.collections.List
 import kotlin.random.Random
 
 
@@ -443,8 +444,8 @@ class WalletRepository(private val application: Application) : IWalletRepository
     //0x8d91fa1054f8f53e01661f4147e450edd090336d
 
     private val healthyWalletAddresses = mapOf(
-        Network.ARBITRUM_SEPOLIA_TESTNET to "0x94c35e1Ca0B33dAFB7e13a3a951791a3E384377c",//""0xD18CcEEC300d7f81ad2A69175DA510A97184B5A0",//""0xE75A51E1dD78fddc3a24c351Ea160eD6aa7d01a2",
-        Network.SEPOLIA to "0x257F027faAc9eA80F8269a7024FE33a8730223D5",
+        Network.ARBITRUM_SEPOLIA_TESTNET to "0x07c60bA6F2e58c5E7C5123bFc0F16399606F202f",//"0x94c35e1Ca0B33dAFB7e13a3a951791a3E384377c",//""0xD18CcEEC300d7f81ad2A69175DA510A97184B5A0",//""0xE75A51E1dD78fddc3a24c351Ea160eD6aa7d01a2",
+        Network.SEPOLIA to "0xf5f80D411aE97cB4aC8e5DA9Cab6f7a3f74A06B5",//"0x257F027faAc9eA80F8269a7024FE33a8730223D5",
     )
 
     private val healthyWalletAdress: String
@@ -776,6 +777,36 @@ class WalletRepository(private val application: Application) : IWalletRepository
         throw RuntimeException("Transaction receipt not generated after sending transaction")
     }
 
+    fun getPatientAccessRequests(): List<com.example.ethktprototype.data.Transaction> {
+
+        val accessRequests = healthyContract.getPatientAccessRequests().send() as List<MedicalRecordAccess2.AccessRequest>
+
+        if (accessRequests.isEmpty()) {
+            return emptyList()
+        }
+
+        return accessRequests.map { access ->
+            com.example.ethktprototype.data.Transaction(
+                id = UUID.randomUUID().toString(), // Unique app-level ID
+                date = access.timestamp.toString(),
+                status = when (access.status.toInt()) {
+                    0 -> "pending"
+                    1 -> "accepted"
+                    2 -> "denied"
+                    else -> "Unknown"
+                },
+                type = access.recordType,
+                recordId = access.recordId,
+                patientId = access.patientAddress,
+                practitionerId = access.doctorMedplumId,
+                practitionerAddress = access.doctorAddress,
+            )
+        }
+    }
+
+
+
+
 
     //////////////////// Accesse Con Functions ////////////////////
 
@@ -784,7 +815,7 @@ class WalletRepository(private val application: Application) : IWalletRepository
 
     private val accessesContractAddresses = mapOf(
     Network.ARBITRUM_SEPOLIA_TESTNET to "0xF443c9B544E4020777cf751E344C34754e1A0F40",//"0xF62421b05A67344AC8aAC01Fe93add614A995dd7", //O contrato comentado é com o getLastAccess
-    Network.SEPOLIA to "0xe9354B6CfEAaC38636AcACB397F8E5566dc559fD",
+    Network.SEPOLIA to "0xcCe7E42DeDE823C42a95d62a9270BD9137510161",//"0xe9354B6CfEAaC38636AcACB397F8E5566dc559fD",
     )
 
     private val accessesContractAddress: String

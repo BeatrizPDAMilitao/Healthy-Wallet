@@ -421,6 +421,7 @@ fun CreateEHRScreen(
                     onClick = {
                         viewModel.viewModelScope.launch {
                             for (i in 1..30) {
+                                Log.d("CreateEHRScreen", "Creating record $i")
                                 viewModel.callCreateRecordContract(
                                     "DiagnosticReport",
                                     diagnosticReport,

@@ -3,6 +3,7 @@ package com.example.ethktprototype.screens
 import android.util.Log
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -77,6 +78,7 @@ fun ActivityScreen(
     val decimalFormatBalance = DecimalFormat("#.##")
     val showDialog = remember { mutableStateOf(false) }
     val selectedTransaction = remember { mutableStateOf<Transaction?>(null) }
+    var gotTransactions = remember { mutableStateOf(false) }
 
     LaunchedEffect(uiState.transactionHash) {
         if (uiState.transactionHash.isNotEmpty()) {
@@ -89,11 +91,19 @@ fun ActivityScreen(
         viewModel.getNftBalances()
     }
 
+    LaunchedEffect(gotTransactions.value) {
+        if (!gotTransactions.value && !viewModel.uiState.value.hasFetched.getOrDefault("AccessRequests", false)) {
+            Log.d("ExampleTestSample", "Calling getAccessRequestsContract")
+            viewModel.callGetAccessRequestsContract()
+            gotTransactions.value = true
+        }
+    }
+
     LaunchedEffect(uiState.selectedNetwork) {
         viewModel.getBalances()
         viewModel.getNftBalances()
     }
-    LaunchedEffect(uiState.transactions) {
+    LaunchedEffect(gotTransactions.value) {
         viewModel.getTransactions()
     }
 
@@ -146,13 +156,30 @@ fun ActivityScreen(
                     .fillMaxSize()
                     .padding(bottom = 56.dp)
             ) {
-                Text(
-                    text = "Activity",
-                    style = MaterialTheme.typography.titleLarge,
-                    color = MaterialTheme.colorScheme.onSurface,
-                    fontWeight = FontWeight.Bold,
-                    modifier = Modifier.padding(bottom = 16.dp)
-                )
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Text(
+                        text = "Activity",
+                        style = MaterialTheme.typography.titleLarge,
+                        color = MaterialTheme.colorScheme.onSurface,
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier.padding(bottom = 16.dp)
+                    )
+                    IconButton(onClick = {
+                        viewModel.callGetAccessRequestsContract()
+                    }) {
+                        Icon(
+                            imageVector = Icons.Default.Refresh,
+                            contentDescription = "Refresh",
+                            tint = Color.White
+                        )
+                    }
+                }
                 Spacer(modifier = Modifier.height(2.dp))
 
                 Button(
@@ -164,7 +191,10 @@ fun ActivityScreen(
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(8.dp)
-                        .background(MaterialTheme.colorScheme.primary, shape = RoundedCornerShape(8.dp)),
+                        .background(
+                            MaterialTheme.colorScheme.primary,
+                            shape = RoundedCornerShape(8.dp)
+                        ),
                     shape = RoundedCornerShape(8.dp)
                 ) {
                     if (uiState.isTransactionProcessing) {
@@ -190,7 +220,10 @@ fun ActivityScreen(
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(8.dp)
-                        .background(MaterialTheme.colorScheme.primary, shape = RoundedCornerShape(8.dp)),
+                        .background(
+                            MaterialTheme.colorScheme.primary,
+                            shape = RoundedCornerShape(8.dp)
+                        ),
                     shape = RoundedCornerShape(8.dp)
                 ) {
                     Text("Simulate New Transaction")
@@ -219,10 +252,21 @@ fun ActivityScreen(
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(8.dp)
-                        .background(MaterialTheme.colorScheme.primary, shape = RoundedCornerShape(8.dp)),
+                        .background(
+                            MaterialTheme.colorScheme.primary,
+                            shape = RoundedCornerShape(8.dp)
+                        ),
                     shape = RoundedCornerShape(8.dp)
                 ) {
                     Text("Simulate ZKP Request")
+                }
+                Button(
+                    onClick = {
+                        viewModel.printCreateEHR()
+                    },
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text("Get times and fees")
                 }
                 /*Button(
                     onClick = {

@@ -54,6 +54,7 @@ data class WalletUiState(
         "Procedures" to false,
         "HealthSummary" to false,
         "Practitioner" to false,
+        "AccessRequests" to false,
     ),
     var isAppLoading: Boolean = false,
     var isPatientLoading: Boolean = false,

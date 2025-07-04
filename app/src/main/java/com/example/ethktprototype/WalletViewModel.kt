@@ -100,6 +100,7 @@ class WalletViewModel(application: Application) : AndroidViewModel(application) 
     private val PROCEDURES_KEY = "Procedures"
     private val OBSERVATIONS_KEY = "Observations"
     private val PRACTITIONER_KEY = "Practitioner"
+    private val ACCESS_REQUESTS_KEY = "AccessRequests"
     private val projectId = "01968b55-0883-771d-8f28-b35784bda289"
 
 
@@ -182,9 +183,11 @@ class WalletViewModel(application: Application) : AndroidViewModel(application) 
         }
     }
 
-    fun callDenyContract(transactionId: String, recordId: String, requester: String) {
+
+    suspend fun callDenyContract(transactionId: String, recordId: String, requester: String) {
         val mnemonic = getMnemonic()
-        viewModelScope.launch {
+        val duration = withContext(Dispatchers.IO) {
+            val start = System.currentTimeMillis()
             setTransactionProcessing(true)
             try {
                 if (!mnemonic.isNullOrEmpty()) {
@@ -198,6 +201,15 @@ class WalletViewModel(application: Application) : AndroidViewModel(application) 
                         val receipt = withContext(Dispatchers.IO) {
                             walletRepository.denyAccess2(recordId, requester, credentials)
                         }
+                        val gasPriceHex = receipt.effectiveGasPrice
+
+                        val gasPrice = Numeric.decodeQuantity(
+                            if (gasPriceHex.startsWith("0x")) gasPriceHex else "0x$gasPriceHex"
+                        )
+                        val gasUsed = receipt.gasUsed
+                        val gasFee = gasUsed * gasPrice
+                        Log.d("DenyContract", "Gas fee: $gasFee, Gas used: $gasUsed, Gas price: $gasPrice")
+                        simulateCreateFees.add(gasFee)
                         Log.d("DenyContract", "Access denied: ${receipt.transactionHash}")
                         // Handle the result as needed
                         updateUiState { state ->
@@ -221,7 +233,9 @@ class WalletViewModel(application: Application) : AndroidViewModel(application) 
                 Log.d("DenyContract", "Error loading contract: ${e.message}")
             }
             setTransactionProcessing(false)
+            System.currentTimeMillis() - start
         }
+        simulateCreateTimes.add(duration)
     }
 
     fun callAcceptContract(transactionId: String, practitionerId: String, recordId: String, requester: String) {
@@ -329,6 +343,74 @@ class WalletViewModel(application: Application) : AndroidViewModel(application) 
         }
     }
 
+     fun callGetAccessRequestsContract() {
+        val mnemonic = getMnemonic()
+        viewModelScope.launch {
+            setTransactionProcessing(true)
+            try {
+                if (!mnemonic.isNullOrEmpty()) {
+                    val credentials = loadBip44Credentials(mnemonic)
+                    credentials.let {
+                        val hash = withContext(Dispatchers.IO) {
+                            walletRepository.loadHealthyContract(credentials)
+                        }
+                    }
+                    try {
+                        val accessRequests = withContext(Dispatchers.IO) {
+                            walletRepository.getPatientAccessRequests()
+                        }
+                        Log.d("Get Access Reqs", "Req=${accessRequests.size}")
+                        accessRequests.forEach { access ->
+                            val date = SimpleDateFormat(
+                                "yyyy-MM-dd",
+                                Locale.getDefault()
+                            ).format(Date(access.date.toLong() * 1000))
+                            Log.d(
+                                "Get Access Requests",
+                                "Doctor=${access.practitionerAddress}, Patient=${access.patientId}, Type=${access.type}, Timestamp=${access.date}"
+                            )
+                            //call medplum API to get the necessary data
+                            //walletRepository.fetchPatient(/*log.patientId*/)
+                            val transaction = TransactionEntity(
+                                id = getTransactionId().toString(),
+                                date = date,
+                                status = access.status,
+                                type = access.type,
+                                recordId = access.recordId,
+                                patientId = access.patientId,
+                                practitionerId = access.practitionerId,
+                                practitionerAddress = access.practitionerAddress,
+                                documentReferenceId = "", // Placeholder if unknown
+                                medicationRequestId = "",
+                                conditionId = "",
+                                encounterId = "",
+                                observationId = ""
+                            )
+
+                            withContext(Dispatchers.IO) {
+                                if (transactionDao.transactionExists(transaction.id) == 0) {
+                                    transactionDao.insertTransaction(transaction)
+                                }
+                            }
+                            _uiState.value = _uiState.value.copy(showSyncSuccessDialog = true)
+                        }
+
+                        updateTransactions()
+                        updateHasFetched(ACCESS_REQUESTS_KEY, true)
+
+                    } catch (e: Exception) {
+                        // Handle errors
+                        Log.e("Get Access Requests", "Exception caught", e)
+                    }
+                }
+            } catch (e: Exception) {
+                Log.d("Get Access Requests", "Error loading contract: ${e.message}")
+            }
+            setTransactionProcessing(false)
+        }
+    }
+
+
     val simulateCreateTimes = mutableListOf<Long>()
     val simulateCreateFees = mutableListOf<BigInteger>()
     suspend fun callCreateRecordContract(recordType: String, record: Any, hash: String, patientId: String) {
@@ -375,13 +457,13 @@ class WalletViewModel(application: Application) : AndroidViewModel(application) 
                         }
                     } catch (e: Exception) {
                         // Handle errors
-                        Log.e("DenyContract", "Exception caught", e)
+                        Log.e("CreateRecord", "Exception caught", e)
                     }
                 }
             } catch (e: Exception) {
                 // Handle errors
                 //updateUiState { it.copy(showPayDialog = false) }
-                Log.d("DenyContract", "Error loading contract: ${e.message}")
+                Log.d("CreateRecord", "Error loading contract: ${e.message}")
             }
             setTransactionProcessing(false)
             System.currentTimeMillis() - start
@@ -567,6 +649,37 @@ class WalletViewModel(application: Application) : AndroidViewModel(application) 
             Log.d("PerformanceTest", "Values With blockchain: $withBlockchainTimes")
             Log.d("PerformanceTest", "Average WITHOUT blockchain: ${"%.2f".format(avgWithout)} ms")
             Log.d("PerformanceTest", "Values Without blockchain: $withoutBlockchainTimes")
+        }
+    }
+
+    //////////////////////////ZKP Times ////////////////////////////////////////
+    val zkpTimes = mutableListOf<Long>()
+    fun startTimerForZKP() {
+        viewModelScope.launch {
+            val start = System.currentTimeMillis()
+            zkpTimes.add(start)
+        }
+    }
+
+    fun stopTimerForZKP() {
+        viewModelScope.launch {
+            val end = System.currentTimeMillis()
+            if (zkpTimes.isNotEmpty()) {
+                val start = zkpTimes.removeAt(zkpTimes.size - 1)
+                val duration = end - start
+                zkpTimes.add(duration)
+                Log.d("ZKP", "ZKP Duration: $duration ms")
+            } else {
+                Log.e("ZKP", "No start time found for ZKP")
+            }
+        }
+    }
+
+    fun getZkpTimes() {
+        Log.d("ZKP", "ZKP Times: $zkpTimes")
+        if (zkpTimes.isNotEmpty()) {
+            val meanZkpTime = zkpTimes.reduce(Long::plus) / zkpTimes.size
+            Log.d("ZKP", "Mean ZKP Time: $meanZkpTime ms")
         }
     }
 
@@ -1967,7 +2080,12 @@ class WalletViewModel(application: Application) : AndroidViewModel(application) 
      */
     suspend fun getTransactionById(transactionId: String): Transaction? {
         return withContext(Dispatchers.IO) {
-            transactionDao.getTransactionWithProofById(transactionId)?.toTransaction()
+            try {
+                _uiState.update { it.copy(isTransactionProcessing = true) }
+                transactionDao.getTransactionWithProofById(transactionId)?.toTransaction()
+            } finally {
+                _uiState.update { it.copy(isTransactionProcessing = false) }
+            }
         }
     }
 

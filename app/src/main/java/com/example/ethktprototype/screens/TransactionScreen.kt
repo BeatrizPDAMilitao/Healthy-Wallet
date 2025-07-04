@@ -49,12 +49,14 @@ import androidx.compose.ui.unit.sp
 import androidx.navigation.NavHostController
 import com.example.ethktprototype.WalletViewModel
 import androidx.compose.ui.platform.LocalContext
+import androidx.lifecycle.viewModelScope
 import com.example.ethktprototype.data.Transaction
 import com.example.ethktprototype.nexus.CallZkpApi
 import org.json.JSONObject
 import net.glxn.qrgen.android.QRCode
 import com.example.ethktprototype.composables.BottomNavigationBar
 import com.example.ethktprototype.data.DiagnosticReportEntity
+import kotlinx.coroutines.launch
 
 /**
  * TransactionScreen is a Composable function that displays the transaction details.
@@ -79,17 +81,29 @@ fun TransactionScreen(
 
     val qrCodeBitmap = remember { mutableStateOf<Bitmap?>(null) }
 
-    val executed = remember { mutableStateOf(false) }
-
-    var resource: Any? = remember { mutableStateOf(null) }
+    var resource = remember { mutableStateOf<Any?>(null) }
 
     LaunchedEffect(transactionId) {
-        transaction.value = viewModel.getTransactionById(transactionId.toString())
-        Log.d("ExampleTestSample", "Found transaction: ${transaction.value?.id}")
+        if (!viewModel.uiState.value.isTransactionProcessing) {
+            transaction.value = viewModel.getTransactionById(transactionId.toString())
+            Log.d("ExampleTestSample", "Found transaction: ${transaction.value?.id}")
+        }
+    }
+
+    LaunchedEffect(transaction.value) {
+        if (transaction.value != null) {
+            Log.d("ExampleTestSample", "Transaction details: ${transaction.value}")
+            resource.value = viewModel.getResource(transaction.value!!.type, transaction.value!!.recordId)
+            Log.d("ExampleTestSample", "Resource fetched: ${resource.value}")
+        } else {
+            Log.d("ExampleTestSample", "Transaction is null, waiting for data...")
+        }
     }
 
     LaunchedEffect(uiState.transactions) {
-        transaction.value = viewModel.getTransactionById(transactionId.toString())
+        if (!viewModel.uiState.value.isTransactionProcessing) {
+            transaction.value = viewModel.getTransactionById(transactionId.toString())
+        }
     }
 
     LaunchedEffect(transaction.value?.qrCodeFileName) {
@@ -232,12 +246,10 @@ fun TransactionScreen(
                         //Get the resource
                         when (transaction.value!!.type) {
                             "DiagnosticReport" -> {
-                                if (!executed.value) {
-                                    executed.value = true
-                                    resource = viewModel.getResource(transaction.value!!.type, transaction.value!!.recordId)
-                                }
-                                if (resource != null) {
-                                    val diagnosticReport = resource as DiagnosticReportEntity
+                                Log.d("ExampleTestSample", "Resource fetched inside: ${resource.value}")
+                                var diagnosticReport = resource.value as? DiagnosticReportEntity
+                                Log.d("ExampleTestSample", "DiagnosticReport: $diagnosticReport")
+                                if (diagnosticReport != null) {
                                     Spacer(modifier = Modifier.height(8.dp))
                                     Text(
                                         text = "Resource ID: ${diagnosticReport.id}",
@@ -303,6 +315,7 @@ fun TransactionScreen(
 
                             Spacer(modifier = Modifier.height(8.dp))
                             Button(onClick = {
+                                viewModel.startTimerForZKP()
                                 for (condition in transaction.value!!.conditions!!) {
                                     Log.d("ZKP", "Condition: ${condition.type}, Value: ${condition.value}, Min: ${condition.min}, Max: ${condition.max}")
                                 }
@@ -333,6 +346,7 @@ fun TransactionScreen(
                                 } else {
                                     Log.e("ZKP", "Condition not met or value not found")
                                 }
+                                viewModel.stopTimerForZKP()
                             },
                                 modifier = Modifier
                                     .fillMaxWidth()
@@ -341,6 +355,11 @@ fun TransactionScreen(
                                 shape = RoundedCornerShape(8.dp)
                             ) {
                                 Text("Generate ZKP Proof")
+                            }
+                            Button(onClick = {
+                                viewModel.getZkpTimes()
+                            }, modifier = Modifier.fillMaxWidth().padding(8.dp)) {
+                                Text("Get ZKP times")
                             }
                         } else if (transaction.value!!.status == "pending") {
                             Spacer(modifier = Modifier.height(16.dp))
@@ -367,7 +386,13 @@ fun TransactionScreen(
                                             val transactionId = transaction.value!!.id
                                             val recordId = transaction.value!!.recordId
                                             val requester = transaction.value!!.practitionerAddress
-                                            viewModel.callDenyContract(transactionId, recordId, requester)
+                                            viewModel.viewModelScope.launch {
+                                                viewModel.callDenyContract(
+                                                    transactionId,
+                                                    recordId,
+                                                    requester
+                                                )
+                                            }
                                         }
                                     },
                                     modifier = Modifier.weight(1f),
