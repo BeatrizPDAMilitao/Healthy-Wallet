@@ -94,7 +94,11 @@ class WalletRepository(private val application: Application) : IWalletRepository
     }
 
     fun generateAndStorePassphrase(): String {
-        val passPhrase = generateSecurePassphrase()
+        var passPhrase = getDbPassphrase()
+        if (passPhrase != null) {
+            return passPhrase
+        }
+        passPhrase = generateSecurePassphrase()
         encryptedPrefs.edit {
             putString("db_pass", passPhrase)
         }
@@ -692,6 +696,8 @@ class WalletRepository(private val application: Application) : IWalletRepository
                 }
                 return previewLogs.map { log ->
                     val status = if (log.status.toString() == "0") "pending" else if (log.status.toString() == "1") "accepted" else "denied"
+                    val examTypes = listOf("MRI", "X-ray", "CT Scan", "Ultrasound", "Blood Test")
+                    val randomType = examTypes[Random.nextInt(examTypes.size)]
                     com.example.ethktprototype.data.Transaction(
                         id = "",
                         date = log.timestamp.toString(),
@@ -699,7 +705,7 @@ class WalletRepository(private val application: Application) : IWalletRepository
                         recordId = log.recordId,
                         practitionerId = log.doctorMedplumId,
                         practitionerAddress = log.doctorAddress,
-                        type = log.recordType,
+                        type = log.recordType,//randomType,
                         patientId = "01968b59-76f3-7228-aea9-07db748ee2ca"
                     )
                 }
