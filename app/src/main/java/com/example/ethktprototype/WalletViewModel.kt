@@ -56,6 +56,7 @@ import com.example.ethktprototype.data.GraphQLQueries.buildPatientCompleteQuery
 import com.example.ethktprototype.data.GraphQLQueries.buildPractitionerCompleteQuery
 import com.example.ethktprototype.data.HealthSummaryResult
 import com.example.ethktprototype.data.PractitionerEntity
+import com.example.ethktprototype.data.TransactionDao
 import com.example.medplum.GetPatientDiagnosticReportQuery
 import kotlinx.serialization.InternalSerializationApi
 import org.json.JSONObject
@@ -74,10 +75,11 @@ import java.security.MessageDigest
  */
 
 class WalletViewModel(application: Application) : AndroidViewModel(application) {
-    private val transactionDao = AppDatabase.getDatabase(application).transactionDao()
-
     private val walletRepository = WalletRepository(application)
     private val medPlumAPI = MedPlumAPI(application, this)
+
+    private lateinit var transactionDao: TransactionDao  //AppDatabase.getDatabase(application).transactionDao()
+
     private val sharedPreferences =
         application.getSharedPreferences("WalletPrefs", Context.MODE_PRIVATE)
     private val walletAddressKey = "wallet_address"
@@ -105,6 +107,7 @@ class WalletViewModel(application: Application) : AndroidViewModel(application) 
 
 
     init {
+        transactionDao = AppDatabase.getDatabase(application, walletRepository.generateAndStorePassphrase()).transactionDao()
         val savedWalletAddress = sharedPreferences.getString(walletAddressKey, "") ?: ""
         updateUiState { it.copy(walletAddress = savedWalletAddress) }
 
@@ -167,6 +170,10 @@ class WalletViewModel(application: Application) : AndroidViewModel(application) 
         navController.navigate("loginScreen") {
             popUpTo(0) { inclusive = true } // Clears the back stack
         }
+    }
+
+    fun getDbPassphrase(): String {
+        return walletRepository.getDbPassphrase().toString()
     }
 
     fun callMedSkyContract2() {

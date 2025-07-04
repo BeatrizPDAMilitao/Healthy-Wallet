@@ -75,6 +75,9 @@ dependencies {
     implementation "androidx.room:room-runtime:2.6.1"
     kapt "androidx.room:room-compiler:2.6.1"
     implementation "androidx.room:room-ktx:2.6.1"
+    implementation "net.zetetic:android-database-sqlcipher:4.5.4"
+    implementation "androidx.sqlite:sqlite:2.3.1"
+    implementation "androidx.sqlite:sqlite-framework:2.3.1"
 
     implementation 'org.web3j:core:4.9.7'
     implementation("androidx.navigation:navigation-compose:$nav_version")

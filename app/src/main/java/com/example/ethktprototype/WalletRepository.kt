@@ -9,6 +9,8 @@ import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.mutableStateOf
 import androidx.core.content.edit
 import androidx.lifecycle.MutableLiveData
+import androidx.security.crypto.EncryptedSharedPreferences
+import androidx.security.crypto.MasterKey
 import com.example.ethktprototype.contracts.MedskyContract
 import com.example.ethktprototype.data.GraphQLData
 import com.example.ethktprototype.data.GraphQLQueries
@@ -51,6 +53,7 @@ import kotlinx.coroutines.sync.withLock
 
 import org.web3j.abi.datatypes.DynamicArray
 import org.web3j.abi.datatypes.Utf8String
+import java.security.SecureRandom
 import java.util.UUID
 import kotlin.collections.List
 import kotlin.random.Random
@@ -73,6 +76,37 @@ class WalletRepository(private val application: Application) : IWalletRepository
     private val _selectedNetwork = mutableStateOf(Network.ARBITRUM_SEPOLIA_TESTNET)
     private val selectedNetwork: MutableState<Network> = _selectedNetwork
     private val mnemonicLoaded = MutableLiveData<Boolean>()
+
+    val masterKey = MasterKey.Builder(context)
+        .setKeyScheme(MasterKey.KeyScheme.AES256_GCM)
+        .build()
+
+    val encryptedPrefs = EncryptedSharedPreferences.create(
+        context,
+        "secure_prefs",
+        masterKey,
+        EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
+        EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM
+    )
+
+    fun getDbPassphrase(): String? {
+        return encryptedPrefs.getString("db_pass", null)
+    }
+
+    fun generateAndStorePassphrase(): String {
+        val passPhrase = generateSecurePassphrase()
+        encryptedPrefs.edit {
+            putString("db_pass", passPhrase)
+        }
+        return passPhrase
+    }
+
+    fun generateSecurePassphrase(): String {
+        val bytes = ByteArray(32)
+        SecureRandom().nextBytes(bytes)
+        return Base64.encodeToString(bytes, Base64.NO_WRAP)
+    }
+
 
     override fun storeMnemonic(mnemonic: String) {
         encryptMnemonic(context, mnemonic)

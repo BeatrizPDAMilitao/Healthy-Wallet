@@ -623,7 +623,7 @@ class MedPlumAPI(private val application: Application, private val viewModel: Wa
             }
             Log.d("MedPlum", "Raw diagnostic report list: ${response.data}")
             val data = response.data?.DiagnosticReportList ?: return null
-            val observationDao = AppDatabase.getDatabase(application).transactionDao()
+            val observationDao = AppDatabase.getDatabase(application, viewModel.getDbPassphrase()).transactionDao()
 
             data.map { report ->
                 val reportId = report?.id ?: ""

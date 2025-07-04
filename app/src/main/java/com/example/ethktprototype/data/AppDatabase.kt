@@ -5,6 +5,9 @@ import androidx.room.Room
 import androidx.room.RoomDatabase
 import android.content.Context
 import androidx.room.TypeConverters
+import net.sqlcipher.database.SQLiteDatabase
+import net.sqlcipher.database.SupportFactory
+
 
 @Database(
     entities = [
@@ -34,13 +37,19 @@ abstract class AppDatabase : RoomDatabase() {
         @Volatile
         private var INSTANCE: AppDatabase? = null
 
-        fun getDatabase(context: Context): AppDatabase {
+        fun getDatabase(context: Context, passphrase: String): AppDatabase {
             return INSTANCE ?: synchronized(this) {
+                val passphraseBytes = SQLiteDatabase.getBytes(passphrase.toCharArray())
+                val factory = SupportFactory(passphraseBytes)
+
                 val instance = Room.databaseBuilder(
                     context.applicationContext,
                     AppDatabase::class.java,
-                    "app_database"
-                ).build()
+                    "app_database_encrypted"
+                )
+                    .openHelperFactory(factory)
+                    .build()
+
                 INSTANCE = instance
                 instance
             }
