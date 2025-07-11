@@ -272,7 +272,7 @@ class WalletViewModel(application: Application) : AndroidViewModel(application) 
 
                         Log.d("MedPlumGrant", "Granting policy...")
                         val granted = withContext(Dispatchers.IO) {
-                            medPlumAPI.grantFullDiagnosticReportAccess(recordId, practitionerId, projectId)
+                            medPlumAPI.grantFullDiagnosticReportAccess(recordId, practitionerId, projectId, getLoggedInUsertId())
                         }
                         Log.d("MedPlumGrant", "Policy granted: $granted")
                     } catch (e: Exception) {
@@ -1401,22 +1401,6 @@ class WalletViewModel(application: Application) : AndroidViewModel(application) 
         }
     }
 
-    suspend fun giveConsent(){
-        val success = medPlumAPI.createConsentResource(
-            patientId = "abc123",
-            practitionerId = "def456",
-            resourceId = "DiagnosticReport/xyz789"
-        )
-    }
-
-    suspend fun addPolicy(){
-        val success = medPlumAPI.createAccessPolicy(
-            name = "AllowDrJonesAccessToReport123",
-            resourceType = "DiagnosticReport",
-            resourceId = "xyz123",
-            practitionerId = "def456"
-        )
-    }
 
     fun setShowDataDialog(show: Boolean) {
         updateUiState { it.copy(showDataDialog = show) }
