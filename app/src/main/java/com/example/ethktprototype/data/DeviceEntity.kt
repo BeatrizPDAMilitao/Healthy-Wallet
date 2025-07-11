@@ -8,5 +8,6 @@ data class DeviceEntity(
     @PrimaryKey val id: String,
     val type: String,
     val status: String,
-    val manufactureDate: String
+    val manufactureDate: String,
+    val subjectId: String,
 )

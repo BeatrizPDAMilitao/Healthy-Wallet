@@ -8,5 +8,6 @@ data class ProcedureEntity(
     @PrimaryKey val id: String,
     val code: String,
     val status: String,
-    val performedDateTime: String
+    val performedDateTime: String,
+    val subjectId: String,
 )

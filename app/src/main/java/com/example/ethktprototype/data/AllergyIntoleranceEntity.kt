@@ -9,5 +9,6 @@ data class AllergyIntoleranceEntity(
     val code: String,
     val status: String,
     val onset: String,
-    val recordedDate: String
+    val recordedDate: String,
+    val subjectId: String,
 )

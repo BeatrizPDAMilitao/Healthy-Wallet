@@ -9,5 +9,6 @@ data class MedicationStatementEntity(
     val medication: String,
     val status: String,
     val start: String,
-    val end: String
+    val end: String,
+    val subjectId: String,
 )

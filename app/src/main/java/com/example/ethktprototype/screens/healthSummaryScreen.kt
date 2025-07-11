@@ -47,8 +47,7 @@ fun HealthSummaryScreen(
     navController: NavHostController,
     viewModel: WalletViewModel,
 ) {
-    val patientId = "Patient/019706de-81bf-77d0-a864-2db46cad1d8c"
-    val patientIdWitoutPrefix = patientId.split("/").last()
+    val patientId = viewModel.getLoggedInUsertId()
 
     val uiState by viewModel.uiState.collectAsState()
     val context = LocalContext.current
@@ -56,12 +55,25 @@ fun HealthSummaryScreen(
     // Collecting patient and health data from the ViewModel
     val patient by viewModel.patient.collectAsState()
     val conditions by viewModel.conditions.collectAsState()
-    val diagnosticReports by viewModel.diagnosticReports.collectAsState()
-    val allergies by viewModel.allergies.collectAsState()
-    val medications by viewModel.medicationStatements.collectAsState()
-    val procedures by viewModel.procedures.collectAsState()
-    val devices by viewModel.devices.collectAsState()
-    val immunizations by viewModel.immunizations.collectAsState()
+
+    // Collecting diagnostic reports from the ViewModel
+    val diagnosticReportsMap by viewModel.diagnosticReports.collectAsState()
+    val diagnosticReports = diagnosticReportsMap[patientId] ?: emptyList()
+
+    val allergiesMap by viewModel.allergies.collectAsState()
+    val allergies = allergiesMap[patientId] ?: emptyList()
+
+    val medicationsMap by viewModel.medicationStatements.collectAsState()
+    val medications = medicationsMap[patientId] ?: emptyList()
+
+    val proceduresMap by viewModel.procedures.collectAsState()
+    val procedures = proceduresMap[patientId] ?: emptyList()
+
+    val devicesMap by viewModel.devices.collectAsState()
+    val devices = devicesMap[patientId] ?: emptyList()
+
+    val immunizationsMap by viewModel.immunizations.collectAsState()
+    val immunizations = immunizationsMap[patientId] ?: emptyList()
 
     var showPatient by remember { mutableStateOf(false) }
     var showAllergies by remember { mutableStateOf(false) }

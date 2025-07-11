@@ -471,6 +471,61 @@ class MedPlumAPI(private val application: Application, private val viewModel: Wa
         }
     }
 
+    suspend fun fetchPractitionersList(name: String): List<PractitionerEntity>? {
+        return try {
+            if (!ensureApolloClientInitialized()) return null
+
+            val response = apolloClient.query(GetPractitionersListQuery(name)).execute()
+            Log.d("MedPlum", "GraphQL response: $response")
+
+            if (response.hasErrors()) {
+                Log.e("MedPlum", "GraphQL errors: ${response.errors}")
+                return null
+            }
+
+            val practitioners = response.data?.PractitionerList ?: return null
+
+            return practitioners.map { practitioner ->
+                // Name
+                val given = practitioner?.name?.firstOrNull()?.given?.firstOrNull() ?: ""
+                val family = practitioner?.name?.firstOrNull()?.family ?: ""
+                val fullName = "$given $family".trim()
+
+                // Gender
+                val gender = practitioner?.gender ?: "unknown"
+
+                // Identifier
+                val identifier = practitioner?.identifier?.firstOrNull { it.system == "access-policy" }?.value ?: ""
+
+                // Telecom (take the first available contact method)
+                val telecom = practitioner?.telecom?.firstOrNull()?.value ?: ""
+
+                // Address (optional future enhancement)
+                val address = "" // Not included in this query
+
+                PractitionerEntity(
+                    id = practitioner?.id ?: "unknown",
+                    name = fullName,
+                    gender = gender,
+                    identifier = identifier,
+                    telecom = telecom,
+                    address = address,
+                    qualification = ""
+                )
+            }
+
+        } catch (e: ApolloHttpException) {
+            Log.e("MedPlum", "HTTP error ${e.statusCode}: ${e.message}", e)
+            val errorBody = e.body?.use { it.readUtf8() }
+            Log.e("MedPlum", "Error body: $errorBody")
+            null
+        } catch (e: Exception) {
+            Log.e("MedPlum", "Unexpected error", e)
+            null
+        }
+    }
+
+
     suspend fun fetchPatientListOfPractitioner(practitionerId: String): List<PatientEntity>? {
         return try {
             if (!ensureApolloClientInitialized()) return null
@@ -646,7 +701,8 @@ class MedPlumAPI(private val application: Application, private val viewModel: Wa
                     code = code,
                     status = status,
                     effectiveDateTime = effectiveDateTime,
-                    result = formattedResults
+                    result = formattedResults,
+                    subjectId = subjectId
                 )
                 observations.forEach { obs ->
                     // Insert or update observation in your database
@@ -676,7 +732,7 @@ class MedPlumAPI(private val application: Application, private val viewModel: Wa
                     authoredOn = it?.authoredOn ?: "",
                     status = it?.status ?: "",
                     dosage = it?.dosageInstruction?.joinToString { d -> d.text ?: "" } ?: "",
-
+                    subjectId = subjectId
                 )
             }
         } catch (e: Exception) {
@@ -699,7 +755,8 @@ class MedPlumAPI(private val application: Application, private val viewModel: Wa
                     medication = it?.medicationCodeableConcept?.text ?: "",
                     status = it?.status ?: "",
                     start = it?.effectivePeriod?.start ?: "",
-                    end = it?.effectivePeriod?.end ?: ""
+                    end = it?.effectivePeriod?.end ?: "",
+                    subjectId = subjectId
                 )
             }
         } catch (e: Exception) {
@@ -722,7 +779,8 @@ class MedPlumAPI(private val application: Application, private val viewModel: Wa
                     vaccine = it?.vaccineCode?.text ?: "",
                     occurrenceDateTime = it?.occurrenceDateTime ?: "",
                     status = it?.status ?: "",
-                    lotNumber = it?.lotNumber ?: ""
+                    lotNumber = it?.lotNumber ?: "",
+                    subjectId = subjectId
                 )
             }
         } catch (e: Exception) {
@@ -745,7 +803,8 @@ class MedPlumAPI(private val application: Application, private val viewModel: Wa
                     code = it?.code?.text ?: "",
                     status = it?.clinicalStatus?.text ?: "",
                     onset = it?.onsetDateTime ?: "",
-                    recordedDate = it?.recordedDate ?: ""
+                    recordedDate = it?.recordedDate ?: "",
+                    subjectId = subjectId,
                 )
             }
         } catch (e: Exception) {
@@ -767,7 +826,8 @@ class MedPlumAPI(private val application: Application, private val viewModel: Wa
                     id = it?.id ?: "",
                     type = it?.type?.text ?: "",
                     status = it?.status ?: "",
-                    manufactureDate = it?.manufactureDate ?: ""
+                    manufactureDate = it?.manufactureDate ?: "",
+                    subjectId = subjectId,
                 )
             }
         } catch (e: Exception) {
@@ -789,7 +849,8 @@ class MedPlumAPI(private val application: Application, private val viewModel: Wa
                     id = it?.id ?: "",
                     code = it?.code?.text ?: "",
                     status = it?.status ?: "",
-                    performedDateTime = it?.performedDateTime ?: ""
+                    performedDateTime = it?.performedDateTime ?: "",
+                    subjectId = subjectId,
                 )
             }
         } catch (e: Exception) {

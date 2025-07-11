@@ -50,7 +50,10 @@ fun PrescriptionsScreen(
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val context = LocalContext.current
-    val medicationRequests by viewModel.medicationRequests.collectAsState()
+    val patientId = viewModel.getLoggedInUsertId()
+
+    val medicationRequestsMap by viewModel.medicationRequests.collectAsState()
+    val medicationRequests = medicationRequestsMap[patientId] ?: emptyList()
 
     LaunchedEffect(true) {
         if (!viewModel.uiState.value.hasFetched.getOrDefault("MedicationRequests", false)) {

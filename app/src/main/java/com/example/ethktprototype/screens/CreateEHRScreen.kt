@@ -342,21 +342,24 @@ fun CreateEHRScreen(
                                     code = formFields["code"] ?: "",
                                     status = formFields["status"] ?: "",
                                     effectiveDateTime = formFields["effectiveDateTime"] ?: "",
-                                    result = formFields["result"] ?: ""
+                                    result = formFields["result"] ?: "",
+                                    subjectId = patientId,
                                 )
                                 "Immunization" -> ImmunizationEntity(
                                     id = formFields["id"] ?: "",
                                     vaccine = formFields["vaccine"] ?: "",
                                     occurrenceDateTime = formFields["occurrenceDateTime"] ?: "",
                                     status = formFields["status"] ?: "",
-                                    lotNumber = formFields["lotNumber"] ?: ""
+                                    lotNumber = formFields["lotNumber"] ?: "",
+                                    subjectId = patientId,
                                 )
                                 "Allergy" -> AllergyIntoleranceEntity(
                                     id = formFields["id"] ?: "",
                                     code = formFields["code"] ?: "",
                                     status = formFields["status"] ?: "",
                                     onset = formFields["onset"] ?: "",
-                                    recordedDate = formFields["recordedDate"] ?: ""
+                                    recordedDate = formFields["recordedDate"] ?: "",
+                                    subjectId = patientId,
                                 )
                                 "Condition" -> ConditionEntity(
                                     id = formFields["id"] ?: "",
@@ -380,13 +383,15 @@ fun CreateEHRScreen(
                                     medication = formFields["medication"] ?: "",
                                     authoredOn = formFields["authoredOn"] ?: "",
                                     status = formFields["status"] ?: "",
-                                    dosage = formFields["dosage"] ?: ""
+                                    dosage = formFields["dosage"] ?: "",
+                                    subjectId = patientId
                                 )
                                 "Procedure" -> ProcedureEntity(
                                     id = formFields["id"] ?: "",
                                     code = formFields["procedureCode"] ?: "",
                                     status = formFields["status"] ?: "",
-                                    performedDateTime = formFields["performedDateTime"] ?: ""
+                                    performedDateTime = formFields["performedDateTime"] ?: "",
+                                    subjectId = patientId
                                 )
                                 else -> null
                             }

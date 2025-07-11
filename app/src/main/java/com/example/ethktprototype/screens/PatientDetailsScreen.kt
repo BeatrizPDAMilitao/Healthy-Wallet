@@ -42,7 +42,8 @@ fun PatientDetailsScreen(
     val uiState by viewModel.uiState.collectAsState()
     val patient = remember { mutableStateOf<PatientEntity?>(null) }
 
-    val diagnosticReports by viewModel.diagnosticReports.collectAsState()
+    val diagnosticReportsMap by viewModel.diagnosticReports.collectAsState()
+    val diagnosticReports = diagnosticReportsMap[patientId] ?: emptyList()
 
 
     LaunchedEffect(patientId) {

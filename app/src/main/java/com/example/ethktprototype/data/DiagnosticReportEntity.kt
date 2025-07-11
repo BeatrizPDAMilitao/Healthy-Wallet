@@ -9,5 +9,6 @@ data class DiagnosticReportEntity(
     val code: String,
     val status: String,
     val effectiveDateTime: String,
-    val result: String
+    val result: String,
+    val subjectId: String,
 )

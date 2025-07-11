@@ -50,7 +50,10 @@ fun VaccinationsScreen(
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val context = LocalContext.current
-    val immunizations by viewModel.immunizations.collectAsState()
+    val patientId = viewModel.getLoggedInUsertId()
+
+    val immunizationsMap by viewModel.immunizations.collectAsState()
+    val immunizations = immunizationsMap[patientId] ?: emptyList()
 
     LaunchedEffect(true) {
         if (!viewModel.uiState.value.hasFetched.getOrDefault("Immunizations", false)) {

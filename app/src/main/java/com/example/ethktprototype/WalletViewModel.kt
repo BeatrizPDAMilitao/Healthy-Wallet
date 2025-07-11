@@ -66,6 +66,8 @@ import kotlin.collections.mapOf
 import com.google.gson.Gson
 import com.google.gson.GsonBuilder
 import java.security.MessageDigest
+import kotlin.String
+import kotlin.collections.Map
 
 
 /**
@@ -748,12 +750,12 @@ class WalletViewModel(application: Application) : AndroidViewModel(application) 
                 }
 
                 result?.let {
-                    _diagnosticReports.value = it.diagnostics.orEmpty()
-                    _allergies.value = it.allergies.orEmpty()
-                    _medicationStatements.value = it.meds.orEmpty()
-                    _procedures.value = it.procedures.orEmpty()
-                    _devices.value = it.devices.orEmpty()
-                    _immunizations.value = it.immunizations.orEmpty()
+                    _diagnosticReports.update { currentMap -> currentMap.toMutableMap().apply { this[patientId] = it.diagnostics.orEmpty() } }
+                    _allergies.update { currentMap -> currentMap.toMutableMap().apply { this[patientId] = it.allergies.orEmpty() } }
+                    _medicationStatements.update { currentMap -> currentMap.toMutableMap().apply { this[patientId] = it.meds.orEmpty() } }
+                    _procedures.update { currentMap -> currentMap.toMutableMap().apply { this[patientId] = it.procedures.orEmpty() } }
+                    _devices.update { currentMap -> currentMap.toMutableMap().apply { this[patientId] = it.devices.orEmpty() } }
+                    _immunizations.update { currentMap -> currentMap.toMutableMap().apply { this[patientId] = it.immunizations.orEmpty() } }
 
                     withContext(Dispatchers.IO) {
                         transactionDao.insertDiagnosticReports(it.diagnostics ?: emptyList())
@@ -923,23 +925,6 @@ class WalletViewModel(application: Application) : AndroidViewModel(application) 
                 }
             }
         }
-        viewModelScope.launch {
-            try {
-                val practitionerData = withContext(Dispatchers.IO) {
-                    medPlumAPI.fetchPractitioner(practitionerId)
-                }
-                updateUiState { state ->
-                    state.copy(
-                        practitionerData = practitionerData
-                    )
-                }
-                // Handle the practitioner data as needed
-                Log.d("PractitionerData", "Practitioner data: $practitionerData")
-            } catch (e: Exception) {
-                // Handle errors
-                Log.e("PractitionerData", "Error fetching practitioner data: ${e.message}", e)
-            }
-        }
     }
 
     fun loadPractitionerFromDb() {
@@ -968,7 +953,7 @@ class WalletViewModel(application: Application) : AndroidViewModel(application) 
                     }
                 }
                 conditions?.let {
-                    _conditions.value = it
+                    _conditions.update { currentMap -> currentMap.toMutableMap().apply { this[subjectId] = it } }
                     transactionDao.insertConditions(it)
                     updateHasFetched(CONDITIONS_KEY, true)
                 }
@@ -983,7 +968,7 @@ class WalletViewModel(application: Application) : AndroidViewModel(application) 
     fun loadConditionsFromDb() {
         viewModelScope.launch {
             val cached = withContext(Dispatchers.IO) {
-                transactionDao.getConditions()
+                transactionDao.getConditions().groupBy { it.subjectId }
             }
             _conditions.value = cached
         }
@@ -995,8 +980,8 @@ class WalletViewModel(application: Application) : AndroidViewModel(application) 
         }
     }
 
-    private val _diagnosticReports = MutableStateFlow<List<DiagnosticReportEntity>>(emptyList())
-    val diagnosticReports: StateFlow<List<DiagnosticReportEntity>> = _diagnosticReports
+    private val _diagnosticReports = MutableStateFlow<Map<String,List<DiagnosticReportEntity>>>(emptyMap())
+    val diagnosticReports: StateFlow<Map<String,List<DiagnosticReportEntity>>> = _diagnosticReports
     fun getDiagnosticReports(subjectId: String = getLoggedInUsertId()) {
         val query = buildGetPatientDiagnosticReportQuery(subjectId)
         viewModelScope.launch {
@@ -1012,7 +997,7 @@ class WalletViewModel(application: Application) : AndroidViewModel(application) 
                     if (success) reports else null
                 }
                 result?.let {
-                    _diagnosticReports.value = it
+                    _diagnosticReports.update { currentMap -> currentMap.toMutableMap().apply { this[subjectId] = it } }
                     transactionDao.insertDiagnosticReports(it)
                     updateHasFetched(DIAGNOSTIC_REPORTS_KEY, true)
                 }
@@ -1028,15 +1013,15 @@ class WalletViewModel(application: Application) : AndroidViewModel(application) 
     fun loadDiagnosticReportsFromDb() {
         viewModelScope.launch {
             val cached = withContext(Dispatchers.IO) {
-                transactionDao.getDiagnosticReports()
+                transactionDao.getDiagnosticReports().groupBy { it.subjectId }
             }
             _diagnosticReports.value = cached
         }
     }
 
 
-    private val _medicationRequests = MutableStateFlow<List<MedicationRequestEntity>>(emptyList())
-    val medicationRequests: StateFlow<List<MedicationRequestEntity>> = _medicationRequests
+    private val _medicationRequests = MutableStateFlow<Map<String,List<MedicationRequestEntity>>>(emptyMap())
+    val medicationRequests: StateFlow<Map<String,List<MedicationRequestEntity>>> = _medicationRequests
     fun getMedicationRequests() {
         val subjectId = getLoggedInUsertId()
         val query = buildGetPatientMedicationRequestsQuery(subjectId)
@@ -1053,7 +1038,7 @@ class WalletViewModel(application: Application) : AndroidViewModel(application) 
                     if (success) requests else null
                 }
                 result?.let {
-                    _medicationRequests.value = it
+                    _medicationRequests.update { currentMap -> currentMap.toMutableMap().apply { this[subjectId] = it } }
                     transactionDao.insertMedicationRequests(it)
                     updateHasFetched(MEDICATION_REQUESTS_KEY, true)
                 }
@@ -1079,7 +1064,7 @@ class WalletViewModel(application: Application) : AndroidViewModel(application) 
                 medPlumAPI.fetchMedicationRequests(subjectId)
             }
             requests?.let {
-                _medicationRequests.value = it
+                _medicationRequests.update { currentMap -> currentMap.toMutableMap().apply { this[subjectId] = it } }
                 transactionDao.insertMedicationRequests(it)
                 updateHasFetched(MEDICATION_REQUESTS_KEY, true)
             }
@@ -1112,14 +1097,14 @@ class WalletViewModel(application: Application) : AndroidViewModel(application) 
     fun loadMedicationRequestsFromDb() {
         viewModelScope.launch {
             val cached = withContext(Dispatchers.IO) {
-                transactionDao.getMedicationRequests()
+                transactionDao.getMedicationRequests().groupBy { it.subjectId}
             }
             _medicationRequests.value = cached
         }
     }
 
-    private val _medicationStatements = MutableStateFlow<List<MedicationStatementEntity>>(emptyList())
-    val medicationStatements: StateFlow<List<MedicationStatementEntity>> = _medicationStatements
+    private val _medicationStatements = MutableStateFlow<Map<String,List<MedicationStatementEntity>>>(emptyMap())
+    val medicationStatements: StateFlow<Map<String,List<MedicationStatementEntity>>> = _medicationStatements
     fun getMedicationStatements() {
         val subjectId = getLoggedInUsertId()
         val query = buildGetPatientMedicationStatementsQuery(subjectId)
@@ -1136,7 +1121,7 @@ class WalletViewModel(application: Application) : AndroidViewModel(application) 
                     if (success) statements else null
                 }
                 result?.let {
-                    _medicationStatements.value = it
+                    _medicationStatements.update { currentMap -> currentMap.toMutableMap().apply { this[subjectId] = it } }
                     transactionDao.insertMedicationStatements(it)
                     updateHasFetched(MEDICATION_STATEMENTS_KEY, true)
                 }
@@ -1152,14 +1137,14 @@ class WalletViewModel(application: Application) : AndroidViewModel(application) 
     fun loadMedicationStatementsFromDb() {
         viewModelScope.launch {
             val cached = withContext(Dispatchers.IO) {
-                transactionDao.getMedicationStatements()
+                transactionDao.getMedicationStatements().groupBy { it.subjectId }
             }
             _medicationStatements.value = cached
         }
     }
 
-    private val _immunizations = MutableStateFlow<List<ImmunizationEntity>>(emptyList())
-    val immunizations: StateFlow<List<ImmunizationEntity>> = _immunizations
+    private val _immunizations = MutableStateFlow<Map<String,List<ImmunizationEntity>>>(emptyMap())
+    val immunizations: StateFlow<Map<String,List<ImmunizationEntity>>> = _immunizations
     fun getImmunizations() {
         val subjectId = getLoggedInUsertId()
         val query = buildGetPatientImmunizationsQuery(subjectId)
@@ -1176,7 +1161,7 @@ class WalletViewModel(application: Application) : AndroidViewModel(application) 
                     if (success) immunizations else null
                 }
                 result?.let {
-                    _immunizations.value = it
+                    _immunizations.update { currentMap -> currentMap.toMutableMap().apply { this[subjectId] = it } }
                     transactionDao.insertImmunizations(it)
                     updateHasFetched(IMMUNIZATIONS_KEY, true)
                 }
@@ -1192,14 +1177,14 @@ class WalletViewModel(application: Application) : AndroidViewModel(application) 
     fun loadImmunizationsFromDb() {
         viewModelScope.launch {
             val cached = withContext(Dispatchers.IO) {
-                transactionDao.getImmunizations()
+                transactionDao.getImmunizations().groupBy { it.subjectId }
             }
             _immunizations.value = cached
         }
     }
 
-    private val _allergies = MutableStateFlow<List<AllergyIntoleranceEntity>>(emptyList())
-    val allergies: StateFlow<List<AllergyIntoleranceEntity>> = _allergies
+    private val _allergies = MutableStateFlow<Map<String,List<AllergyIntoleranceEntity>>>(emptyMap())
+    val allergies: StateFlow<Map<String,List<AllergyIntoleranceEntity>>> = _allergies
     fun getAllergies() {
         val subjectId = getLoggedInUsertId()
         viewModelScope.launch {
@@ -1215,7 +1200,7 @@ class WalletViewModel(application: Application) : AndroidViewModel(application) 
                     }
                 }
                 allergies?.let {
-                    _allergies.value = it
+                    _allergies.update { currentMap -> currentMap.toMutableMap().apply { this[subjectId] = it } }
                     transactionDao.insertAllergies(it)
                     updateHasFetched(ALLERGIES_KEY, true)
                 }
@@ -1231,14 +1216,14 @@ class WalletViewModel(application: Application) : AndroidViewModel(application) 
     fun loadAllergiesFromDb() {
         viewModelScope.launch {
             val cached = withContext(Dispatchers.IO) {
-                transactionDao.getAllergies()
+                transactionDao.getAllergies().groupBy { it.subjectId }
             }
             _allergies.value = cached
         }
     }
 
-    private val _devices = MutableStateFlow<List<DeviceEntity>>(emptyList())
-    val devices: StateFlow<List<DeviceEntity>> = _devices
+    private val _devices = MutableStateFlow<Map<String,List<DeviceEntity>>>(emptyMap())
+    val devices: StateFlow<Map<String,List<DeviceEntity>>> = _devices
     fun getDevices() {
         val subjectId = getLoggedInUsertId()
         viewModelScope.launch {
@@ -1254,7 +1239,7 @@ class WalletViewModel(application: Application) : AndroidViewModel(application) 
                     }
                 }
                 devices?.let {
-                    _devices.value = it
+                    _devices.update { currentMap -> currentMap.toMutableMap().apply { this[subjectId] = it } }
                     transactionDao.insertDevices(it)
                     updateHasFetched(DEVICES_KEY, true)
                 }
@@ -1270,14 +1255,14 @@ class WalletViewModel(application: Application) : AndroidViewModel(application) 
     fun loadDevicesFromDb() {
         viewModelScope.launch {
             val cached = withContext(Dispatchers.IO) {
-                transactionDao.getDevices()
+                transactionDao.getDevices().groupBy { it.subjectId }
             }
             _devices.value = cached
         }
     }
 
-    private val _procedures = MutableStateFlow<List<ProcedureEntity>>(emptyList())
-    val procedures: StateFlow<List<ProcedureEntity>> = _procedures
+    private val _procedures = MutableStateFlow<Map<String,List<ProcedureEntity>>>(emptyMap())
+    val procedures: StateFlow<Map<String,List<ProcedureEntity>>> = _procedures
     fun getProcedures() {
         val subjectId = getLoggedInUsertId()
         viewModelScope.launch {
@@ -1293,7 +1278,7 @@ class WalletViewModel(application: Application) : AndroidViewModel(application) 
                     }
                 }
                 procedures?.let {
-                    _procedures.value = it
+                    _procedures.update { currentMap -> currentMap.toMutableMap().apply { this[subjectId] = it } }
                     transactionDao.insertProcedures(it)
                     updateHasFetched(PROCEDURES_KEY, true)
                 }
@@ -1309,14 +1294,14 @@ class WalletViewModel(application: Application) : AndroidViewModel(application) 
     fun loadProceduresFromDb() {
         viewModelScope.launch {
             val cached = withContext(Dispatchers.IO) {
-                transactionDao.getProcedures()
+                transactionDao.getProcedures().groupBy { it.subjectId }
             }
             _procedures.value = cached
         }
     }
 
-    private val _observations = MutableStateFlow<List<ObservationEntity>>(emptyList())
-    val observations: StateFlow<List<ObservationEntity>> = _observations
+    private val _observations = MutableStateFlow<Map<String,List<ObservationEntity>>>(emptyMap())
+    val observations: StateFlow<Map<String,List<ObservationEntity>>> = _observations
     fun getObservations(subjectId: String) {
         viewModelScope.launch {
             _uiState.update { it.copy(isObservationsLoading = true) }
@@ -1331,7 +1316,7 @@ class WalletViewModel(application: Application) : AndroidViewModel(application) 
                     }
                 }
                 observations?.let {
-                    _observations.value = it
+                    _observations.update { currentMap -> currentMap.toMutableMap().apply { this[subjectId] = it } }
                     transactionDao.insertObservations(it)
                     updateHasFetched(OBSERVATIONS_KEY, true)
                 }
@@ -1347,7 +1332,7 @@ class WalletViewModel(application: Application) : AndroidViewModel(application) 
     fun loadObservationsFromDb() {
         viewModelScope.launch {
             val cached = withContext(Dispatchers.IO) {
-                transactionDao.getObservations()
+                transactionDao.getObservations().groupBy { it.subjectId }
             }
             _observations.value = cached
         }
@@ -1370,15 +1355,15 @@ class WalletViewModel(application: Application) : AndroidViewModel(application) 
                 transactionDao.deleteAllPractitioners()
             }
             _patient.value = null
-            _conditions.value = emptyList()
-            _diagnosticReports.value = emptyList()
-            _medicationRequests.value = emptyList()
-            _medicationStatements.value = emptyList()
-            _immunizations.value = emptyList()
-            _allergies.value = emptyList()
-            _devices.value = emptyList()
-            _procedures.value = emptyList()
-            _observations.value = emptyList()
+            _conditions.value = emptyMap()
+            _diagnosticReports.value = emptyMap()
+            _medicationRequests.value = emptyMap()
+            _medicationStatements.value = emptyMap()
+            _immunizations.value = emptyMap()
+            _allergies.value = emptyMap()
+            _devices.value = emptyMap()
+            _procedures.value = emptyMap()
+            _observations.value = emptyMap()
             _practitioner.value = null
             walletRepository.updateLastAccessTime(HEALTH_SUMMARY_KEY, 0L) // Reset last access time for health summary
             Log.d("Logout", "Last access time: ${walletRepository.getLastAccessTime(HEALTH_SUMMARY_KEY)}")

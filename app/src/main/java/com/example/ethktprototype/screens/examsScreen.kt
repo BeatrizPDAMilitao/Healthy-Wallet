@@ -53,8 +53,10 @@ fun ExamsScreen(
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val context = LocalContext.current
+    val patientId = viewModel.getLoggedInUsertId()
     val conditions by viewModel.conditions.collectAsState()
-    val diagnosticReports by viewModel.diagnosticReports.collectAsState()
+    val diagnosticReportsMap by viewModel.diagnosticReports.collectAsState()
+    val diagnosticReports = diagnosticReportsMap[patientId] ?: emptyList()
 
     LaunchedEffect(true) {
         if (!viewModel.uiState.value.hasFetched.getOrDefault("DiagnosticReports", false)) {

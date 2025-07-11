@@ -9,5 +9,6 @@ data class ImmunizationEntity(
     val vaccine: String,
     val occurrenceDateTime: String,
     val status: String,
-    val lotNumber: String
+    val lotNumber: String,
+    val subjectId: String,
 )
