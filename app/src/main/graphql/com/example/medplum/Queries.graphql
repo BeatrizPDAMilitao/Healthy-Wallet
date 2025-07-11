@@ -191,7 +191,7 @@ query GetConditionsForPatient($subjectId: String!) {
 }
 
 query GetPatientDiagnosticReport($subjectId: String!) {
-  DiagnosticReportList(subject: $subjectId) {
+  DiagnosticReportList(subject: $subjectId, _sort: "-date") {
     id
     status
     code {
@@ -206,7 +206,7 @@ query GetPatientDiagnosticReport($subjectId: String!) {
 }
 
 query GetPatientMedicationRequests($subjectId: String!) {
-  MedicationRequestList(subject: $subjectId) {
+  MedicationRequestList(subject: $subjectId, _sort: "-date") {
     id
     medicationCodeableConcept {
       text
@@ -234,7 +234,7 @@ query GetPatientMedicationStatements($subjectId: String!) {
 }
 
 query GetPatientImmunizations($subjectId: String!) {
-  ImmunizationList(patient: $subjectId) {
+  ImmunizationList(patient: $subjectId, _sort: "-date") {
     id
     vaccineCode {
       text
@@ -246,7 +246,7 @@ query GetPatientImmunizations($subjectId: String!) {
 }
 
 query GetPatientAllergies($subjectId: String!) {
-  AllergyIntoleranceList(patient: $subjectId) {
+  AllergyIntoleranceList(patient: $subjectId, _sort: "-date") {
     id
     clinicalStatus {
       text
@@ -271,7 +271,7 @@ query GetPatientDevices($subjectId: String!) {
 }
 
 query GetPatientProcedures($subjectId: String!) {
-  ProcedureList(subject: $subjectId) {
+  ProcedureList(subject: $subjectId, _sort: "-date") {
     id
     status
     code {
@@ -282,7 +282,7 @@ query GetPatientProcedures($subjectId: String!) {
 }
 
 query GetObservations($subjectId: String!) {
-  ObservationList(subject: $subjectId) {
+  ObservationList(subject: $subjectId, _sort: "-date") {
     id
     status
     code {

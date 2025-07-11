@@ -60,7 +60,7 @@ object GraphQLQueries {
 
     fun buildGetPatientDiagnosticReportQuery(subjectId: String): String = """
     query {
-      DiagnosticReportList(subject: "$subjectId") {
+      DiagnosticReportList(subject: "$subjectId", _sort: "-date") {
         id
         status
         code {
@@ -77,7 +77,7 @@ object GraphQLQueries {
 
     fun buildGetPatientMedicationRequestsQuery(subjectId: String): String = """
     query {
-      MedicationRequestList(subject: "$subjectId") {
+      MedicationRequestList(subject: "$subjectId", _sort: "-date") {
         id
         medicationCodeableConcept {
           text
@@ -109,7 +109,7 @@ object GraphQLQueries {
 
     fun buildGetPatientImmunizationsQuery(patientId: String): String = """
     query {
-      ImmunizationList(patient: "$patientId") {
+      ImmunizationList(patient: "$patientId", _sort: "-date") {
         id
         vaccineCode {
           text
@@ -123,7 +123,7 @@ object GraphQLQueries {
 
     fun buildGetPatientAllergiesQuery(patientId: String): String = """
     query {
-      AllergyIntoleranceList(patient: "$patientId") {
+      AllergyIntoleranceList(patient: "$patientId", _sort: "-date") {
         id
         clinicalStatus {
           text
@@ -152,7 +152,7 @@ object GraphQLQueries {
 
     fun buildGetPatientProceduresQuery(subjectId: String): String = """
     query {
-      ProcedureList(subject: "$subjectId") {
+      ProcedureList(subject: "$subjectId", _sort: "-date") {
         id
         status
         code {
@@ -165,7 +165,7 @@ object GraphQLQueries {
 
     fun buildGetObservationsQuery(subjectId: String): String = """
     query {
-      ObservationList(subject: "$subjectId") {
+      ObservationList(subject: "$subjectId", _sort: "-date") {
         id
         status
         code {
