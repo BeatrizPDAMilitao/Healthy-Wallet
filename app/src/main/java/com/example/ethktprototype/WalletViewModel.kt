@@ -125,6 +125,9 @@ class WalletViewModel(application: Application) : AndroidViewModel(application) 
         getTokenBlocklist()
 
         viewModelScope.launch {
+            //For now. In the future I want to load the practitioners too
+            getPractitionersData()
+
             loadPatientFromDb()
             loadConditionsFromDb()
             loadDiagnosticReportsFromDb()
@@ -937,8 +940,66 @@ class WalletViewModel(application: Application) : AndroidViewModel(application) 
         }
     }
 
-    private val _conditions = MutableStateFlow<List<ConditionEntity>>(emptyList())
-    val conditions: StateFlow<List<ConditionEntity>> = _conditions
+    private val _practitioners = MutableStateFlow<List<PractitionerEntity>>(emptyList())
+    val practitioners: StateFlow<List<PractitionerEntity>> = _practitioners
+    fun getPractitionersData(/*Can input search*/) {
+        val query = buildPractitionersListQuery("")
+        viewModelScope.launch {
+            _uiState.update { it.copy(isPatientLoading = true) }
+            try {
+                val result = withContext(Dispatchers.IO) {
+                    var practitioners: List<PractitionerEntity>? = null
+                    val success = withLoggedAccessPerScreen(PRACTITIONER_KEY, listOf(query)) {
+                        val data = medPlumAPI.fetchPractitionersList("")
+                        practitioners = data
+                        data != null
+                    }
+                    if (success) practitioners else null
+                }
+
+                result?.let {
+                    _practitioners.value = it
+                    transactionDao.insertPractitioners(it)
+                    updateHasFetched(PRACTITIONER_KEY, true)
+                } ?: Log.e("MedplumAuth", "Access denied or failed")
+            } catch (e: Exception) {
+                Log.e("Exams", "Error fetching", e)
+            } finally {
+                _uiState.update {
+                    it.copy(isPatientLoading = false, isAppLoading = false)
+                }
+            }
+        }
+    }
+
+    fun shareAccessWithPractitioner(practitionerId: String, recordId: String) {
+        viewModelScope.launch {
+            setTransactionProcessing(true)
+            try {
+                Log.d("MedPlumGrant", "Granting policy...")
+                val granted = withContext(Dispatchers.IO) {
+                    medPlumAPI.grantFullDiagnosticReportAccess(
+                        recordId,
+                        practitionerId,
+                        projectId,
+                        getLoggedInUsertId()
+                    )
+                }
+                Log.d("MedPlumGrant", "Policy granted: $granted")
+            } catch (e: Exception) {
+                Log.e("ShareAccess", "Exception caught", e)
+            }
+        }
+        setTransactionProcessing(false)
+    }
+
+    suspend fun getPractitionerById(practitionerId: String): PractitionerEntity? {
+        return transactionDao.getPractitionerById(practitionerId)
+    }
+
+
+    private val _conditions = MutableStateFlow<Map<String,List<ConditionEntity>>>(emptyMap())
+    val conditions: StateFlow<Map<String,List<ConditionEntity>>> = _conditions
     fun getConditions(subjectId: String) {
         viewModelScope.launch {
             _uiState.update { it.copy(isConditionsLoading = true) }

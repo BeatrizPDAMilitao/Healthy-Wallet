@@ -1,7 +1,6 @@
 package com.example.ethktprototype.screens
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -11,12 +10,8 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Refresh
-import androidx.compose.material3.Card
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 
@@ -36,10 +31,9 @@ import androidx.compose.ui.unit.sp
 import androidx.navigation.NavHostController
 import com.example.ethktprototype.WalletViewModel
 import com.example.ethktprototype.composables.BottomNavigationBar
-import com.example.ethktprototype.data.PatientEntity
 
 @Composable
-fun PatientsListScreen(
+fun SharedWithDoctorScreen(
     navController: NavHostController,
     viewModel: WalletViewModel,
 ) {
@@ -48,9 +42,9 @@ fun PatientsListScreen(
     val patients by viewModel.patients.collectAsState()
 
     LaunchedEffect(true) {
-        if (!viewModel.uiState.value.hasFetched.getOrDefault("Patient", false)) {
+        /*if (!viewModel.uiState.value.hasFetched.getOrDefault("Patient", false)) {
             viewModel.getPatientListForPractitioner()
-        }
+        }*/
     }
 
     Box(
@@ -78,7 +72,7 @@ fun PatientsListScreen(
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
                     Text(
-                        text = "My Patients",
+                        text = "Shared with Me",
                         style = MaterialTheme.typography.titleLarge.copy(
                             fontWeight = FontWeight.Bold,
                             fontSize = 24.sp,
@@ -86,7 +80,7 @@ fun PatientsListScreen(
                         )
                     )
                     IconButton(onClick = {
-                        viewModel.getPatientListForPractitioner()
+                        //viewModel.getPatientListForPractitioner()
                     }) {
                         Icon(
                             imageVector = Icons.Default.Refresh,
@@ -131,55 +125,6 @@ fun PatientsListScreen(
                 navController = navController,
                 currentRoute = "EHRs"
             )
-        }
-    }
-}
-
-@Composable
-fun PatientList(patients: List<PatientEntity?>, navController: NavHostController) {
-    LazyColumn(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(16.dp)
-    ) {
-        items(patients) { patient ->
-
-            Card(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(vertical = 8.dp),
-                shape = RoundedCornerShape(12.dp),
-                //elevation = 4.dp
-            ) {
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(16.dp)
-                        .clickable {
-                            navController.navigate("patientDetails/${patient?.id}")
-                        },
-                ) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text(
-                                text = "Name: ${patient?.name}",
-                                style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold)
-                            )
-                            Text(
-                                text = "Gender: ${patient?.gender}",
-                                style = MaterialTheme.typography.bodyMedium
-                            )
-                            Text(
-                                text = "Birth Date: ${patient?.birthDate}",
-                                style = MaterialTheme.typography.bodyMedium
-                            )
-                        }
-                    }
-                }
-            }
         }
     }
 }

@@ -309,6 +309,30 @@ object GraphQLQueries {
     """.trimIndent()
     }
 
+    fun buildPractitionersListQuery(name: String): String {
+        return """
+        query {
+          PractitionerList(name: "$name") {
+            id
+            name {
+              given
+              family
+            }
+            gender
+            telecom {
+              system
+              value
+              use
+            }
+            identifier {
+              system
+              value
+            }
+          }
+        }
+    """.trimIndent()
+    }
+
     fun buildGetPatientListForPractitionerQuery(practitionerId: String): String {
         return """
         query {

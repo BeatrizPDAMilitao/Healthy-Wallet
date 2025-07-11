@@ -58,6 +58,9 @@ interface TransactionDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertPractitioner(practitioner: PractitionerEntity)
 
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertPractitioners(practitioners: List<PractitionerEntity>)
+
     @Query("SELECT * FROM practitioners WHERE id = :practitionerId")
     suspend fun getPractitionerById(practitionerId: String): PractitionerEntity?
 

@@ -46,6 +46,7 @@ import android.net.Uri
 import android.util.Base64
 import com.example.ethktprototype.data.HealthSummaryResult
 import com.example.medplum.GetPractitionerCompleteQuery
+import com.example.medplum.GetPractitionersListQuery
 import org.json.JSONArray
 import java.security.MessageDigest
 import java.security.SecureRandom
@@ -420,7 +421,7 @@ class MedPlumAPI(private val application: Application, private val viewModel: Wa
             val name = "$given $family".trim()
 
             // Identifier (take the first one if present)
-            val identifier = practitioner.identifier?.firstOrNull()?.value ?: ""
+            val identifier = practitioner.identifier?.firstOrNull { it.system == "access-policy" }?.value ?: ""
 
             // Gender
             val gender = practitioner.gender ?: "unknown"
@@ -1077,6 +1078,75 @@ class MedPlumAPI(private val application: Application, private val viewModel: Wa
         return json.toString()
     }
 
+    suspend fun createConsentResource(
+        patientId: String,
+        practitionerId: String,
+        resourceId: String
+    ): Boolean = withContext(Dispatchers.IO) {
+        val accessToken = getAccessToken()
+        if (accessToken == null) {
+            Log.e("MedPlum", "No access token available.")
+            return@withContext false
+        }
+
+        val json = JSONObject().apply {
+            put("resourceType", "Consent")
+            put("status", "active")
+            put("scope", JSONObject().apply {
+                put("coding", listOf(JSONObject().apply {
+                    put("system", "http://terminology.hl7.org/CodeSystem/consentscope")
+                    put("code", "patient-privacy")
+                }))
+            })
+            put("patient", JSONObject().apply {
+                put("reference", "Patient/$patientId")
+            })
+            put("performer", listOf(JSONObject().apply {
+                put("reference", "Practitioner/$practitionerId")
+            }))
+            put("provision", JSONObject().apply {
+                put("type", "permit")
+                put("actor", listOf(JSONObject().apply {
+                    put("role", JSONObject().apply {
+                        put("coding", listOf(JSONObject().apply {
+                            put("system", "http://terminology.hl7.org/CodeSystem/consentactorrole")
+                            put("code", "PRCP")
+                        }))
+                    })
+                    put("reference", JSONObject().apply {
+                        put("reference", "Practitioner/$practitionerId")
+                    })
+                }))
+                put("resource", listOf(JSONObject().apply {
+                    put("reference", resourceId)  // e.g. "DiagnosticReport/abc123"
+                }))
+            })
+        }
+
+        val body = json.toString().toRequestBody("application/fhir+json".toMediaType())
+        val request = Request.Builder()
+            .url("https://api.medplum.com/fhir/R4/Consent")
+            .addHeader("Authorization", "Bearer $accessToken")
+            .post(body)
+            .build()
+
+        try {
+            val client = OkHttpClient()
+            client.newCall(request).execute().use { response ->
+                if (response.isSuccessful) {
+                    Log.d("MedPlum", "Consent created successfully")
+                    return@withContext true
+                } else {
+                    Log.e("MedPlum", "Failed to create Consent: ${response.code}")
+                    Log.e("MedPlum", "Response body: ${response.body?.string()}")
+                    return@withContext false
+                }
+            }
+        } catch (e: Exception) {
+            Log.e("MedPlum", "Error creating Consent", e)
+            return@withContext false
+        }
+    }
 
     suspend fun getAccessPolicyIdFromProjectMembership(
         practitionerId: String,
@@ -1092,6 +1162,7 @@ class MedPlumAPI(private val application: Application, private val viewModel: Wa
         OkHttpClient().newCall(request).execute().use { response ->
             if (!response.isSuccessful) {
                 Log.e("MedPlum", "Failed to fetch ProjectMembership: ${response.code}")
+                Log.e("MedPlum", "Response body: ${response.body?.string()}")
                 return@withContext null
             }
 
@@ -1119,6 +1190,11 @@ class MedPlumAPI(private val application: Application, private val viewModel: Wa
         }
     }
 
+    suspend fun getAccessPolicyIdFromPractitioner(practitionerId: String): String? {
+        val practitioner = viewModel.getPractitionerById(practitionerId)
+        return practitioner?.identifier
+    }
+
 
     suspend fun grantFullDiagnosticReportAccess(
         resourceId: String,
@@ -1130,7 +1206,10 @@ class MedPlumAPI(private val application: Application, private val viewModel: Wa
         val client = OkHttpClient()
 
         // Step 1: Get existing AccessPolicy ID from ProjectMembership
-        val policyId = getAccessPolicyIdFromProjectMembership(practitionerId, accessToken)
+        //val policyId = getAccessPolicyIdFromProjectMembership(practitionerId, accessToken)
+        //    ?: return@withContext false
+
+        val policyId = getAccessPolicyIdFromPractitioner(practitionerId)
             ?: return@withContext false
 
         Log.d("MedPlum", "Found AccessPolicy ID: $policyId")
@@ -1169,6 +1248,13 @@ class MedPlumAPI(private val application: Application, private val viewModel: Wa
                 put("criteria", "DiagnosticReport?_id=$resourceId")
             })
             updatedPolicy.put("resource", resourceArray)
+
+            if (createConsentResource(patientId, practitionerId, "DiagnosticReport/$resourceId")) {
+                Log.d("MedPlum", "Consent created successfully for DiagnosticReport")
+            } else {
+                Log.e("MedPlum", "Failed to create Consent for DiagnosticReport")
+                return@withContext false
+            }
 
             // PUT now to ensure DR is visible before fetching result[]
             val updateBody = updatedPolicy.toString().toRequestBody("application/fhir+json".toMediaType())

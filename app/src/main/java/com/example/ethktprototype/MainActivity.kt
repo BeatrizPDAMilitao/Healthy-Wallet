@@ -31,6 +31,7 @@ import com.example.ethktprototype.screens.MedicationScreen
 import com.example.ethktprototype.screens.PatientDetailsScreen
 import com.example.ethktprototype.screens.PatientsListScreen
 import com.example.ethktprototype.screens.PrescriptionsScreen
+import com.example.ethktprototype.screens.SharedWithDoctorScreen
 import com.example.ethktprototype.screens.TransactionScreen
 import com.example.ethktprototype.screens.VaccinationsScreen
 import kotlinx.coroutines.runBlocking
@@ -139,6 +140,9 @@ class MainActivity : ComponentActivity() {
                         composable("patientDetails/{patientId}") { backStackEntry ->
                             val patientId = backStackEntry.arguments?.getString("patientId")
                             PatientDetailsScreen(navController = navController, viewModel = viewModel, patientId = patientId.toString())
+                        }
+                        composable("patientsListScreen"){
+                            SharedWithDoctorScreen(navController = navController, viewModel = viewModel)
                         }
                         composable("createEHR/{patientId}") { backStackEntry ->
                             val patientId = backStackEntry.arguments?.getString("patientId")

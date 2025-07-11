@@ -18,11 +18,14 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ExpandLess
 import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.Card
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -147,8 +150,10 @@ fun ExamsScreen(
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ExamList(diagnosticReports: List<DiagnosticReportEntity>, isPatient: Boolean, viewModel: WalletViewModel) {
+    val practitioners by viewModel.practitioners.collectAsState()
     LazyColumn(
         modifier = Modifier
             .fillMaxSize()
@@ -208,6 +213,85 @@ fun ExamList(diagnosticReports: List<DiagnosticReportEntity>, isPatient: Boolean
                                 modifier = Modifier.fillMaxWidth()
                             ) {
                                 Text("Request full access.")
+                            }
+                        } else {
+                            Spacer(modifier = Modifier.height(16.dp))
+
+                            var showModal by remember { mutableStateOf(false) }
+                            var searchQuery by remember { mutableStateOf("") }
+
+                            IconButton(
+                                onClick = { showModal = true },
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Share,
+                                    contentDescription = "Share"
+                                )
+                            }
+
+                            if (showModal) {
+                                ModalBottomSheet(
+                                    onDismissRequest = { showModal = false }
+                                ) {
+                                    LazyColumn(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(16.dp)
+                                    ) {
+                                        item {
+                                            Text(
+                                                text = "Share with Practitioner",
+                                                style = MaterialTheme.typography.titleLarge,
+                                                modifier = Modifier.padding(bottom = 16.dp)
+                                            )
+                                        }
+
+                                        item {
+                                            // Campo de pesquisa
+                                            androidx.compose.material3.TextField(
+                                                value = searchQuery,
+                                                onValueChange = { searchQuery = it },
+                                                label = { Text("Search by name") },
+                                                modifier = Modifier.fillMaxWidth()
+                                            )
+                                        }
+
+                                        item {
+                                            Spacer(modifier = Modifier.height(16.dp))
+                                        }
+
+                                        // Lista de practitioners
+                                        val filteredPractitioners = practitioners.filter {
+                                            it.name.contains(searchQuery, ignoreCase = true)
+                                        }
+
+                                        items(filteredPractitioners) { practitioner ->
+                                            Row(
+                                                modifier = Modifier
+                                                    .fillMaxWidth()
+                                                    .clickable {
+                                                        viewModel.shareAccessWithPractitioner(practitioner.id, diagnostic.id)
+                                                        showModal = false
+                                                    }
+                                                    .padding(vertical = 8.dp),
+                                                verticalAlignment = Alignment.CenterVertically
+                                            ) {
+                                                Text(
+                                                    text = practitioner.name,
+                                                    style = MaterialTheme.typography.bodyLarge,
+                                                    modifier = Modifier.weight(1f)
+                                                )
+                                                Text(
+                                                    text = practitioner.telecom,
+                                                    style = MaterialTheme.typography.bodyLarge,
+                                                    modifier = Modifier.weight(1f)
+                                                )
+                                            }
+                                            Spacer(modifier = Modifier.height(8.dp))
+                                        }
+                                    }
+                                }
                             }
                         }
                     }

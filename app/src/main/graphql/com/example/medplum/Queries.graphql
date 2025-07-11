@@ -111,6 +111,27 @@ query GetPractitionerComplete($id: ID!) {
   }
 }
 
+query GetPractitionersList($name: String!) {
+  PractitionerList(name: $name) {
+    id
+    name {
+      given
+      family
+    }
+    gender
+    telecom {
+      system
+      value
+      use
+    }
+    identifier {
+      system
+      value
+    }
+  }
+}
+
+
 query GetPatientListForPractitioner($id: String!) {
   PatientList(general_practitioner: $id) {
     id
