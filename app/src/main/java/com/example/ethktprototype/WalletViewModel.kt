@@ -2,10 +2,7 @@ package com.example.ethktprototype
 
 import android.app.Application
 import android.content.Context
-import android.graphics.Bitmap
-import android.graphics.BitmapFactory
 import android.util.Log
-import androidx.core.graphics.translationMatrix
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.ethktprototype.data.AllergyIntoleranceEntity
@@ -26,6 +23,7 @@ import com.example.ethktprototype.data.TransactionEntity
 import com.example.ethktprototype.data.ZkpEntity
 import com.example.ethktprototype.data.ZkpExamRequestPayload
 import com.example.ethktprototype.data.toTransaction
+import com.example.ethktprototype.data.SharedEHRState
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -54,6 +52,7 @@ import com.example.ethktprototype.data.GraphQLQueries.buildGetPatientMedicationS
 import com.example.ethktprototype.data.GraphQLQueries.buildGetPatientProceduresQuery
 import com.example.ethktprototype.data.GraphQLQueries.buildPatientCompleteQuery
 import com.example.ethktprototype.data.GraphQLQueries.buildPractitionerCompleteQuery
+import com.example.ethktprototype.data.GraphQLQueries.buildPractitionersListQuery
 import com.example.ethktprototype.data.HealthSummaryResult
 import com.example.ethktprototype.data.PractitionerEntity
 import com.example.ethktprototype.data.TransactionDao
@@ -105,6 +104,7 @@ class WalletViewModel(application: Application) : AndroidViewModel(application) 
     private val OBSERVATIONS_KEY = "Observations"
     private val PRACTITIONER_KEY = "Practitioner"
     private val ACCESS_REQUESTS_KEY = "AccessRequests"
+    private val SHARED_EHR_KEY = "SharedEHR"
     private val projectId = "01968b55-0883-771d-8f28-b35784bda289"
 
 
@@ -1396,6 +1396,55 @@ class WalletViewModel(application: Application) : AndroidViewModel(application) 
                 transactionDao.getObservations().groupBy { it.subjectId }
             }
             _observations.value = cached
+        }
+    }
+
+    private val _sharedEHR = MutableStateFlow(SharedEHRState())
+    val sharedEHR: StateFlow<SharedEHRState> = _sharedEHR
+    fun getSharedEHRs(subjectId: String = getLoggedInUsertId()) {
+        viewModelScope.launch {
+            _uiState.update { it.copy(isSharedEHRLoading = true) }
+            try {
+                //TODO: Log access to shared EHRs
+                val sharedEHRs = withContext(Dispatchers.IO) {
+                    medPlumAPI.loadSharedResourcesFromConsents(subjectId)
+                }
+                sharedEHRs.let {
+                     _sharedEHR.value = SharedEHRState(
+                        diagnosticReports = (it["DiagnosticReport"] ?.map { json ->
+                            gson.fromJson(json.toString(), DiagnosticReportEntity::class.java)
+                        }) ?: emptyList(),
+                         observations = (it["Observation"] ?.map { json ->
+                            gson.fromJson(json.toString(), ObservationEntity::class.java)
+                        }) ?: emptyList(),
+                         immunizations = (it["Immunization"] ?.map { json ->
+                            gson.fromJson(json.toString(), ImmunizationEntity::class.java)
+                        }) ?: emptyList(),
+                         medicationStatements = (it["MedicationStatement"] ?.map { json ->
+                            gson.fromJson(json.toString(), MedicationStatementEntity::class.java)
+                        }) ?: emptyList(),
+                         allergies = (it["AllergyIntolerance"] ?.map { json ->
+                            gson.fromJson(json.toString(), AllergyIntoleranceEntity::class.java)
+                        }) ?: emptyList(),
+                         medicationRequests = (it["MedicationRequest"] ?.map { json ->
+                            gson.fromJson(json.toString(), MedicationRequestEntity::class.java)
+                        }) ?: emptyList(),
+                         procedures = (it["Procedure"] ?.map { json ->
+                            gson.fromJson(json.toString(), ProcedureEntity::class.java)
+                        }) ?: emptyList(),
+                         conditions = (it["Condition"] ?.map { json ->
+                            gson.fromJson(json.toString(), ConditionEntity::class.java)
+                        }) ?: emptyList(),
+                     )
+                    //transactionDao.insertSharedEHRs(it)
+                    updateHasFetched(SHARED_EHR_KEY, true)
+                }
+                Log.d("SharedEHRData", "Shared EHRs: $sharedEHRs")
+            } catch (e: Exception) {
+                Log.e("Exams", "Error fetching", e)
+            } finally {
+                _uiState.update { it.copy(isSharedEHRLoading = false) }
+            }
         }
     }
 

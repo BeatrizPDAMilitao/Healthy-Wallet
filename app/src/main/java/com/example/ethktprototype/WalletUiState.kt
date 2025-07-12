@@ -55,6 +55,7 @@ data class WalletUiState(
         "HealthSummary" to false,
         "Practitioner" to false,
         "AccessRequests" to false,
+        "SharedEHR" to false
     ),
     var isAppLoading: Boolean = false,
     var isPatientLoading: Boolean = false,
@@ -68,4 +69,5 @@ data class WalletUiState(
     var isDevicesLoading: Boolean = false,
     var isProceduresLoading: Boolean = false,
     var isHealthSummaryLoading: Boolean = false,
+    var isSharedEHRLoading: Boolean = false,
     )

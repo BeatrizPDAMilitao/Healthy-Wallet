@@ -1081,7 +1081,8 @@ class MedPlumAPI(private val application: Application, private val viewModel: Wa
     suspend fun createConsentResource(
         patientId: String,
         practitionerId: String,
-        resourceId: String
+        resourceId: String,
+        accessPolicyId: String
     ): Boolean = withContext(Dispatchers.IO) {
         val accessToken = getAccessToken()
         if (accessToken == null) {
@@ -1092,36 +1093,67 @@ class MedPlumAPI(private val application: Application, private val viewModel: Wa
         val json = JSONObject().apply {
             put("resourceType", "Consent")
             put("status", "active")
+            put("policy", JSONArray().apply {
+                put(JSONObject().apply {
+                    put("uri", "AccessPolicy/$accessPolicyId")
+                })
+            })
             put("scope", JSONObject().apply {
-                put("coding", listOf(JSONObject().apply {
-                    put("system", "http://terminology.hl7.org/CodeSystem/consentscope")
-                    put("code", "patient-privacy")
-                }))
+                put("coding", JSONArray().apply {
+                    put(JSONObject().apply {
+                        put("system", "http://terminology.hl7.org/CodeSystem/consentscope")
+                        put("code", "patient-privacy")
+                    })
+                })
+            })
+            put("category", JSONArray().apply {
+                put(JSONObject().apply {
+                    put("coding", JSONArray().apply {
+                        put(JSONObject().apply {
+                            put("system", "http://terminology.hl7.org/CodeSystem/consentcategorycodes")
+                            put("code", "INFA")
+                        })
+                    })
+                })
             })
             put("patient", JSONObject().apply {
-                put("reference", "Patient/$patientId")
+                put("reference", patientId)
             })
-            put("performer", listOf(JSONObject().apply {
-                put("reference", "Practitioner/$practitionerId")
-            }))
+            put("performer", JSONArray().apply {
+                put(JSONObject().apply {
+                    put("reference", "Practitioner/$practitionerId")
+                })
+            })
             put("provision", JSONObject().apply {
                 put("type", "permit")
-                put("actor", listOf(JSONObject().apply {
-                    put("role", JSONObject().apply {
-                        put("coding", listOf(JSONObject().apply {
-                            put("system", "http://terminology.hl7.org/CodeSystem/consentactorrole")
-                            put("code", "PRCP")
-                        }))
+                put("actor", JSONArray().apply {
+                    put(JSONObject().apply {
+                        put("role", JSONObject().apply {
+                            put("coding", JSONArray().apply {
+                                put(JSONObject().apply {
+                                    put("system", "http://terminology.hl7.org/CodeSystem/consentactorrole")
+                                    put("code", "PRCP")
+                                })
+                            })
+                        })
+                        put("reference", JSONObject().apply {
+                            put("reference", "Practitioner/$practitionerId")
+                        })
                     })
-                    put("reference", JSONObject().apply {
-                        put("reference", "Practitioner/$practitionerId")
+                })
+                put("data", JSONArray().apply {
+                    put(JSONObject().apply {
+                        put("meaning", "instance")
+                        put("reference", JSONObject().apply {
+                            put("reference", resourceId) // e.g., "DiagnosticReport/abc123"
+                        })
                     })
-                }))
-                put("resource", listOf(JSONObject().apply {
-                    put("reference", resourceId)  // e.g. "DiagnosticReport/abc123"
-                }))
+                })
             })
         }
+
+        Log.d("ConsentPayload", json.toString(2))
+
 
         val body = json.toString().toRequestBody("application/fhir+json".toMediaType())
         val request = Request.Builder()
@@ -1249,7 +1281,7 @@ class MedPlumAPI(private val application: Application, private val viewModel: Wa
             })
             updatedPolicy.put("resource", resourceArray)
 
-            if (createConsentResource(patientId, practitionerId, "DiagnosticReport/$resourceId")) {
+            if (createConsentResource(patientId, practitionerId, "DiagnosticReport/$resourceId", policyId)) {
                 Log.d("MedPlum", "Consent created successfully for DiagnosticReport")
             } else {
                 Log.e("MedPlum", "Failed to create Consent for DiagnosticReport")
@@ -1321,4 +1353,94 @@ class MedPlumAPI(private val application: Application, private val viewModel: Wa
         Log.d("MedPlum", "AccessPolicy updated with Observations")
         return@withContext true
     }
+
+    suspend fun loadSharedResourcesFromConsents(
+        practitionerId: String,
+    ): Map<String, List<JSONObject>> = withContext(Dispatchers.IO) {
+        val accessToken = getAccessToken()
+        if (accessToken == null) {
+            Log.e("MedPlum", "No access token available.")
+            return@withContext emptyMap()
+        }
+
+        val client = OkHttpClient()
+        val result = mutableMapOf<String, MutableList<JSONObject>>()
+
+        Log.d("MedPlum", "Fetching consents for practitioner $practitionerId")
+
+        // 1. Fetch all Consents (filter manually since actor search doesn't work directly)
+        val consentUrl2 = "https://api.medplum.com/fhir/R4/Consent?status=active"
+        val consentRequest = Request.Builder()
+            .url(consentUrl2)
+            .addHeader("Authorization", "Bearer $accessToken")
+            .get()
+            .build()
+
+        Log.d("MedPlum", "Consent request URL: ${consentRequest.url}, Headers: ${consentRequest.headers}")
+        val consentsResponse = client.newCall(consentRequest).execute().use { res ->
+            if (!res.isSuccessful) {
+                Log.e("MedPlum", "Failed to fetch consents: ${res.code}")
+                Log.e("MedPlum", "Response body: ${res.body?.string()}")
+                return@withContext emptyMap()
+            }
+            val body = res.body?.string() ?: return@withContext emptyMap()
+            Log.d("MedPlum", "Consents response: $body")
+            JSONObject(body)
+        }
+
+        val entries = consentsResponse.optJSONArray("entry") ?: return@withContext emptyMap()
+
+        for (i in 0 until entries.length()) {
+            val consent = entries.getJSONObject(i).optJSONObject("resource") ?: continue
+            val provision = consent.optJSONObject("provision") ?: continue
+
+            // Only include consents that mention this practitioner as an actor
+            val actors = provision.optJSONArray("actor") ?: continue
+            val matchesPractitioner = (0 until actors.length()).any {
+                val ref = actors.getJSONObject(it).optJSONObject("reference")?.optString("reference")
+                ref == "Practitioner/$practitionerId"
+            }
+            if (!matchesPractitioner) continue
+
+            val dataArray = provision.optJSONArray("data") ?: continue
+            for (j in 0 until dataArray.length()) {
+                val ref = dataArray.getJSONObject(j).optJSONObject("reference")?.optString("reference") ?: continue
+                val parts = ref.split("/")
+                if (parts.size != 2) continue
+
+                val type = parts[0]
+                val id = parts[1]
+
+                val resourceUrl = "https://api.medplum.com/fhir/R4/$type/$id"
+                val resourceRequest = Request.Builder()
+                    .url(resourceUrl)
+                    .addHeader("Authorization", "Bearer $accessToken")
+                    .get()
+                    .build()
+
+                try {
+                    val resourceResponse = client.newCall(resourceRequest).execute().use { res ->
+                        if (!res.isSuccessful) {
+                            Log.w("MedPlum", "Failed to fetch $type/$id: ${res.code}")
+                            null
+                        } else {
+                            val json = res.body?.string() ?: return@use null
+                            JSONObject(json)
+                        }
+                    }
+
+                    resourceResponse?.let { json ->
+                        result.getOrPut(type) { mutableListOf() }.add(json)
+                    }
+
+                } catch (e: Exception) {
+                    Log.e("MedPlum", "Error fetching $type/$id", e)
+                }
+            }
+        }
+
+        return@withContext result
+    }
+
+
 }

@@ -39,12 +39,12 @@ fun SharedWithDoctorScreen(
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val context = LocalContext.current
-    val patients by viewModel.patients.collectAsState()
+    val sharedEHRs by viewModel.sharedEHR.collectAsState()
 
     LaunchedEffect(true) {
-        /*if (!viewModel.uiState.value.hasFetched.getOrDefault("Patient", false)) {
-            viewModel.getPatientListForPractitioner()
-        }*/
+        if (!viewModel.uiState.value.hasFetched.getOrDefault("SharedEHR", false)) {
+            //viewModel.getSharedEHRs()
+        }
     }
 
     Box(
@@ -80,7 +80,7 @@ fun SharedWithDoctorScreen(
                         )
                     )
                     IconButton(onClick = {
-                        //viewModel.getPatientListForPractitioner()
+                        viewModel.getSharedEHRs()
                     }) {
                         Icon(
                             imageVector = Icons.Default.Refresh,
@@ -107,10 +107,10 @@ fun SharedWithDoctorScreen(
                     .fillMaxWidth()
                     .padding(horizontal = 20.dp)
             ) {
-                if (patients.isEmpty()) {
-                    Text("No patients found.")
+                if (sharedEHRs.diagnosticReports.isEmpty()) {
+                    Text("No diagnostic reports found.")
                 } else {
-                    PatientList(patients, navController)
+                    ExamList(sharedEHRs.diagnosticReports, isPatient = false, viewModel)
                 }
             }
         }
