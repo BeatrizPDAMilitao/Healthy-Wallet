@@ -1412,28 +1412,91 @@ class WalletViewModel(application: Application) : AndroidViewModel(application) 
                 sharedEHRs.let {
                      _sharedEHR.value = SharedEHRState(
                         diagnosticReports = (it["DiagnosticReport"] ?.map { json ->
-                            gson.fromJson(json.toString(), DiagnosticReportEntity::class.java)
+                            DiagnosticReportEntity(
+                                id = json.getString("id"),
+                                subjectId = json.getString("subject"),
+                                status = json.getString("status"),
+                                code = json.getJSONObject("code").optString("text"),
+                                result = (json.optJSONArray("result")?.let { results ->
+                                    List(results.length()) { index ->
+                                        results.getJSONObject(index).optString("reference")
+                                    }
+                                } ?: emptyList()).toString(),
+                                effectiveDateTime = json.optString("effectiveDateTime") ?: "",
+                            )
                         }) ?: emptyList(),
                          observations = (it["Observation"] ?.map { json ->
-                            gson.fromJson(json.toString(), ObservationEntity::class.java)
+                            ObservationEntity(
+                                id = json.getString("id"),
+                                subjectId = json.getString("subject"),
+                                status = json.getString("status"),
+                                code = json.getJSONObject("code").optString("text"),
+                                unit = json.optJSONObject("unit")?.optString("unit") ?: "",
+                                valueQuantity = json.optJSONObject("value")?.optString("value") ?: "",
+                                effectiveDateTime = json.optString("effectiveDateTime") ?: "",
+                            )
                         }) ?: emptyList(),
                          immunizations = (it["Immunization"] ?.map { json ->
-                            gson.fromJson(json.toString(), ImmunizationEntity::class.java)
+                            ImmunizationEntity(
+                                id = json.getString("id"),
+                                subjectId = json.getString("patient"),
+                                status = json.getString("status"),
+                                vaccine = json.getJSONObject("vaccineCode").optString("text") ?: "",
+                                lotNumber = json.optString("lotNumber", "") ?: "",
+                                occurrenceDateTime = json.optString("occurrenceDateTime") ?: "",
+                            )
                         }) ?: emptyList(),
                          medicationStatements = (it["MedicationStatement"] ?.map { json ->
-                            gson.fromJson(json.toString(), MedicationStatementEntity::class.java)
+                            MedicationStatementEntity(
+                                id = json.getString("id"),
+                                subjectId = json.getString("subject"),
+                                status = json.getString("status"),
+                                medication = json.getJSONObject("medicationCodeableConcept").optString("text"),
+                                start = json.optJSONObject("effectivePeriod")?.optString("start", "") ?: "",
+                                end = json.optJSONObject("effectivePeriod")?.optString("end", "") ?: "",
+                            )
                         }) ?: emptyList(),
                          allergies = (it["AllergyIntolerance"] ?.map { json ->
-                            gson.fromJson(json.toString(), AllergyIntoleranceEntity::class.java)
+                            AllergyIntoleranceEntity(
+                                id = json.getString("id"),
+                                subjectId = json.getString("patient"),
+                                status = json.getString("clinicalStatus"),
+                                code = json.getJSONObject("code").optString("text") ?: "",
+                                recordedDate = json.optString("recordedDate", "") ?: "",
+                                onset = json.optString("onsetDateTime", "") ?: "",
+                            )
                         }) ?: emptyList(),
                          medicationRequests = (it["MedicationRequest"] ?.map { json ->
-                            gson.fromJson(json.toString(), MedicationRequestEntity::class.java)
+                            MedicationRequestEntity(
+                                id = json.getString("id"),
+                                subjectId = json.getString("subjectI"),
+                                status = json.getString("status"),
+                                medication = json.getJSONObject("medicationCodeableConcept").getString("text"),
+                                authoredOn = json.optString("authoredOn", "") ?: "",
+                                dosage = json.optJSONArray("dosageInstruction")?.let { array ->
+                                    (0 until array.length()).joinToString { index ->
+                                        array.getJSONObject(index).optString("text", "")
+                                    }
+                                } ?: ""                            )
                         }) ?: emptyList(),
                          procedures = (it["Procedure"] ?.map { json ->
-                            gson.fromJson(json.toString(), ProcedureEntity::class.java)
+                            ProcedureEntity(
+                                id = json.getString("id"),
+                                subjectId = json.getString("subject"),
+                                status = json.getString("status"),
+                                code = json.getJSONObject("code").getString("text") ?: "",
+                                performedDateTime = json.optString("performedDateTime", "") ?: "",
+                            )
                         }) ?: emptyList(),
                          conditions = (it["Condition"] ?.map { json ->
-                            gson.fromJson(json.toString(), ConditionEntity::class.java)
+                            ConditionEntity(
+                                id = json.getString("id"),
+                                subjectId = json.getString("subject"),
+                                clinicalStatus = json.getString("clinicalStatus") ?: "",
+                                onsetDateTime = json.optString("onsetDateTime", "") ?: "",
+                                recorderId = json.optString("recorderId", "") ?: "",
+                                code = json.getJSONObject("code").optString("text") ?: "",
+                            )
                         }) ?: emptyList(),
                      )
                     //transactionDao.insertSharedEHRs(it)

@@ -1392,13 +1392,16 @@ class MedPlumAPI(private val application: Application, private val viewModel: Wa
 
         for (i in 0 until entries.length()) {
             val consent = entries.getJSONObject(i).optJSONObject("resource") ?: continue
+            val performer = consent.optJSONArray("performer")?.optJSONObject(0) ?: continue
+            Log.d("MedPlum", "Performer: $performer")
             val provision = consent.optJSONObject("provision") ?: continue
+            Log.d("MedPlum", "Provision: $provision")
 
             // Only include consents that mention this practitioner as an actor
             val actors = provision.optJSONArray("actor") ?: continue
             val matchesPractitioner = (0 until actors.length()).any {
                 val ref = actors.getJSONObject(it).optJSONObject("reference")?.optString("reference")
-                ref == "Practitioner/$practitionerId"
+                ref == practitionerId
             }
             if (!matchesPractitioner) continue
 

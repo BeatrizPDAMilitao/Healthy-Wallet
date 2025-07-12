@@ -43,7 +43,7 @@ fun SharedWithDoctorScreen(
 
     LaunchedEffect(true) {
         if (!viewModel.uiState.value.hasFetched.getOrDefault("SharedEHR", false)) {
-            //viewModel.getSharedEHRs()
+            viewModel.getSharedEHRs()
         }
     }
 
