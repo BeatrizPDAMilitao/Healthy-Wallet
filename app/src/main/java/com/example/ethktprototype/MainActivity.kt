@@ -141,7 +141,7 @@ class MainActivity : ComponentActivity() {
                             val patientId = backStackEntry.arguments?.getString("patientId")
                             PatientDetailsScreen(navController = navController, viewModel = viewModel, patientId = patientId.toString())
                         }
-                        composable("patientsListScreen"){
+                        composable("sharedWithDoctor") {
                             SharedWithDoctorScreen(navController = navController, viewModel = viewModel)
                         }
                         composable("createEHR/{patientId}") { backStackEntry ->

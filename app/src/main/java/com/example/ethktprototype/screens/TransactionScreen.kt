@@ -56,6 +56,7 @@ import org.json.JSONObject
 import net.glxn.qrgen.android.QRCode
 import com.example.ethktprototype.composables.BottomNavigationBar
 import com.example.ethktprototype.data.DiagnosticReportEntity
+import com.example.ethktprototype.data.PractitionerEntity
 import kotlinx.coroutines.launch
 
 /**
@@ -83,10 +84,16 @@ fun TransactionScreen(
 
     var resource = remember { mutableStateOf<Any?>(null) }
 
+    var practitioner = remember { mutableStateOf<PractitionerEntity?>(null)}
+
     LaunchedEffect(transactionId) {
         if (!viewModel.uiState.value.isTransactionProcessing) {
             transaction.value = viewModel.getTransactionById(transactionId.toString())
             Log.d("ExampleTestSample", "Found transaction: ${transaction.value?.id}")
+            Log.d("ExampleTestSample", "Practitioner ID: ${transaction.value?.practitionerId}")
+            practitioner.value = viewModel.getPractitionerById("019706de-8160-73cb-80c5-ac086436dda0")//transaction.value!!.practitionerId.trim())
+            Log.d("ExampleTestSample", "Practitioner fetched:"+ viewModel.getPractitionerById("019706de-8160-73cb-80c5-ac086436dda0"))
+            Log.d("ExampleTestSample", "Practitioner fetched: ${practitioner.value?.name}")
         }
     }
 
@@ -180,14 +187,14 @@ fun TransactionScreen(
                     ) {
                         if (!transaction.value!!.conditions.isNullOrEmpty()) {
                             Text(
-                                text = "Practitioner ${transaction.value!!.practitionerId} requested proof for ${transaction.value!!.type}",
+                                text = "Practitioner " + (practitioner.value?.name ?: transaction.value?.practitionerId ) + " requested proof for ${transaction.value!!.type}",
                                 style = MaterialTheme.typography.bodyLarge,
                                 fontWeight = FontWeight.Bold,
                                 color = MaterialTheme.colorScheme.onSurface
                             )
                         } else {
                             Text(
-                                text = "Practitioner ${transaction.value!!.practitionerId} requested access to your ${transaction.value!!.type}",
+                                text = "Practitioner " + (practitioner.value?.name ?: transaction.value?.practitionerId ) + " requested access to your ${transaction.value!!.type}",
                                 style = MaterialTheme.typography.bodyLarge,
                                 fontWeight = FontWeight.Bold,
                                 color = MaterialTheme.colorScheme.onSurface
@@ -207,25 +214,19 @@ fun TransactionScreen(
                             color = MaterialTheme.colorScheme.onSurface
                         )
                         Spacer(modifier = Modifier.height(8.dp))
-                        TextButton(
-                            onClick = {
-                                viewModel.getPractitionerData(transaction.value!!.practitionerId);
-                                viewModel.setShowDataDialog(true)
-                            },
-                        ) {
-                            Text(
-                                text = "Practitioner ID: ${transaction.value!!.practitionerId}",
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = MaterialTheme.colorScheme.onSurface
-                            )
-                        }
-                        Spacer(modifier = Modifier.height(8.dp))
+
                         Text(
-                            text = "Patient ID: ${transaction.value!!.patientId}",
+                            text = "Practitioner name: ${"Dr." + practitioner.value?.name}",
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onSurface
                         )
                         Spacer(modifier = Modifier.height(8.dp))
+                        /*Text(
+                            text = "Patient ID: ${transaction.value!!.patientId}",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))*/
                         Text(
                             text = "Type: ${transaction.value!!.type}",
                             style = MaterialTheme.typography.bodyMedium,
@@ -371,7 +372,9 @@ fun TransactionScreen(
                                             val recordId = transaction.value!!.recordId
                                             val requester = transaction.value!!.practitionerAddress
                                             val practitionerId = transaction.value!!.practitionerId
-                                            viewModel.callAcceptContract(transactionId, practitionerId, recordId, requester)
+                                            viewModel.viewModelScope.launch {
+                                                viewModel.callAcceptContract(transactionId, practitionerId, recordId, requester)
+                                            }
                                         }
                                     },
                                     modifier = Modifier.weight(1f),

@@ -101,6 +101,7 @@ fun ExamsScreen(
                     )
                     IconButton(onClick = {
                         viewModel.getDiagnosticReports()
+                        viewModel.getPractitionersData()
                     }) {
                         Icon(
                             imageVector = Icons.Default.Refresh,
@@ -203,16 +204,21 @@ fun ExamList(diagnosticReports: List<DiagnosticReportEntity>, isPatient: Boolean
                         Text("Results: ${diagnostic.result}")
 
                         if (!isPatient) {
-                            Spacer(modifier = Modifier.height(16.dp))
-                            androidx.compose.material3.Button(
-                                onClick = {
-                                    viewModel.viewModelScope.launch {
-                                        viewModel.requestAccess(diagnostic.id, "DiagnosticReport")
-                                    }
-                                },
-                                modifier = Modifier.fillMaxWidth()
-                            ) {
-                                Text("Request full access.")
+                            if (diagnostic.status == "NO_CONSENT") {
+                                Spacer(modifier = Modifier.height(16.dp))
+                                androidx.compose.material3.Button(
+                                    onClick = {
+                                        viewModel.viewModelScope.launch {
+                                            viewModel.requestAccess(
+                                                diagnostic.id,
+                                                "DiagnosticReport"
+                                            )
+                                        }
+                                    },
+                                    modifier = Modifier.fillMaxWidth()
+                                ) {
+                                    Text("Request access")
+                                }
                             }
                         } else {
                             Spacer(modifier = Modifier.height(16.dp))
@@ -271,19 +277,14 @@ fun ExamList(diagnosticReports: List<DiagnosticReportEntity>, isPatient: Boolean
                                                 modifier = Modifier
                                                     .fillMaxWidth()
                                                     .clickable {
-                                                        viewModel.shareAccessWithPractitioner(practitioner.id, diagnostic.id)
+                                                        viewModel.shareAccessWithPractitioner(practitioner.id, "DiagnosticReport/"+diagnostic.id)
                                                         showModal = false
                                                     }
                                                     .padding(vertical = 8.dp),
                                                 verticalAlignment = Alignment.CenterVertically
                                             ) {
                                                 Text(
-                                                    text = practitioner.name,
-                                                    style = MaterialTheme.typography.bodyLarge,
-                                                    modifier = Modifier.weight(1f)
-                                                )
-                                                Text(
-                                                    text = practitioner.telecom,
+                                                    text = "Dr." + practitioner.name,
                                                     style = MaterialTheme.typography.bodyLarge,
                                                     modifier = Modifier.weight(1f)
                                                 )

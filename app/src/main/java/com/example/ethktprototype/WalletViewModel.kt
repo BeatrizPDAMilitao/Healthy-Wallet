@@ -250,9 +250,10 @@ class WalletViewModel(application: Application) : AndroidViewModel(application) 
         simulateCreateTimes.add(duration)
     }
 
-    fun callAcceptContract(transactionId: String, practitionerId: String, recordId: String, requester: String) {
+    suspend fun callAcceptContract(transactionId: String, practitionerId: String, recordId: String, requester: String) {
         val mnemonic = getMnemonic()
-        viewModelScope.launch {
+        val duration = withContext(Dispatchers.IO) {
+            val start = System.currentTimeMillis()
             setTransactionProcessing(true)
             try {
                 if (!mnemonic.isNullOrEmpty()) {
@@ -266,6 +267,16 @@ class WalletViewModel(application: Application) : AndroidViewModel(application) 
                         val receipt = withContext(Dispatchers.IO) {
                             walletRepository.acceptAccess2(recordId, requester, credentials)
                         }
+                        val gasPriceHex = receipt.effectiveGasPrice
+
+                        val gasPrice = Numeric.decodeQuantity(
+                            if (gasPriceHex.startsWith("0x")) gasPriceHex else "0x$gasPriceHex"
+                        )
+                        val gasUsed = receipt.gasUsed
+                        val gasFee = gasUsed * gasPrice
+                        Log.d("DenyContract", "Gas fee: $gasFee, Gas used: $gasUsed, Gas price: $gasPrice")
+                        simulateCreateFees.add(gasFee)
+
                         Log.d("AcceptContract", "Access given: ${receipt.transactionHash}")
                         updateUiState { state ->
                             state.copy(
@@ -291,7 +302,9 @@ class WalletViewModel(application: Application) : AndroidViewModel(application) 
                 Log.d("AcceptContract", "Error loading contract: ${e.message}")
             }
             setTransactionProcessing(false)
+            System.currentTimeMillis() - start
         }
+        simulateCreateTimes.add(duration)
     }
 
     fun syncTransactionWithHealthyContract() {
@@ -384,7 +397,7 @@ class WalletViewModel(application: Application) : AndroidViewModel(application) 
                             //call medplum API to get the necessary data
                             //walletRepository.fetchPatient(/*log.patientId*/)
                             val transaction = TransactionEntity(
-                                id = getTransactionId().toString(),
+                                id = "${access.practitionerId}_${access.recordId}".hashCode().toString(),
                                 date = date,
                                 status = access.status,
                                 type = access.type,
@@ -1043,7 +1056,7 @@ class WalletViewModel(application: Application) : AndroidViewModel(application) 
 
     private val _diagnosticReports = MutableStateFlow<Map<String,List<DiagnosticReportEntity>>>(emptyMap())
     val diagnosticReports: StateFlow<Map<String,List<DiagnosticReportEntity>>> = _diagnosticReports
-    fun getDiagnosticReports(subjectId: String = getLoggedInUsertId()) {
+    fun getDiagnosticReports(subjectId: String = getLoggedInUsertId(), isPractitioner: Boolean = false) {
         val query = buildGetPatientDiagnosticReportQuery(subjectId)
         viewModelScope.launch {
             _uiState.update { it.copy(isDiagnosticReportsLoading = true) }
@@ -1051,7 +1064,7 @@ class WalletViewModel(application: Application) : AndroidViewModel(application) 
                 val result = withContext(Dispatchers.IO) {
                     var reports: List<DiagnosticReportEntity>? = null
                     val success = withLoggedAccessPerScreen(DIAGNOSTIC_REPORTS_KEY, listOf(query)) {
-                        val data = medPlumAPI.fetchDiagnosticReports(subjectId)
+                        val data = medPlumAPI.fetchDiagnosticReports(subjectId, isPractitioner= isPractitioner)
                         reports = data
                         data != null
                     }
@@ -1412,16 +1425,37 @@ class WalletViewModel(application: Application) : AndroidViewModel(application) 
                 sharedEHRs.let {
                      _sharedEHR.value = SharedEHRState(
                         diagnosticReports = (it["DiagnosticReport"] ?.map { json ->
+                            val resultRefs = json.optJSONArray("result")?.let { results ->
+                                List(results.length()) { index ->
+                                    results.getJSONObject(index).optString("reference").removePrefix("Observation/")
+                                }
+                            } ?: emptyList()
+
+                            val matchingObservations = it["Observation"]?.mapNotNull { obsJson ->
+                                val obs = ObservationEntity(
+                                    id = obsJson.optString("id", ""),
+                                    status = obsJson.optString("status", ""),
+                                    code = obsJson.optJSONObject("code")?.optString("text") ?: "",
+                                    subjectId = obsJson.optJSONObject("subject")
+                                        ?.optString("reference")
+                                        ?.split("/")?.getOrNull(1) ?: "",
+                                    effectiveDateTime = obsJson.optString("effectiveDateTime", ""),
+                                    valueQuantity = obsJson.optJSONObject("valueQuantity")?.opt("value")?.toString() ?: "",
+                                    unit = obsJson.optJSONObject("valueQuantity")?.optString("unit") ?: ""
+                                )
+
+                                if (obs.id in resultRefs) obs else null
+                            } ?: emptyList()
+
+                            val formattedResults = matchingObservations.joinToString("\n") { obs ->
+                                "${obs.code}: ${obs.valueQuantity} ${obs.unit}".trim()
+                            }
                             DiagnosticReportEntity(
                                 id = json.getString("id"),
                                 subjectId = json.getString("subject"),
                                 status = json.getString("status"),
                                 code = json.getJSONObject("code").optString("text"),
-                                result = (json.optJSONArray("result")?.let { results ->
-                                    List(results.length()) { index ->
-                                        results.getJSONObject(index).optString("reference")
-                                    }
-                                } ?: emptyList()).toString(),
+                                result = formattedResults,
                                 effectiveDateTime = json.optString("effectiveDateTime") ?: "",
                             )
                         }) ?: emptyList(),
@@ -1526,6 +1560,7 @@ class WalletViewModel(application: Application) : AndroidViewModel(application) 
                 transactionDao.deleteAllDevices()
                 transactionDao.deleteAllProcedures()
                 transactionDao.deleteAllPractitioners()
+                transactionDao.deleteAllTransactions()
             }
             _patient.value = null
             _conditions.value = emptyMap()
@@ -1538,6 +1573,8 @@ class WalletViewModel(application: Application) : AndroidViewModel(application) 
             _procedures.value = emptyMap()
             _observations.value = emptyMap()
             _practitioner.value = null
+            _practitioners.value = emptyList()
+            _sharedEHR.value = SharedEHRState()
             walletRepository.updateLastAccessTime(HEALTH_SUMMARY_KEY, 0L) // Reset last access time for health summary
             Log.d("Logout", "Last access time: ${walletRepository.getLastAccessTime(HEALTH_SUMMARY_KEY)}")
             //_uiState.value = WalletUiState() // Reset UI state

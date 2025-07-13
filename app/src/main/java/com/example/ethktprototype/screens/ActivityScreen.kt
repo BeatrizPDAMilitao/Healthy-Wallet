@@ -87,11 +87,6 @@ fun ActivityScreen(
         }
     }
 
-    LaunchedEffect(Unit) {
-        viewModel.getBalances()
-        viewModel.getNftBalances()
-    }
-
     LaunchedEffect(gotTransactions.value) {
         if (!gotTransactions.value && !viewModel.uiState.value.hasFetched.getOrDefault("AccessRequests", false)) {
             Log.d("ExampleTestSample", "Calling getAccessRequestsContract")
@@ -100,10 +95,6 @@ fun ActivityScreen(
         }
     }
 
-    LaunchedEffect(uiState.selectedNetwork) {
-        viewModel.getBalances()
-        viewModel.getNftBalances()
-    }
     LaunchedEffect(gotTransactions.value) {
         viewModel.getTransactions()
     }

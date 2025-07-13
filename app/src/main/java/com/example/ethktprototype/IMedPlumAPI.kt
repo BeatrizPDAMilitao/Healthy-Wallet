@@ -20,7 +20,7 @@ interface IMedPlumAPI {
     suspend fun getMedplumAccessToken(clientId: String, clientSecret: String): String?
     suspend fun fetchConditions(subjectId: String): List<ConditionEntity>?
     suspend fun fetchObservations(subjectId: String): List<ObservationEntity>?
-    suspend fun fetchDiagnosticReports(subjectId: String): List<DiagnosticReportEntity>?
+    suspend fun fetchDiagnosticReports(subjectId: String, isPractitioner: Boolean = false): List<DiagnosticReportEntity>?
     suspend fun fetchMedicationRequests(subjectId: String): List<MedicationRequestEntity>?
     suspend fun fetchMedicationStatements(subjectId: String): List<MedicationStatementEntity>?
     suspend fun fetchImmunizations(subjectId: String): List<ImmunizationEntity>?

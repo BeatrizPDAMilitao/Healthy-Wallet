@@ -49,10 +49,10 @@ fun PatientDetailsScreen(
     LaunchedEffect(patientId) {
         patient.value = viewModel.getPatientById(patientId)
         if (!viewModel.uiState.value.hasFetched.getOrDefault("Patient", false)) {
-            viewModel.getPatientListForPractitioner()
+            viewModel.getPatientListForPractitioner() //Isto está bem??
         }
         if (!viewModel.uiState.value.hasFetched.getOrDefault("DiagnosticReports", false)) {
-            viewModel.getDiagnosticReports(patientId)
+            viewModel.getDiagnosticReports(patientId, isPractitioner= true)
         }
     }
 
@@ -78,7 +78,7 @@ fun PatientDetailsScreen(
                     style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold)
                 )
                 IconButton(onClick = {
-                    viewModel.getDiagnosticReports(patientId)
+                    viewModel.getDiagnosticReports(patientId, isPractitioner= true)
                 }) {
                     Icon(
                         imageVector = Icons.Default.Refresh,

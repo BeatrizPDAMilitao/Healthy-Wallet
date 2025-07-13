@@ -253,7 +253,7 @@ fun EHRsScreen(
                     ) {
                         val features = listOf(
                             "My Patients" to "patientsListScreen",
-                            "Patients List" to "patientsListScreen",
+                            "Shared With Me" to "sharedWithDoctor",
                         )
 
                         features.chunked(2).forEach { row ->

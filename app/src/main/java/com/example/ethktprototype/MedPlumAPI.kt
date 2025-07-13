@@ -493,13 +493,13 @@ class MedPlumAPI(private val application: Application, private val viewModel: Wa
                 val fullName = "$given $family".trim()
 
                 // Gender
-                val gender = practitioner?.gender ?: "unknown"
+                val gender = "unknown"
 
                 // Identifier
                 val identifier = practitioner?.identifier?.firstOrNull { it.system == "access-policy" }?.value ?: ""
 
                 // Telecom (take the first available contact method)
-                val telecom = practitioner?.telecom?.firstOrNull()?.value ?: ""
+                val telecom = ""
 
                 // Address (optional future enhancement)
                 val address = "" // Not included in this query
@@ -668,7 +668,7 @@ class MedPlumAPI(private val application: Application, private val viewModel: Wa
         }
     }
 
-    override suspend fun fetchDiagnosticReports(subjectId: String): List<DiagnosticReportEntity>? {
+    override suspend fun fetchDiagnosticReports(subjectId: String, isPractitioner: Boolean): List<DiagnosticReportEntity>? {
         return try {
             if (!ensureApolloClientInitialized()) return null
 
@@ -681,11 +681,32 @@ class MedPlumAPI(private val application: Application, private val viewModel: Wa
             val data = response.data?.DiagnosticReportList ?: return null
             val observationDao = AppDatabase.getDatabase(application, viewModel.getDbPassphrase()).transactionDao()
 
+            val practitionerId = viewModel.getLoggedInUsertId()
+
             data.map { report ->
                 val reportId = report?.id ?: ""
                 val code = report?.code?.text ?: ""
                 val status = report?.status ?: ""
                 val effectiveDateTime = report?.effectiveDateTime ?: ""
+
+                if (isPractitioner) {
+                    val hasConsent = checkConsentExists(
+                        practitionerId = practitionerId,
+                        resourceId = "DiagnosticReport/$reportId"
+                    )
+                    Log.d("MedPlum", "Has consent for report $reportId: $hasConsent")
+                    if (!hasConsent) {
+                        Log.w("MedPlum", "No consent for report $reportId")
+                        return@map DiagnosticReportEntity(
+                            id = reportId,
+                            code = "",
+                            status = "NO_CONSENT",
+                            effectiveDateTime = "",
+                            result = "",
+                            subjectId = subjectId
+                        )
+                    }
+                }
 
                 // Fetch Observations for each result reference
                 val observations = report?.result?.mapNotNull { ref ->
@@ -1078,6 +1099,43 @@ class MedPlumAPI(private val application: Application, private val viewModel: Wa
         return json.toString()
     }
 
+    suspend fun getObservationIdsFromDiagnosticReport(
+        diagnosticReportId: String
+    ): List<String> = withContext(Dispatchers.IO) {
+        val accessToken = getAccessToken()
+        if (accessToken == null) {
+            Log.e("MedPlum", "No access token available.")
+            return@withContext emptyList()
+        }
+        val client = OkHttpClient()
+
+        val reportUrl = "https://api.medplum.com/fhir/R4/$diagnosticReportId"
+        val request = Request.Builder()
+            .url(reportUrl)
+            .addHeader("Authorization", "Bearer $accessToken")
+            .get()
+            .build()
+
+        try {
+            client.newCall(request).execute().use { response ->
+                if (response.isSuccessful) {
+                    val json = JSONObject(response.body?.string() ?: "")
+                    val results = json.optJSONArray("result") ?: JSONArray()
+                    Log.d("MedPlum", "Observation IDs: $results")
+                    return@withContext List(results.length()) { i ->
+                        results.getJSONObject(i).optString("reference", "")
+                    }.filter { it.startsWith("Observation/") }
+                } else {
+                    Log.e("MedPlum", "Failed to fetch DiagnosticReport: ${response.code}")
+                    return@withContext emptyList()
+                }
+            }
+        } catch (e: Exception) {
+            Log.e("MedPlum", "Error fetching DiagnosticReport", e)
+            return@withContext emptyList()
+        }
+    }
+
     suspend fun createConsentResource(
         patientId: String,
         practitionerId: String,
@@ -1089,12 +1147,25 @@ class MedPlumAPI(private val application: Application, private val viewModel: Wa
             Log.e("MedPlum", "No access token available.")
             return@withContext false
         }
+        val client = OkHttpClient()
+
+        val dataRefs = mutableListOf(resourceId)
+
+        if (resourceId.startsWith("DiagnosticReport/")) {
+            getObservationIdsFromDiagnosticReport(resourceId).forEach {
+                if (it.isNotEmpty()) {
+                    dataRefs.add(it)
+                }
+            }
+            Log.d("MedPlum", "Data Refs: $dataRefs")
+        }
 
         val json = JSONObject().apply {
             put("resourceType", "Consent")
             put("status", "active")
             put("policy", JSONArray().apply {
                 put(JSONObject().apply {
+                    put("authority", "https://api.medplum.com")///fhir/R4")
                     put("uri", "AccessPolicy/$accessPolicyId")
                 })
             })
@@ -1142,12 +1213,14 @@ class MedPlumAPI(private val application: Application, private val viewModel: Wa
                     })
                 })
                 put("data", JSONArray().apply {
-                    put(JSONObject().apply {
-                        put("meaning", "instance")
-                        put("reference", JSONObject().apply {
-                            put("reference", resourceId) // e.g., "DiagnosticReport/abc123"
+                    dataRefs.forEach { ref ->
+                        put(JSONObject().apply {
+                            put("meaning", "instance")
+                            put("reference", JSONObject().apply {
+                                put("reference", ref) // e.g., "DiagnosticReport/abc123" or "Observation/xyz456"
+                            })
                         })
-                    })
+                    }
                 })
             })
         }
@@ -1163,7 +1236,6 @@ class MedPlumAPI(private val application: Application, private val viewModel: Wa
             .build()
 
         try {
-            val client = OkHttpClient()
             client.newCall(request).execute().use { response ->
                 if (response.isSuccessful) {
                     Log.d("MedPlum", "Consent created successfully")
@@ -1180,55 +1252,13 @@ class MedPlumAPI(private val application: Application, private val viewModel: Wa
         }
     }
 
-    suspend fun getAccessPolicyIdFromProjectMembership(
-        practitionerId: String,
-        accessToken: String
-    ): String? = withContext(Dispatchers.IO) {
-        val url = "https://api.medplum.com/fhir/R4/ProjectMembership?profile=Practitioner/$practitionerId"
-        val request = Request.Builder()
-            .url(url)
-            .addHeader("Authorization", "Bearer $accessToken")
-            .get()
-            .build()
-
-        OkHttpClient().newCall(request).execute().use { response ->
-            if (!response.isSuccessful) {
-                Log.e("MedPlum", "Failed to fetch ProjectMembership: ${response.code}")
-                Log.e("MedPlum", "Response body: ${response.body?.string()}")
-                return@withContext null
-            }
-
-            val body = response.body?.string() ?: return@withContext null
-            Log.d("MedPlum", "ProjectMembership response: $body")
-            val bundle = JSONObject(body)
-            val entries = bundle.optJSONArray("entry") ?: return@withContext null
-            Log.d("MedPlum", "ProjectMembership entries: $entries")
-
-            for (i in 0 until entries.length()) {
-                val membership = entries.getJSONObject(i).optJSONObject("resource") ?: continue
-                val policy = membership.optJSONObject("accessPolicy")
-                if (policy != null) {
-                    val ref = policy.optString("reference")
-                    if (ref.startsWith("AccessPolicy/")) {
-                        val policyId = ref.removePrefix("AccessPolicy/")
-                        Log.d("MedPlum", "Found AccessPolicy ID: $policyId")
-                        return@withContext policyId
-                    }
-                }
-            }
-
-            Log.d("MedPlum", "No accessPolicy found in ProjectMembership")
-            return@withContext null
-        }
-    }
-
     suspend fun getAccessPolicyIdFromPractitioner(practitionerId: String): String? {
         val practitioner = viewModel.getPractitionerById(practitionerId)
         return practitioner?.identifier
     }
 
 
-    suspend fun grantFullDiagnosticReportAccess(
+    /*suspend fun grantFullDiagnosticReportAccess(
         resourceId: String,
         practitionerId: String,
         projectId: String,
@@ -1238,9 +1268,6 @@ class MedPlumAPI(private val application: Application, private val viewModel: Wa
         val client = OkHttpClient()
 
         // Step 1: Get existing AccessPolicy ID from ProjectMembership
-        //val policyId = getAccessPolicyIdFromProjectMembership(practitionerId, accessToken)
-        //    ?: return@withContext false
-
         val policyId = getAccessPolicyIdFromPractitioner(practitionerId)
             ?: return@withContext false
 
@@ -1275,11 +1302,11 @@ class MedPlumAPI(private val application: Application, private val viewModel: Wa
         }
 
         if (!alreadyIncluded("DiagnosticReport", "DiagnosticReport?_id=$resourceId")) {
-            resourceArray.put(JSONObject().apply {
+            /*resourceArray.put(JSONObject().apply {
                 put("resourceType", "DiagnosticReport")
                 put("criteria", "DiagnosticReport?_id=$resourceId")
             })
-            updatedPolicy.put("resource", resourceArray)
+            updatedPolicy.put("resource", resourceArray)*/
 
             if (createConsentResource(patientId, practitionerId, "DiagnosticReport/$resourceId", policyId)) {
                 Log.d("MedPlum", "Consent created successfully for DiagnosticReport")
@@ -1289,7 +1316,7 @@ class MedPlumAPI(private val application: Application, private val viewModel: Wa
             }
 
             // PUT now to ensure DR is visible before fetching result[]
-            val updateBody = updatedPolicy.toString().toRequestBody("application/fhir+json".toMediaType())
+            /*val updateBody = updatedPolicy.toString().toRequestBody("application/fhir+json".toMediaType())
             val putRequest = Request.Builder()
                 .url("https://api.medplum.com/fhir/R4/AccessPolicy/$policyId")
                 .addHeader("Authorization", "Bearer $accessToken")
@@ -1301,7 +1328,7 @@ class MedPlumAPI(private val application: Application, private val viewModel: Wa
                 Log.e("MedPlum", "Failed to update AccessPolicy with DiagnosticReport access")
                 return@withContext false
             }
-            Log.d("MedPlum", "AccessPolicy updated with DiagnosticReport access")
+            Log.d("MedPlum", "AccessPolicy updated with DiagnosticReport access")*/
         }
 
         // Fetch DiagnosticReport again
@@ -1324,7 +1351,7 @@ class MedPlumAPI(private val application: Application, private val viewModel: Wa
         Log.d("MedPlum", "Observation IDs: $observationIds")
 
         // Add each Observation to the policy
-        val resourceArrayPhase2 = updatedPolicy.optJSONArray("resource") ?: JSONArray()
+        /*val resourceArrayPhase2 = updatedPolicy.optJSONArray("resource") ?: JSONArray()
         observationIds.forEach { obsId ->
             val criteria = "Observation?_id=$obsId"
             if (!alreadyIncluded("Observation", criteria)) {
@@ -1350,7 +1377,77 @@ class MedPlumAPI(private val application: Application, private val viewModel: Wa
             return@withContext false
         }
 
-        Log.d("MedPlum", "AccessPolicy updated with Observations")
+        Log.d("MedPlum", "AccessPolicy updated with Observations")*/
+        return@withContext true
+    }*/
+
+    suspend fun grantFullDiagnosticReportAccess(
+        resourceId: String,
+        practitionerId: String,
+        projectId: String,
+        patientId: String
+    ): Boolean = withContext(Dispatchers.IO) {
+        val accessToken = getAccessToken() ?: return@withContext false
+        val client = OkHttpClient()
+
+        // Step 1: Fetch existing consents for this patient
+        val consentUrl = "https://api.medplum.com/fhir/R4/Consent?patient=$patientId&status=active"
+        val consentRequest = Request.Builder()
+            .url(consentUrl)
+            .addHeader("Authorization", "Bearer $accessToken")
+            .get()
+            .build()
+
+        val matchingConsentExists = client.newCall(consentRequest).execute().use { res ->
+            if (!res.isSuccessful) {
+                Log.e("MedPlum", "Failed to fetch consents: ${res.code}")
+                return@use false
+            }
+            val body = res.body?.string() ?: return@use false
+            Log.d("MedPlum", "Consents response: $body")
+            val json = JSONObject(body)
+            val entries = json.optJSONArray("entry") ?: return@use false
+
+            for (i in 0 until entries.length()) {
+                val consent = entries.getJSONObject(i).optJSONObject("resource") ?: continue
+                val provision = consent.optJSONObject("provision") ?: continue
+
+                val actors = provision.optJSONArray("actor") ?: continue
+                val matchesDoctor = (0 until actors.length()).any {
+                    val ref = actors.getJSONObject(it).optJSONObject("reference")?.optString("reference")
+                    ref == "Practitioner/$practitionerId"
+                }
+
+                val dataRefs = provision.optJSONArray("data") ?: continue
+                val matchesResource = (0 until dataRefs.length()).any {
+                    val ref = dataRefs.getJSONObject(it).optJSONObject("reference")?.optString("reference")
+                    ref == resourceId
+                }
+
+                if (matchesDoctor && matchesResource) {
+                    Log.d("MedPlum", "Consent already exists for $resourceId and $practitionerId")
+                    return@use true
+                }
+            }
+
+            false
+        }
+
+        // Step 2: If not already consented, create new Consent
+        if (!matchingConsentExists) {
+            Log.d("MedPlum", "Creating new Consent for $resourceId → $practitionerId")
+
+            val policyId = getAccessPolicyIdFromPractitioner(practitionerId) ?: return@withContext false
+
+            val success = createConsentResource(
+                patientId = patientId,
+                practitionerId = practitionerId,
+                resourceId = resourceId,
+                accessPolicyId = policyId
+            )
+            return@withContext success
+        }
+
         return@withContext true
     }
 
@@ -1443,6 +1540,51 @@ class MedPlumAPI(private val application: Application, private val viewModel: Wa
         }
 
         return@withContext result
+    }
+
+    suspend fun checkConsentExists(practitionerId: String, resourceId: String): Boolean = withContext(Dispatchers.IO) {
+        val accessToken = getAccessToken() ?: return@withContext false
+
+        Log.d("MedPlum", "Checking consent for $practitionerId and $resourceId")
+        val consentUrl = "https://api.medplum.com/fhir/R4/Consent?status=active"
+        val request = Request.Builder()
+            .url(consentUrl)
+            .addHeader("Authorization", "Bearer $accessToken")
+            .get()
+            .build()
+
+        OkHttpClient().newCall(request).execute().use { res ->
+            if (!res.isSuccessful) {
+                Log.e("MedPlum", "Failed to fetch consents: ${res.code}")
+                return@use false
+            }
+            val body = res.body?.string() ?: return@use false
+            val json = JSONObject(body)
+            val entries = json.optJSONArray("entry") ?: return@use false
+
+            for (i in 0 until entries.length()) {
+                val consent = entries.getJSONObject(i).optJSONObject("resource") ?: continue
+                val provision = consent.optJSONObject("provision") ?: continue
+
+                val actors = provision.optJSONArray("actor") ?: continue
+                val matchesDoctor = (0 until actors.length()).any {
+                    val ref = actors.getJSONObject(it).optJSONObject("reference")?.optString("reference")
+                    ref == practitionerId
+                }
+
+                val dataRefs = provision.optJSONArray("data") ?: continue
+                val matchesResource = (0 until dataRefs.length()).any {
+                    val ref = dataRefs.getJSONObject(it).optJSONObject("reference")?.optString("reference")
+                    ref == resourceId
+                }
+
+                if (matchesDoctor && matchesResource) {
+                    return@use true
+                }
+            }
+
+            false
+        }
     }
 
 
