@@ -264,6 +264,7 @@ class WalletViewModel(application: Application) : AndroidViewModel(application) 
                         }
                     }
                     try {
+                        Log.d("AcceptContract", "Calling acceptAccess2 with recordId: $recordId")
                         val receipt = withContext(Dispatchers.IO) {
                             walletRepository.acceptAccess2(recordId, requester, credentials)
                         }
@@ -277,6 +278,7 @@ class WalletViewModel(application: Application) : AndroidViewModel(application) 
                         Log.d("DenyContract", "Gas fee: $gasFee, Gas used: $gasUsed, Gas price: $gasPrice")
                         simulateCreateFees.add(gasFee)
 
+                        updateTransactionStatus(transactionId, "accepted")
                         Log.d("AcceptContract", "Access given: ${receipt.transactionHash}")
                         updateUiState { state ->
                             state.copy(
@@ -284,7 +286,6 @@ class WalletViewModel(application: Application) : AndroidViewModel(application) 
                                 showDenyDialog = true,
                             )
                         }
-                        updateTransactionStatus(transactionId, "accepted")
 
                         Log.d("MedPlumGrant", "Granting policy...")
                         val granted = withContext(Dispatchers.IO) {
@@ -307,7 +308,7 @@ class WalletViewModel(application: Application) : AndroidViewModel(application) 
         simulateCreateTimes.add(duration)
     }
 
-    fun syncTransactionWithHealthyContract() {
+    /*fun syncTransactionWithHealthyContract() {
         val mnemonic = getMnemonic()
         viewModelScope.launch {
             setTransactionProcessing(true)
@@ -366,7 +367,7 @@ class WalletViewModel(application: Application) : AndroidViewModel(application) 
             }
             setTransactionProcessing(false)
         }
-    }
+    }*/
 
      fun callGetAccessRequestsContract() {
         val mnemonic = getMnemonic()
@@ -2097,7 +2098,7 @@ class WalletViewModel(application: Application) : AndroidViewModel(application) 
         }
     }
 
-    suspend fun requestAccess(recordId: String, recordType: String) {
+    suspend fun requestAccess(recordId: String) {
         try {
             val mnemonic = getMnemonic()
             if (!mnemonic.isNullOrEmpty()) {
@@ -2114,7 +2115,6 @@ class WalletViewModel(application: Application) : AndroidViewModel(application) 
                             uiState.value.walletAddress,
                             getLoggedInUsertId().removePrefix("Practitioner/"),
                             recordId,
-                            recordType,
                             credentials
                         )
                     }
@@ -2181,7 +2181,7 @@ class WalletViewModel(application: Application) : AndroidViewModel(application) 
                     }
                     try {
                         val receipt = withContext(Dispatchers.IO) {
-                            walletRepository.requestAccess(newTransaction.practitionerAddress, uiState.value.walletAddress, newTransaction.practitionerId, newTransaction.recordId, newTransaction.type, credentials)
+                            walletRepository.requestAccess(newTransaction.practitionerAddress, uiState.value.walletAddress, newTransaction.practitionerId, newTransaction.recordId, credentials)
                         }
                         val gasPriceHex = receipt.effectiveGasPrice
 
@@ -2396,14 +2396,14 @@ class WalletViewModel(application: Application) : AndroidViewModel(application) 
                 val updatedEntity = transactionDao.getById(transactionId)
                 val updated = updatedEntity?.toTransaction()
                 if (updated != null) {
-                    withContext(Dispatchers.Main) {
+                    //withContext(Dispatchers.Main) {
                         updateUiState { state ->
                             val updatedList = state.transactions.map {
                                 if (it.id == transactionId) updated else it
                             }
                             state.copy(transactions = updatedList)
                         }
-                    }
+                    //}
                 }
             }
         }

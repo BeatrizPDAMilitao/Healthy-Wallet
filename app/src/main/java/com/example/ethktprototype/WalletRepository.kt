@@ -482,9 +482,10 @@ class WalletRepository(private val application: Application) : IWalletRepository
     //0x8d91fa1054f8f53e01661f4147e450edd090336d
 
     private val healthyWalletAddresses = mapOf(
-        Network.ARBITRUM_SEPOLIA_TESTNET to "0xeAc935ca46778c5fE8fa1144d4b8FE52Bbaf44A3",//""0x07c60bA6F2e58c5E7C5123bFc0F16399606F202f",//"0x94c35e1Ca0B33dAFB7e13a3a951791a3E384377c",//""0xD18CcEEC300d7f81ad2A69175DA510A97184B5A0",//""0xE75A51E1dD78fddc3a24c351Ea160eD6aa7d01a2",
+        Network.ARBITRUM_SEPOLIA_TESTNET to "0x5461ab0D73551Bb44b826A69Baa86c73972d78bE",//"0x8233bf41E05f518c927AFfc4154298A7EB63F336",//""0x07c60bA6F2e58c5E7C5123bFc0F16399606F202f",//"0x94c35e1Ca0B33dAFB7e13a3a951791a3E384377c",//""0xD18CcEEC300d7f81ad2A69175DA510A97184B5A0",//""0xE75A51E1dD78fddc3a24c351Ea160eD6aa7d01a2",
         Network.SEPOLIA to "0xf5f80D411aE97cB4aC8e5DA9Cab6f7a3f74A06B5",//"0x257F027faAc9eA80F8269a7024FE33a8730223D5",
     )
+    // WITH REVOKE ACCESS AND DELETE ON DENY: 0x5461ab0D73551Bb44b826A69Baa86c73972d78bE
 
     private val healthyWalletAdress: String
         get() = healthyWalletAddresses[selectedNetwork.value] ?: throw IllegalStateException("No address for that network.")
@@ -646,7 +647,7 @@ class WalletRepository(private val application: Application) : IWalletRepository
         throw RuntimeException("Transaction receipt not generated after sending transaction")
     }
 
-    suspend fun syncTransactionWithHealthyContract2(credentials: Credentials): List<com.example.ethktprototype.data.Transaction> {
+    /*suspend fun syncTransactionWithHealthyContract2(credentials: Credentials): List<com.example.ethktprototype.data.Transaction> {
         val previewLogs = healthyContract.previewNextAccessRequests().send() as List<MedicalRecordAccess2.AccessRequest>
 
         if (previewLogs.isEmpty()) {
@@ -705,7 +706,7 @@ class WalletRepository(private val application: Application) : IWalletRepository
                         recordId = log.recordId,
                         practitionerId = log.doctorMedplumId,
                         practitionerAddress = log.doctorAddress,
-                        type = log.recordType,//randomType,
+                        type = log.recordId.substringBefore("/"),
                         patientId = "01968b59-76f3-7228-aea9-07db748ee2ca"
                     )
                 }
@@ -714,16 +715,16 @@ class WalletRepository(private val application: Application) : IWalletRepository
         }
 
         throw RuntimeException("Transaction receipt not generated after sending transaction")
-    }
+    }*/
 
-    suspend fun requestAccess(doctorAddress: String, patientAddress: String, doctorMedplumId: String, recordId: String, recordType: String, credentials: Credentials): TransactionReceipt {
+    suspend fun requestAccess(doctorAddress: String, patientAddress: String, doctorMedplumId: String, recordId: String, credentials: Credentials): TransactionReceipt {
         val nonce = web3jService.ethGetTransactionCount(credentials.address, DefaultBlockParameterName.LATEST).send().transactionCount
         val gasPrice = web3jService.ethGasPrice().send().gasPrice
         val gasLimit = BigInteger.valueOf(3000000)
 
         val function = Function(
             "doctorRequestAccess",
-            listOf(Address(doctorAddress),Address(patientAddress), Utf8String(doctorMedplumId), Utf8String(recordId), Utf8String(recordType)),
+            listOf(Address(doctorAddress),Address(patientAddress), Utf8String(doctorMedplumId), Utf8String(recordId)),
             emptyList()
         )
         val encodedFunction = FunctionEncoder.encode(function)
@@ -835,7 +836,7 @@ class WalletRepository(private val application: Application) : IWalletRepository
                     2 -> "denied"
                     else -> "Unknown"
                 },
-                type = access.recordType,
+                type = access.recordId.substringBefore("/"),
                 recordId = access.recordId,
                 patientId = access.patientAddress,
                 practitionerId = access.doctorMedplumId,

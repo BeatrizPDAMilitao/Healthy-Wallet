@@ -210,8 +210,7 @@ fun ExamList(diagnosticReports: List<DiagnosticReportEntity>, isPatient: Boolean
                                     onClick = {
                                         viewModel.viewModelScope.launch {
                                             viewModel.requestAccess(
-                                                diagnostic.id,
-                                                "DiagnosticReport"
+                                                "DiagnosticReport/" + diagnostic.id
                                             )
                                         }
                                     },

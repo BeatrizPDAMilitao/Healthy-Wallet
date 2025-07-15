@@ -100,7 +100,7 @@ fun TransactionScreen(
     LaunchedEffect(transaction.value) {
         if (transaction.value != null) {
             Log.d("ExampleTestSample", "Transaction details: ${transaction.value}")
-            resource.value = viewModel.getResource(transaction.value!!.type, transaction.value!!.recordId)
+            resource.value = viewModel.getResource(transaction.value!!.type, transaction.value!!.recordId.substringAfter("/"))
             Log.d("ExampleTestSample", "Resource fetched: ${resource.value}")
         } else {
             Log.d("ExampleTestSample", "Transaction is null, waiting for data...")
@@ -374,6 +374,7 @@ fun TransactionScreen(
                                             val practitionerId = transaction.value!!.practitionerId
                                             viewModel.viewModelScope.launch {
                                                 viewModel.callAcceptContract(transactionId, practitionerId, recordId, requester)
+                                                transaction.value = viewModel.getTransactionById(transactionId)
                                             }
                                         }
                                     },
@@ -395,6 +396,7 @@ fun TransactionScreen(
                                                     recordId,
                                                     requester
                                                 )
+                                                transaction.value = viewModel.getTransactionById(transactionId)
                                             }
                                         }
                                     },

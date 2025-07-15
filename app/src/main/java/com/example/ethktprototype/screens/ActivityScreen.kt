@@ -177,7 +177,7 @@ fun ActivityScreen(
                 Button(
                     onClick = {
                         viewModel.viewModelScope.launch {
-                            viewModel.syncTransactionWithHealthyContract()
+                            //viewModel.syncTransactionWithHealthyContract()
                         }
                     },
                     modifier = Modifier
@@ -252,14 +252,14 @@ fun ActivityScreen(
                 ) {
                     Text("Simulate ZKP Request")
                 }
-                Button(
+                /*Button(
                     onClick = {
                         viewModel.printCreateEHR()
                     },
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Text("Get times and fees")
-                }
+                }*/
                 /*Button(
                     onClick = {
                         viewModel.viewModelScope.launch {
