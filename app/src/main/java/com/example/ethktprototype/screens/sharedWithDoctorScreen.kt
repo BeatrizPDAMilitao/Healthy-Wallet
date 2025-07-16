@@ -110,7 +110,7 @@ fun SharedWithDoctorScreen(
                 if (sharedEHRs.diagnosticReports.isEmpty()) {
                     Text("No diagnostic reports found.")
                 } else {
-                    ExamList(sharedEHRs.diagnosticReports, isPatient = false, viewModel)
+                    ExamList(sharedEHRs.diagnosticReports, isPatient = false, viewModel, showName = true)
                 }
             }
         }

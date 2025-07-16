@@ -10,6 +10,16 @@ query GetPatient($id: ID!) {
   }
 }
 
+query GetPatientName($id: ID!) {
+  Patient(id: $id) {
+    id
+    name {
+      given
+      family
+    }
+  }
+}
+
 #mutation CreatePatient($content: ResourceInput!) {
   #createResource(resource: $content) {
   #  id

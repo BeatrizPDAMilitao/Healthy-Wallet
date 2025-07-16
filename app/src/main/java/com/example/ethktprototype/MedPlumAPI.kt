@@ -18,6 +18,7 @@ import com.example.medplum.GetPatientDiagnosticReportQuery
 import com.example.medplum.GetPatientImmunizationsQuery
 import com.example.medplum.GetPatientMedicationRequestsQuery
 import com.example.medplum.GetPatientMedicationStatementsQuery
+import com.example.medplum.GetPatientNameQuery
 import com.example.ethktprototype.data.AllergyIntoleranceEntity
 import com.example.ethktprototype.data.AppDatabase
 import com.example.ethktprototype.data.DeviceEntity
@@ -575,6 +576,40 @@ class MedPlumAPI(private val application: Application, private val viewModel: Wa
         }
     }
 
+    suspend fun fetchPatientName(patientId: String): String {
+        return try {
+            if (!ensureApolloClientInitialized()) return ""
+
+            Log.d("MedPlum", "Fetching patient name for $patientId")
+            val response = apolloClient.query(GetPatientNameQuery(patientId)).execute()
+            Log.d("MedPlum", "GraphQL response: $response")
+
+            if (response.hasErrors()) {
+                Log.e("MedPlum", "GraphQL errors: ${response.errors}")
+                return ""
+            }
+
+            response.data?.Patient?.name?.firstOrNull()?.let { name ->
+                val given = name.given?.firstOrNull() ?: ""
+                val family = name.family ?: ""
+                "$given $family".trim()
+            } ?: ""
+        } catch (e: ApolloHttpException) {
+            Log.e("MedPlum", "HTTP error ${e.statusCode}: ${e.message}", e)
+            val errorBody = e.body?.use { it.readUtf8() }
+            Log.e("MedPlum", "Error body: $errorBody")
+            ""
+        } catch (e: Exception) {
+            Log.e("MedPlum", "Unexpected error", e)
+            ""
+        }
+    }
+
+    suspend fun fetchPatientsNames(patientIds: List<String>): Map<String,String> {
+        return patientIds.associateWith { patientId ->
+            fetchPatientName(patientId)
+        }
+    }
 
 
     override suspend fun getMedplumAccessToken(
@@ -976,7 +1011,7 @@ class MedPlumAPI(private val application: Application, private val viewModel: Wa
         Log.d("EffectiveDateTime", "Effective DateTime: ${record.effectiveDateTime}")
         val json = JSONObject().apply {
             put("resourceType", "DiagnosticReport")
-            put("status", "final")
+            put("status", record.status)
             put("code", JSONObject().apply {
                 put("text", record.code)
             })
@@ -991,6 +1026,13 @@ class MedPlumAPI(private val application: Application, private val viewModel: Wa
             put("effectiveDateTime", record.effectiveDateTime)
             put("result", JSONArray().apply {
                 // Add result references if needed
+                record.result.split(",").forEach { ref ->
+                    if (ref.isNotBlank()) {
+                        put(JSONObject().apply {
+                            put("reference", ref.trim())
+                        })
+                    }
+                }
             })
         }
 

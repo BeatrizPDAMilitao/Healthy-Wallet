@@ -1,5 +1,6 @@
 package com.example.ethktprototype.screens
 
+import android.util.Log
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -153,8 +154,15 @@ fun ExamsScreen(
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun ExamList(diagnosticReports: List<DiagnosticReportEntity>, isPatient: Boolean, viewModel: WalletViewModel) {
+fun ExamList(diagnosticReports: List<DiagnosticReportEntity>, isPatient: Boolean, viewModel: WalletViewModel, showName: Boolean= false) {
     val practitioners by viewModel.practitioners.collectAsState()
+    val subjectNames = remember { mutableStateOf<Map< String,String?>>(emptyMap()) }
+    LaunchedEffect(diagnosticReports.map { it.subjectId }) {
+        val subjectsId = diagnosticReports.map { it.subjectId }.distinct()
+        Log.e("ExamList", "subjectsId: $subjectsId")
+        subjectNames.value = viewModel.getSubjectsName(subjectsId)
+        Log.e("ExamList", "subjectNames: $subjectNames")
+    }
     LazyColumn(
         modifier = Modifier
             .fillMaxSize()
@@ -181,6 +189,12 @@ fun ExamList(diagnosticReports: List<DiagnosticReportEntity>, isPatient: Boolean
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Column(modifier = Modifier.weight(1f)) {
+                            if (showName) {
+                                Text(
+                                    text = "Subject: ${subjectNames.value[diagnostic.subjectId] ?: "Unknown"}",
+                                    style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold)
+                                )
+                            }
                             Text(
                                 text = "Date: ${diagnostic.effectiveDateTime}",
                                 style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold)

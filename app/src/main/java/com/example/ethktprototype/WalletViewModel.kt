@@ -899,6 +899,12 @@ class WalletViewModel(application: Application) : AndroidViewModel(application) 
         }
     }
 
+    suspend fun getSubjectsName(subjectIds: List<String>): Map<String, String>{
+        return withContext(Dispatchers.IO) {
+            medPlumAPI.fetchPatientsNames(subjectIds)
+        }
+    }
+
     fun loadPatientsFromDb() {
         if (!getLoggedInUsertId().startsWith("Practitioner/")) return
         viewModelScope.launch {
@@ -1453,7 +1459,7 @@ class WalletViewModel(application: Application) : AndroidViewModel(application) 
                             }
                             DiagnosticReportEntity(
                                 id = json.getString("id"),
-                                subjectId = json.getString("subject"),
+                                subjectId = json.getJSONObject("subject").getString("reference").split("/").last(),
                                 status = json.getString("status"),
                                 code = json.getJSONObject("code").optString("text"),
                                 result = formattedResults,
