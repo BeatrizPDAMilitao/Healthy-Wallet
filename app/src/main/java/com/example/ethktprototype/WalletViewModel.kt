@@ -42,6 +42,7 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 import androidx.navigation.NavHostController
+import com.example.ethktprototype.data.ConsentDisplayItem
 import com.example.ethktprototype.data.GraphQLQueries.buildGetPatientAllergiesQuery
 import com.example.ethktprototype.data.GraphQLQueries.buildGetPatientDevicesQuery
 import com.example.ethktprototype.data.GraphQLQueries.buildGetPatientDiagnosticReportQuery
@@ -105,6 +106,7 @@ class WalletViewModel(application: Application) : AndroidViewModel(application) 
     private val PRACTITIONER_KEY = "Practitioner"
     private val ACCESS_REQUESTS_KEY = "AccessRequests"
     private val SHARED_EHR_KEY = "SharedEHR"
+    private val ACCESS_PERMISSIONS_KEY = "AccessPermissions"
     private val projectId = "01968b55-0883-771d-8f28-b35784bda289"
 
 
@@ -1013,6 +1015,23 @@ class WalletViewModel(application: Application) : AndroidViewModel(application) 
         setTransactionProcessing(false)
     }
 
+    fun revokeAccessPermission(permissionId: String) {
+        viewModelScope.launch {
+            setTransactionProcessing(true)
+            try {
+                Log.d("MedPlumRevoke", "Revoking access permission: $permissionId")
+                val revoked = withContext(Dispatchers.IO) {
+                    medPlumAPI.revokeAccessPermission(permissionId, getLoggedInUsertId())
+                }
+                Log.d("MedPlumRevoke", "Access permission revoked: $revoked")
+            } catch (e: Exception) {
+                Log.e("RevokeAccess", "Exception caught", e)
+            } finally {
+                setTransactionProcessing(false)
+            }
+        }
+    }
+
     suspend fun getPractitionerById(practitionerId: String): PractitionerEntity? {
         return transactionDao.getPractitionerById(practitionerId)
     }
@@ -1551,6 +1570,31 @@ class WalletViewModel(application: Application) : AndroidViewModel(application) 
             }
         }
     }
+
+    private val _accessPermissions = MutableStateFlow<List<ConsentDisplayItem>>(emptyList())
+    val accessPermissions: StateFlow< List<ConsentDisplayItem>> = _accessPermissions
+    fun getAccessPermissions(patientId: String) {
+        viewModelScope.launch {
+            _uiState.update { it.copy(isAccessPermissionsLoading = true) }
+            try {
+                val consents = withContext(Dispatchers.IO) {
+                    medPlumAPI.fetchConsentsByPatient(patientId)
+                }
+
+                consents.let {
+                    _accessPermissions.value = it
+                    updateHasFetched(ACCESS_PERMISSIONS_KEY, true)
+                }
+
+                Log.d("AccessPermissions", "Consents: $consents")
+            } catch (e: Exception) {
+                Log.e("AccessPermissions", "Error fetching", e)
+            } finally {
+                _uiState.update { it.copy(isAccessPermissionsLoading = false) }
+            }
+        }
+    }
+
 
     fun deleteAllDataFromDb() {
         viewModelScope.launch {

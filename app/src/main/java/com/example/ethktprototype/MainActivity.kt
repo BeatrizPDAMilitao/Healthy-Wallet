@@ -22,6 +22,7 @@ import android.util.Log
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.runtime.LaunchedEffect
 import androidx.core.content.ContextCompat
+import com.example.ethktprototype.screens.AccessPermissionsScreen
 import com.example.ethktprototype.screens.CreateEHRScreen
 import com.example.ethktprototype.screens.EHRsScreen
 import com.example.ethktprototype.screens.ExamsScreen
@@ -31,6 +32,7 @@ import com.example.ethktprototype.screens.MedicationScreen
 import com.example.ethktprototype.screens.PatientDetailsScreen
 import com.example.ethktprototype.screens.PatientsListScreen
 import com.example.ethktprototype.screens.PrescriptionsScreen
+import com.example.ethktprototype.screens.ProfileScreen
 import com.example.ethktprototype.screens.SharedWithDoctorScreen
 import com.example.ethktprototype.screens.TransactionScreen
 import com.example.ethktprototype.screens.VaccinationsScreen
@@ -147,6 +149,12 @@ class MainActivity : ComponentActivity() {
                         composable("createEHR/{patientId}") { backStackEntry ->
                             val patientId = backStackEntry.arguments?.getString("patientId")
                             CreateEHRScreen(navController = navController, viewModel = viewModel, patientId = patientId.toString())
+                        }
+                        composable("profile") {
+                            ProfileScreen(navController = navController, viewModel = viewModel)
+                        }
+                        composable("viewAccessPermissionsScreen") {
+                            AccessPermissionsScreen(navController = navController, viewModel = viewModel)
                         }
                     }
                 }

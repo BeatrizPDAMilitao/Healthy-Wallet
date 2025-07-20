@@ -45,8 +45,12 @@ import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import android.util.Base64
+import com.example.ethktprototype.data.ConsentDisplayItem
+import com.example.ethktprototype.data.ConsentEntity
 import com.example.ethktprototype.data.HealthSummaryResult
+import com.example.ethktprototype.data.SharedResourceInfo
 import com.example.medplum.GetPractitionerCompleteQuery
+import com.example.medplum.GetPractitionerNameQuery
 import com.example.medplum.GetPractitionersListQuery
 import org.json.JSONArray
 import java.security.MessageDigest
@@ -505,6 +509,7 @@ class MedPlumAPI(private val application: Application, private val viewModel: Wa
                 // Address (optional future enhancement)
                 val address = "" // Not included in this query
 
+                Log.d("MedPlum", "PractitionerId on fetch: ${practitioner?.id}")
                 PractitionerEntity(
                     id = practitioner?.id ?: "unknown",
                     name = fullName,
@@ -1629,5 +1634,153 @@ class MedPlumAPI(private val application: Application, private val viewModel: Wa
         }
     }
 
+    suspend fun fetchConsentsByPatient(patientId: String): List<ConsentDisplayItem> = withContext(Dispatchers.IO) {
+        val accessToken = getAccessToken() ?: return@withContext emptyList()
+        val result = mutableListOf<ConsentEntity>()
+
+        val url = "https://api.medplum.com/fhir/R4/Consent?status=active"
+        val request = Request.Builder()
+            .url(url)
+            .addHeader("Authorization", "Bearer $accessToken")
+            .get()
+            .build()
+
+        Log.d("MedPlum", "Fetching consents for patient $patientId")
+
+        OkHttpClient().newCall(request).execute().use { response ->
+            if (!response.isSuccessful) {
+                Log.e("MedPlum", "Failed to fetch consents: ${response.code}")
+                return@withContext emptyList()
+            }
+
+            val body = response.body?.string() ?: return@withContext emptyList()
+            val json = JSONObject(body)
+            val entries = json.optJSONArray("entry") ?: return@withContext emptyList()
+            Log.d("MedPlum", "Found ${entries.length()} consents")
+
+            for (i in 0 until entries.length()) {
+                val consent = entries.getJSONObject(i).optJSONObject("resource") ?: continue
+                val patientRef = consent.optJSONObject("patient")?.optString("reference") ?: continue
+
+                if (patientRef == "Patient/$patientId") {
+                    val id = consent.optString("id", "")
+                    val status = consent.optString("status", "")
+                    val performerId = consent.optJSONArray("performer")
+                        ?.optJSONObject(0)
+                        ?.optString("reference")
+                        ?.removePrefix("Practitioner/") ?: ""
+                    val policyUri = consent.optJSONArray("policy")
+                        ?.optJSONObject(0)
+                        ?.optString("uri") ?: ""
+                    val lastUpdated = consent.optJSONObject("meta")
+                        ?.optString("lastUpdated") ?: ""
+
+                    val dataRefs = consent.optJSONObject("provision")
+                        ?.optJSONArray("data")
+                        ?.let { dataArray ->
+                            List(dataArray.length()) { idx ->
+                                dataArray.getJSONObject(idx).optJSONObject("reference")
+                                    ?.optString("reference") ?: ""
+                            }
+                        } ?: emptyList()
+
+                    result.add(
+                        ConsentEntity(
+                            id = id,
+                            status = status,
+                            patientId = patientId,
+                            performerId = performerId,
+                            policyUri = policyUri,
+                            dataReferences = dataRefs,
+                            lastUpdated = lastUpdated
+                        )
+                    )
+                }
+            }
+        }
+
+        return@withContext resolveConsentDisplayItems(result)
+    }
+
+    suspend fun resolveConsentDisplayItems(
+        consents: List<ConsentEntity>,
+    ): List<ConsentDisplayItem> = withContext(Dispatchers.IO) {
+        val accessToken = getAccessToken() ?: return@withContext emptyList()
+
+        val client = OkHttpClient()
+        val result = mutableListOf<ConsentDisplayItem>()
+
+        for (consent in consents) {
+            // Fetch practitioner details
+            Log.d("MedPlum", "Fetching practitionerId ${consent.performerId}")
+            val matched = viewModel.practitioners.value.find { it.id == consent.performerId } //practitionerList.find { it.id == consent.performerId }
+            val practitioner = matched?.name ?: "Unknown"
+            Log.d("MedPlum", "Resolved practitioner: $practitioner, matched: $matched")
+            //val practitioner = fetchPractitionerNameById(consent.performerId)
+
+            // Resolve resource references
+            val sharedResources = mutableListOf<SharedResourceInfo>()
+
+            for (ref in consent.dataReferences) {
+                val parts = ref.split("/")
+                if (parts.size != 2) continue
+                val type = parts[0]
+                val id = parts[1]
+
+                val resourceUrl = "https://api.medplum.com/fhir/R4/$type/$id"
+                val request = Request.Builder()
+                    .url(resourceUrl)
+                    .addHeader("Authorization", "Bearer $accessToken")
+                    .get()
+                    .build()
+
+                try {
+                    val resourceJson = client.newCall(request).execute().use { res ->
+                        if (res.isSuccessful) res.body?.string()?.let { JSONObject(it) } else null
+                    }
+
+                    val description = when (type) {
+                        "DiagnosticReport" -> resourceJson?.optJSONObject("code")?.optString("text") ?: "Diagnostic Report"
+                        "Observation" -> resourceJson?.optJSONObject("code")?.optString("text") ?: "Observation"
+                        "MedicationRequest" -> resourceJson?.optJSONObject("medicationCodeableConcept")?.optString("text") ?: "Medication"
+                        "AllergyIntolerance" -> resourceJson?.optJSONObject("code")?.optString("text") ?: "Allergy"
+                        "Procedure" -> resourceJson?.optJSONObject("code")?.optString("text") ?: "Procedure"
+                        else -> type
+                    }
+
+                    Log.d("MedPlum", "Resolved $type/$id to $description")
+
+                    sharedResources.add(
+                        SharedResourceInfo(
+                            type = type,
+                            description = description,
+                            id = id
+                        )
+                    )
+                } catch (e: Exception) {
+                    // Skip any failing resource
+                    Log.e("MedPlum", "Error fetching $type/$id", e)
+                }
+            }
+
+            Log.d("MedPlum", "Creating ConsentDisplayItem for consent ID: ${consent.id}, Practitioner: ${practitioner}, Shared Resources: ${sharedResources.size}")
+
+            result.add(
+                ConsentDisplayItem(
+                    id = consent.id,
+                    practitionerId = consent.performerId,
+                    practitionerName = practitioner ?: "Unknown Doctor",
+                    sharedResources = sharedResources,
+                    lastUpdated = consent.lastUpdated
+                )
+            )
+        }
+
+        return@withContext result
+    }
+
+    fun revokeAccessPermission(permissionId: String) {
+
+    }
 
 }

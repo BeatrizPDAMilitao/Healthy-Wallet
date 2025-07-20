@@ -14,12 +14,14 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.Button
 
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -41,10 +43,16 @@ import androidx.compose.ui.text.style.TextAlign
 import com.example.ethktprototype.HealthyWalletApplication
 import com.example.ethktprototype.MedPlumAPI
 import com.example.ethktprototype.composables.BottomNavigationBar
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
+import androidx.compose.material3.pulltorefresh.pullToRefresh
+import androidx.compose.material3.pulltorefresh.PullToRefreshState
+import androidx.compose.runtime.remember
+
 
 /**
  * EHRsScreen.kt
  */
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun EHRsScreen(
     navController: NavHostController,
@@ -57,11 +65,22 @@ fun EHRsScreen(
 
     val practitioner = viewModel.practitioner.collectAsState()
 
+    val isRefreshing = uiState.isAppLoading
+    val pullRefreshState = remember { PullToRefreshState() }
+
+
     LaunchedEffect(true) {
         if (!viewModel.uiState.value.hasFetched.getOrDefault("Patient", false)) {
             viewModel.getUser()
         }
     }
+
+    /*LaunchedEffect(pullRefreshState.isAnimating) {
+        if (pullRefreshState.isAnimating) {
+            viewModel.getUser()
+            pullRefreshState.() // Important: End the refresh animation
+        }
+    }*/
 
     if (uiState.isAppLoading) {
         Box(
@@ -107,7 +126,7 @@ fun EHRsScreen(
                     ) {
                         if (patient.value != null) {
                             Text(
-                                text = "Welcome ${patient.value?.name ?: "Patient"}!",
+                                text = "Welcome!",// ${patient.value?.name ?: "Patient"}!",
                                 style = MaterialTheme.typography.titleLarge.copy(
                                     fontWeight = FontWeight.Bold,
                                     fontSize = 24.sp,
@@ -141,6 +160,15 @@ fun EHRsScreen(
                             Icon(
                                 imageVector = Icons.Default.Refresh,
                                 contentDescription = "Refresh",
+                                tint = Color.White
+                            )
+                        }
+                        IconButton(onClick = {
+                            navController.navigate("profile")
+                        }) {
+                            Icon(
+                                imageVector = Icons.Default.Person,
+                                contentDescription = "Profile",
                                 tint = Color.White
                             )
                         }
