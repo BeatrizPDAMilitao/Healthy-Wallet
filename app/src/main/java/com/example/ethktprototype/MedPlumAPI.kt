@@ -50,7 +50,6 @@ import com.example.ethktprototype.data.ConsentEntity
 import com.example.ethktprototype.data.HealthSummaryResult
 import com.example.ethktprototype.data.SharedResourceInfo
 import com.example.medplum.GetPractitionerCompleteQuery
-import com.example.medplum.GetPractitionerNameQuery
 import com.example.medplum.GetPractitionersListQuery
 import org.json.JSONArray
 import java.security.MessageDigest
@@ -1779,8 +1778,52 @@ class MedPlumAPI(private val application: Application, private val viewModel: Wa
         return@withContext result
     }
 
-    fun revokeAccessPermission(permissionId: String) {
+    suspend fun revokeAccessPermission(permissionId: String): Boolean = withContext(Dispatchers.IO) {
+        val accessToken = getAccessToken() ?: return@withContext false
+        val client = OkHttpClient()
 
+        // Step 1: Fetch the current Consent
+        val getRequest = Request.Builder()
+            .url("https://api.medplum.com/fhir/R4/Consent/$permissionId")
+            .addHeader("Authorization", "Bearer $accessToken")
+            .get()
+            .build()
+
+        val existingConsent = client.newCall(getRequest).execute().use { res ->
+            if (!res.isSuccessful) {
+                Log.e("MedPlum", "Failed to fetch consent: ${res.code}")
+                return@use null
+            }
+            val body = res.body?.string() ?: return@use null
+            JSONObject(body)
+        } ?: return@withContext false
+
+        // Step 2: Update status
+        existingConsent.put("status", "inactive")
+
+        // Step 3: PUT updated consent
+        val updateBody = existingConsent.toString().toRequestBody("application/fhir+json".toMediaType())
+        val putRequest = Request.Builder()
+            .url("https://api.medplum.com/fhir/R4/Consent/$permissionId")
+            .addHeader("Authorization", "Bearer $accessToken")
+            .put(updateBody)
+            .build()
+
+        try {
+            client.newCall(putRequest).execute().use { response ->
+                if (response.isSuccessful) {
+                    Log.d("MedPlumRevoke", "Access permission revoked")
+                    return@withContext true
+                } else {
+                    Log.e("MedPlumRevoke", "Failed to revoke consent: ${response.code}")
+                    Log.e("MedPlumRevoke", "Body: ${response.body?.string()}")
+                    return@withContext false
+                }
+            }
+        } catch (e: Exception) {
+            Log.e("MedPlumRevoke", "Error during revoke", e)
+            return@withContext false
+        }
     }
 
 }

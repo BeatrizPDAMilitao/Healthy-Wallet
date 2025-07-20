@@ -1021,7 +1021,7 @@ class WalletViewModel(application: Application) : AndroidViewModel(application) 
             try {
                 Log.d("MedPlumRevoke", "Revoking access permission: $permissionId")
                 val revoked = withContext(Dispatchers.IO) {
-                    medPlumAPI.revokeAccessPermission(permissionId, getLoggedInUsertId())
+                    medPlumAPI.revokeAccessPermission(permissionId)
                 }
                 Log.d("MedPlumRevoke", "Access permission revoked: $revoked")
             } catch (e: Exception) {

@@ -205,10 +205,12 @@ fun AccessPermissionCard(
                 )
                 Button(
                     onClick = {
-                        viewModel.revokeAccess(permission.id)
-                    }
+                        viewModel.revokeAccessPermission(permission.id)
+                    },
+                    modifier = Modifier.fillMaxWidth()
+                        .padding(top = 16.dp),
                 ) {
-
+                    Text("Revoke Access")
                 }
             }
         }
