@@ -158,10 +158,12 @@ fun ExamList(diagnosticReports: List<DiagnosticReportEntity>, isPatient: Boolean
     val practitioners by viewModel.practitioners.collectAsState()
     val subjectNames = remember { mutableStateOf<Map< String,String?>>(emptyMap()) }
     LaunchedEffect(diagnosticReports.map { it.subjectId }) {
-        val subjectsId = diagnosticReports.map { it.subjectId }.distinct()
-        Log.e("ExamList", "subjectsId: $subjectsId")
-        subjectNames.value = viewModel.getSubjectsName(subjectsId)
-        Log.e("ExamList", "subjectNames: $subjectNames")
+        if (showName) {
+            val subjectsId = diagnosticReports.map { it.subjectId }.distinct()
+            Log.e("ExamList", "subjectsId: $subjectsId")
+            subjectNames.value = viewModel.getSubjectsName(subjectsId)
+            Log.e("ExamList", "subjectNames: $subjectNames")
+        }
     }
     LazyColumn(
         modifier = Modifier
