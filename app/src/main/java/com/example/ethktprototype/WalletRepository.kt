@@ -75,11 +75,6 @@ class WalletRepository(private val application: Application) : IWalletRepository
     private val selectedNetwork: MutableState<Network> = _selectedNetwork
     private val mnemonicLoaded = MutableLiveData<Boolean>()
 
-    val web3jService = Web3jService.build(selectedNetwork.value)
-
-    val nonceManager = NonceManager(web3jService, loadBip44Credentials(getMnemonic().toString()).address)
-
-
     val masterKey = MasterKey.Builder(context)
         .setKeyScheme(MasterKey.KeyScheme.AES256_GCM)
         .build()
@@ -91,6 +86,11 @@ class WalletRepository(private val application: Application) : IWalletRepository
         EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
         EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM
     )
+
+    val web3jService = Web3jService.build(selectedNetwork.value)
+
+    val nonceManager = NonceManager(web3jService, loadBip44Credentials(getMnemonic().toString()).address)
+
 
     fun getDbPassphrase(): String? {
         return encryptedPrefs.getString("db_pass", null)
@@ -114,30 +114,38 @@ class WalletRepository(private val application: Application) : IWalletRepository
         return Base64.encodeToString(bytes, Base64.NO_WRAP)
     }
 
+    fun storeInEncryptedPrefs(key: String, value: String) {
+        encryptedPrefs.edit {
+            putString(key, value)
+        }
+    }
+
+    fun getFromEncryptedPrefs(key: String): String? {
+        return encryptedPrefs.getString(key, null)
+    }
+
+    fun hasEncryptedMnemonic(): Boolean {
+        return getFromEncryptedPrefs("encrypted_mnemonic") != null
+    }
 
     override fun storeMnemonic(mnemonic: String) {
-        encryptMnemonic(context, mnemonic)
+        /*encryptMnemonic(context, mnemonic)
 
         val sharedPreferences = context.getSharedPreferences("WalletPrefs", Context.MODE_PRIVATE)
         val encryptedMnemonic = getEncryptedMnemonic(context)
         val encodedMnemonic = Base64.encodeToString(encryptedMnemonic, Base64.DEFAULT)
-        sharedPreferences.edit().putString("encrypted_mnemonic", encodedMnemonic).apply()
+        sharedPreferences.edit().putString("encrypted_mnemonic", encodedMnemonic).apply()*/
+        storeInEncryptedPrefs("encrypted_mnemonic", mnemonic)
 
         mnemonicLoaded.value = true
     }
 
     override fun loadMnemonicFromPrefs(): String? {
-        val prefs = context.getSharedPreferences("WalletPrefs", Context.MODE_PRIVATE)
-        val storedMnemonic = prefs.getString("encrypted_mnemonic", null)
+        /*val prefs = context.getSharedPreferences("WalletPrefs", Context.MODE_PRIVATE)
+        val storedMnemonic = prefs.getString("encrypted_mnemonic", null)*/
+        val storedMnemonic = getFromEncryptedPrefs("encrypted_mnemonic")
         mnemonicLoaded.value = storedMnemonic != null
         return storedMnemonic
-    }
-
-    fun updateSelectedNetwork(network: Network): Network {
-        selectedNetwork.value = network
-        val jsonNetwork = Json.encodeToString(network)
-        sharedPreferences.edit().putString("SELECTED_NETWORK_NAME", jsonNetwork).apply()
-        return network
     }
 
     override fun getLastSelectedNetwork(): Network {
@@ -190,7 +198,8 @@ class WalletRepository(private val application: Application) : IWalletRepository
 
     override fun getMnemonic(): String? {
         // Decrypt the mnemonic
-        return getDecryptedMnemonic(context)
+        //return getDecryptedMnemonic(context)
+        return getFromEncryptedPrefs("encrypted_mnemonic")
     }
 
     override fun clearTokenBlocklist(): List<TokenBalance> {
@@ -238,64 +247,6 @@ class WalletRepository(private val application: Application) : IWalletRepository
             return Pair(maxPriorityFeeWei, maxFeeWei)
         } else {
             throw Exception("Failed to retrieve data from $endpoint. Response code: $responseCode")
-        }
-    }
-
-    override fun fetchNfts(
-        walletAddress: String,
-        selectedNetwork: Network
-    ): List<NftValue> {
-        //val envVars = EnvVars()
-        val zapperApiKey = "MY_API_KEY"
-        val currentTime = System.currentTimeMillis() / 1000
-        val sharedPreferences = getBalancesSharedPreferences(application)
-        val cacheExpirationTime = getNftCacheExpirationTime(sharedPreferences)
-        val cachedBalances = getUserNftBalances(application, selectedNetwork.displayName)
-
-        return if (cachedBalances.isNotEmpty() && cacheExpirationTime > currentTime) {
-            cachedBalances
-        } else {
-            val client = OkHttpClient()
-
-            val requestBody = GraphQLQueries.getNftUsersTokensQuery(
-                owners = listOf(walletAddress),
-                network = selectedNetwork.name,
-                first = 10
-            )
-
-            val request = Request.Builder()
-                .url("https://public.zapper.xyz/graphql")
-                .header("x-zapper-api-key", zapperApiKey)
-                .post(requestBody.toString().toRequestBody("application/json; charset=utf-8".toMediaType()))
-                .build()
-
-            return try {
-                val response = client.newCall(request).execute()
-                val responseBody = response.body?.string()
-
-                val jsonResponse = JsonUtils.json.decodeFromString<GraphQLResponse<GraphQLData>>(responseBody ?: "")
-                val nftNodes = jsonResponse.data?.nftUsersTokens?.edges
-
-                val nftList = nftNodes?.map { edge ->
-                    val node = edge.node
-                    val collection = node.collection
-                    val image = node.mediasV3?.images?.edges?.firstOrNull()?.node?.original
-
-                    NftValue(
-                        contractAddress = collection.address,
-                        contractName = collection.name ?: "Unknown",
-                        image = image ?: ""
-                    )
-                } ?: emptyList()
-
-                sharedPreferences.edit().putLong("CACHE_EXPIRATION_TIME_NFT", currentTime).apply()
-                cacheUserNftBalance(nftList, application, selectedNetwork.displayName)
-
-                nftList
-            } catch (e: Exception) {
-                Log.e("fetchNfts", "Error fetching NFT data", e)
-                emptyList()  // Return empty list in case of error
-            }
         }
     }
 
@@ -362,118 +313,6 @@ class WalletRepository(private val application: Application) : IWalletRepository
     }
 
 
-    override suspend fun sendTokens(
-        credentials: Credentials,
-        contractAddress: String,
-        toAddress: String,
-        value: BigDecimal
-    ): String {
-        val web3jService = Web3jService.build(selectedNetwork.value)
-        val contract = ERC20.load(contractAddress, web3jService, credentials, DefaultGasProvider())
-        val decimals = contract.decimals()
-        val gasPrice = web3jService.ethGasPrice().send().gasPrice
-
-        val function = Function(
-            "transfer",
-            listOf(
-                Address(toAddress),
-                Uint256(
-                    Convert.toWei(
-                        value.multiply(BigDecimal.TEN.pow(decimals.toInt())),
-                        Convert.Unit.WEI
-                    ).toBigInteger()
-                )
-            ),
-            emptyList()
-        )
-        val nonce: BigInteger = web3jService.ethGetTransactionCount(
-            credentials.address,
-            DefaultBlockParameterName.LATEST
-        )
-            .send().transactionCount
-
-        // Encode the function call to get the data that needs to be sent in the transaction
-        val encodedFunction = FunctionEncoder.encode(function)
-
-        val ethEstimateGas = web3jService.ethEstimateGas(
-            Transaction.createFunctionCallTransaction(
-                //TODO: Fix this line causing errors - testing using burn address here for now
-                "0x000000000000000000000000000000000000dEaD",
-                nonce,
-                gasPrice,
-                null,
-                "0x000000000000000000000000000000000000dEaD",
-                encodedFunction
-            )
-        ).send()
-
-        val gasLimit = ethEstimateGas.amountUsed.plus(BigInteger.valueOf(40000))
-
-        val (maxPriorityFeeWei, maxFeeWei) = getGasPrices()
-
-
-        return withContext(Dispatchers.IO) {
-            try {
-
-                if (contractAddress == "0x0000000000000000000000000000000000001010") {
-                    val transfer = Transfer.sendFundsEIP1559(
-                        web3jService,
-                        credentials,
-                        toAddress,
-                        Convert.toWei(
-                            value.multiply(BigDecimal.TEN.pow(decimals.toInt())),
-                            Convert.Unit.WEI
-                        ),
-                        Convert.Unit.WEI,
-                        gasLimit,
-                        maxPriorityFeeWei,
-                        maxFeeWei
-                    ).sendAsync().get()
-
-                    if (transfer.isStatusOK) {
-                        transfer.transactionHash
-                    } else {
-                        throw RuntimeException("EIP1559 Transaction failed: ${transfer.logs}")
-                    }
-                } else {
-                    // Create a raw transaction object
-                    val transaction = RawTransaction.createTransaction(
-                        nonce,
-                        gasPrice,
-                        gasLimit,
-                        contractAddress,
-                        encodedFunction
-                    )
-
-                    // my attempt to fix only EIP allowed over RPC
-                    val signedT = TransactionEncoder.signMessage(
-                        transaction,
-                        selectedNetwork.value.chainId,
-                        credentials
-                    )
-
-                    // Convert the signed transaction to hex format
-                    val hexValue = Numeric.toHexString(signedT)
-
-                    // Send the signed transaction to the network
-                    val transactionResponse =
-                        web3jService.ethSendRawTransaction(hexValue).sendAsync().get()
-
-                    // Check if the transaction was successful or not
-                    if (transactionResponse.hasError()) {
-                        throw RuntimeException("Transaction failed: ${transactionResponse.error.message}")
-                    } else {
-                        transactionResponse.transactionHash
-                    }
-                }
-
-            } catch (e: Exception) {
-                Log.e("send", "transaction failed: ${e.message}")
-                //Sentry.captureException(e)
-                throw e
-            }
-        }
-    }
 
 
     //TODO: Add functions that interact with the healthyWallet contract

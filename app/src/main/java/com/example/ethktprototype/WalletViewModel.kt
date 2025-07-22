@@ -123,7 +123,6 @@ class WalletViewModel(application: Application) : AndroidViewModel(application) 
             checkForEnsName(savedWalletAddress)
         }
 
-        loadMnemonicFromPrefs()
         getTokenBlocklist()
 
         viewModelScope.launch {
@@ -1807,7 +1806,7 @@ class WalletViewModel(application: Application) : AndroidViewModel(application) 
     /**
      * Loads the mnemonic from shared preferences and updates the UI state.
      */
-    private fun loadMnemonicFromPrefs() {
+    /*private*/ fun loadMnemonicFromPrefs() {
         val storedMnemonic = walletRepository.loadMnemonicFromPrefs()
         updateUiState { it.copy(mnemonicLoaded = storedMnemonic != null) }
     }
@@ -1821,6 +1820,14 @@ class WalletViewModel(application: Application) : AndroidViewModel(application) 
         val updatedBlocklist = uiState.value.tokenBlocklist + token
         walletRepository.updateTokenBlockList(tokenBlocklist = updatedBlocklist)
         updateUiState { it.copy(tokenBlocklist = updatedBlocklist) }
+    }
+
+    fun setBiometricUnlocked(unlocked: Boolean) {
+        updateUiState { it.copy(biometricUnlocked = unlocked) }
+    }
+
+    fun hasEncryptedMnemonic(): Boolean {
+        return walletRepository.hasEncryptedMnemonic()
     }
 
     /**
@@ -1861,25 +1868,6 @@ class WalletViewModel(application: Application) : AndroidViewModel(application) 
         }
     }
 
-    fun getNftBalances() {
-        updateUiState { it.copy(isNftsLoading = true) }
-        val walletAddress = uiState.value.walletAddress
-
-        if (walletAddress.isEmpty()) return
-
-        viewModelScope.launch {
-            try {
-                val nftBalances = withContext(Dispatchers.IO) {
-                    walletRepository.fetchNfts(walletAddress, uiState.value.selectedNetwork)
-                }
-
-                updateUiState { it.copy(nfts = nftBalances, isNftsLoading = false) }
-            } catch (e: Exception) {
-                // Handle errors
-                updateUiState { it.copy(isNftsLoading = false) }
-            }
-        }
-    }
 
     /**
      * Removes all wallet data from the repository and resets the UI state.
@@ -1897,14 +1885,6 @@ class WalletViewModel(application: Application) : AndroidViewModel(application) 
     fun clearTokenBlocklist() {
         val emptyBlocklist = walletRepository.clearTokenBlocklist()
         updateUiState { it.copy(tokenBlocklist = emptyBlocklist) }
-    }
-
-    fun updateSelectedNetwork(network: Network) {
-        val updatedNetwork = walletRepository.updateSelectedNetwork(network)
-        updateUiState { it.copy(selectedNetwork = updatedNetwork) }
-        // Refresh balances when network changes
-        getBalances()
-        getNftBalances()
     }
 
     fun updateSelectedToken(token: TokenBalance?) {
@@ -1956,58 +1936,6 @@ class WalletViewModel(application: Application) : AndroidViewModel(application) 
         updateUiState { it.copy(showSuccessModal = show) }
     }
 
-    /**
-     * Handles the confirmation of a payment.
-     *
-     * @param address The address to send the payment to.
-     * @param amount The amount to send.
-     * @param contractAddress The contract address of the token.
-     */
-    fun onPayConfirmed(address: String, amount: Double, contractAddress: String) {
-        val mnemonic = getMnemonic()
-
-        updateUiState {
-            it.copy(
-                sentAmount = amount,
-                sentCurrency = it.selectedToken?.symbol ?: ""
-            )
-        }
-
-        viewModelScope.launch {
-            try {
-                val resolvedAddress = withContext(Dispatchers.IO) {
-                    ensResolver(address)
-                }
-
-                updateUiState { it.copy(toAddress = resolvedAddress) }
-
-                if (!mnemonic.isNullOrEmpty()) {
-                    val credentials = loadBip44Credentials(mnemonic)
-                    credentials.let {
-                        val hash = withContext(Dispatchers.IO) {
-                            walletRepository.sendTokens(
-                                credentials,
-                                contractAddress,
-                                resolvedAddress,
-                                BigDecimal.valueOf(amount)
-                            )
-                        }
-
-                        updateUiState { state ->
-                            state.copy(
-                                transactionHash = hash,
-                                showPayDialog = false,
-                                showSuccessModal = true
-                            )
-                        }
-                    }
-                }
-            } catch (e: Exception) {
-                // Handle errors
-                updateUiState { it.copy(showPayDialog = false) }
-            }
-        }
-    }
 
     /**
      * Checks for an ENS name for the given wallet address and updates the UI state.
@@ -2351,16 +2279,6 @@ class WalletViewModel(application: Application) : AndroidViewModel(application) 
         }
     }
 
-    /**
-     * Adds a transaction to the UI state.
-     *
-     * @param transaction The transaction to add.
-     */
-    fun addTransactionOld(transaction: Transaction) {
-        val updatedTransactions = uiState.value.transactions + transaction
-        updateUiState { it.copy(transactions = updatedTransactions) }
-    }
-
     fun addTransaction(transaction: Transaction) {
         val transactionEntity = TransactionEntity(
             id = transaction.id,
@@ -2423,22 +2341,6 @@ class WalletViewModel(application: Application) : AndroidViewModel(application) 
         transactions.forEach { addTransaction(it) }
     }
 
-    /**
-     * Updates the status of a transaction in the UI state.
-     *
-     * @param transactionId The ID of the transaction to update.
-     * @param newStatus The new status to set for the transaction.
-     */
-    fun updateTransactionStatusOld(transactionId: String, newStatus: String) {
-        val updatedTransactions = uiState.value.transactions.map { transaction ->
-            if (transaction.id == transactionId) {
-                transaction.copy(status = newStatus)
-            } else {
-                transaction
-            }
-        }
-        updateUiState { it.copy(transactions = updatedTransactions) }
-    }
     fun updateTransactionStatus(transactionId: String, newStatus: String) {
         viewModelScope.launch {
             withContext(Dispatchers.IO) {

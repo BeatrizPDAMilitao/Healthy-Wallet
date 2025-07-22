@@ -22,6 +22,7 @@ import android.util.Log
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.runtime.LaunchedEffect
 import androidx.core.content.ContextCompat
+import androidx.fragment.app.FragmentActivity
 import com.example.ethktprototype.screens.AccessPermissionsScreen
 import com.example.ethktprototype.screens.CreateEHRScreen
 import com.example.ethktprototype.screens.EHRsScreen
@@ -46,7 +47,7 @@ import kotlinx.coroutines.runBlocking
  * @author Beatriz Militão
  * @version 1.0
  */
-class MainActivity : ComponentActivity() {
+class MainActivity : FragmentActivity() {
     private lateinit var viewModel: WalletViewModel
 
     private val requestPermissionLauncher = registerForActivityResult(
@@ -86,75 +87,100 @@ class MainActivity : ComponentActivity() {
         setContent {
             val navController = rememberNavController()
             val uiState by viewModel.uiState.collectAsState()
-            val startPoint = if (!uiState.mnemonicLoaded) "importWallet" else if (!uiState.medPlumToken) "loginScreen" else "EHRs"
+            val hasEncryptedMnemonic = viewModel.hasEncryptedMnemonic() // You'll add this function
+            Log.d("MainActivity", "hasEncryptedMnemonic: $hasEncryptedMnemonic")
+
+            LaunchedEffect(hasEncryptedMnemonic, uiState.biometricUnlocked) {
+                if (hasEncryptedMnemonic && !uiState.biometricUnlocked) {
+                    showBiometricPrompt(
+                        activity = this@MainActivity,
+                        onSuccess = {
+                            viewModel.loadMnemonicFromPrefs()
+                            viewModel.setBiometricUnlocked(true)
+                        },
+                        onError = { Log.e("Biometric", "Auth error: $it") },
+                        onFailed = { Log.w("Biometric", "Auth failed") }
+                    )
+                }
+            }
+
+            val startPoint = when {
+                !hasEncryptedMnemonic -> "importWallet" // nothing to unlock
+                !uiState.biometricUnlocked -> null       // wait for biometric
+                //!uiState.mnemonicLoaded -> "importWallet"
+                !uiState.medPlumToken -> "loginScreen"
+                else -> "EHRs"
+            }
             Log.d("MainActivityStartPoint", "Start Point: $startPoint")
             EthKtPrototypeTheme {
                 Surface(color = MaterialTheme.colorScheme.background) {
-                    NavHost(navController = navController, startDestination = startPoint) {
-                        composable("importWallet") {
-                            ImportWalletScreen(
-                                navController = navController,
-                                viewModel = viewModel
-                            )
-                        }
-                        composable("tokenList") {
-                            TokenListScreen(navController, viewModel, application)
-                        }
-                        composable("settingsScreen") {
-                            SettingsScreen(navController = navController, viewModel = viewModel)
-                        }
-                        composable("activity") {
-                            ActivityScreen(navController = navController, viewModel = viewModel)
-                        }
-                        composable("EHRs") {
-                            EHRsScreen(navController = navController, viewModel = viewModel)
-                        }
-                        composable("transaction/{transactionId}") { backStackEntry ->
-                            val transactionId = backStackEntry.arguments?.getString("transactionId")
-                            TransactionScreen(
-                                navController = navController,
-                                viewModel = viewModel,
-                                transactionId = transactionId
-                            )
-                        }
-                        composable("healthSummaryScreen") {
-                            HealthSummaryScreen(navController = navController, viewModel = viewModel)
-                        }
-                        composable("examsScreen") {
-                            ExamsScreen(navController = navController, viewModel = viewModel)
-                        }
-                        composable("prescriptionsScreen") {
-                            PrescriptionsScreen(navController = navController, viewModel = viewModel)
-                        }
-                        composable("vaccinationsScreen") {
-                            VaccinationsScreen(navController = navController, viewModel = viewModel)
-                        }
-                        composable("medicationScreen") {
-                            MedicationScreen(navController = navController, viewModel = viewModel)
-                        }
-                        composable("loginScreen") {
-                            LoginScreen(context = this@MainActivity, viewModel = viewModel)
-                            //startActivity(Intent(this@MainActivity, LoginActivity::class.java))
-                        }
-                        composable("patientsListScreen") {
-                            PatientsListScreen(navController = navController, viewModel = viewModel)
-                        }
-                        composable("patientDetails/{patientId}") { backStackEntry ->
-                            val patientId = backStackEntry.arguments?.getString("patientId")
-                            PatientDetailsScreen(navController = navController, viewModel = viewModel, patientId = patientId.toString())
-                        }
-                        composable("sharedWithDoctor") {
-                            SharedWithDoctorScreen(navController = navController, viewModel = viewModel)
-                        }
-                        composable("createEHR/{patientId}") { backStackEntry ->
-                            val patientId = backStackEntry.arguments?.getString("patientId")
-                            CreateEHRScreen(navController = navController, viewModel = viewModel, patientId = patientId.toString())
-                        }
-                        composable("profile") {
-                            ProfileScreen(navController = navController, viewModel = viewModel)
-                        }
-                        composable("viewAccessPermissionsScreen") {
-                            AccessPermissionsScreen(navController = navController, viewModel = viewModel)
+                    if (startPoint != null) {
+                        NavHost(navController = navController, startDestination = startPoint) {
+                            composable("importWallet") {
+                                ImportWalletScreen(
+                                    navController = navController,
+                                    viewModel = viewModel
+                                )
+                            }
+                            composable("tokenList") {
+                                TokenListScreen(navController, viewModel, application)
+                            }
+                            composable("settingsScreen") {
+                                SettingsScreen(navController = navController, viewModel = viewModel)
+                            }
+                            composable("activity") {
+                                ActivityScreen(navController = navController, viewModel = viewModel)
+                            }
+                            composable("EHRs") {
+                                EHRsScreen(navController = navController, viewModel = viewModel)
+                            }
+                            composable("transaction/{transactionId}") { backStackEntry ->
+                                val transactionId = backStackEntry.arguments?.getString("transactionId")
+                                TransactionScreen(
+                                    navController = navController,
+                                    viewModel = viewModel,
+                                    transactionId = transactionId
+                                )
+                            }
+                            composable("healthSummaryScreen") {
+                                HealthSummaryScreen(navController = navController, viewModel = viewModel)
+                            }
+                            composable("examsScreen") {
+                                ExamsScreen(navController = navController, viewModel = viewModel)
+                            }
+                            composable("prescriptionsScreen") {
+                                PrescriptionsScreen(navController = navController, viewModel = viewModel)
+                            }
+                            composable("vaccinationsScreen") {
+                                VaccinationsScreen(navController = navController, viewModel = viewModel)
+                            }
+                            composable("medicationScreen") {
+                                MedicationScreen(navController = navController, viewModel = viewModel)
+                            }
+                            composable("loginScreen") {
+                                LoginScreen(context = this@MainActivity, viewModel = viewModel)
+                                //startActivity(Intent(this@MainActivity, LoginActivity::class.java))
+                            }
+                            composable("patientsListScreen") {
+                                PatientsListScreen(navController = navController, viewModel = viewModel)
+                            }
+                            composable("patientDetails/{patientId}") { backStackEntry ->
+                                val patientId = backStackEntry.arguments?.getString("patientId")
+                                PatientDetailsScreen(navController = navController, viewModel = viewModel, patientId = patientId.toString())
+                            }
+                            composable("sharedWithDoctor") {
+                                SharedWithDoctorScreen(navController = navController, viewModel = viewModel)
+                            }
+                            composable("createEHR/{patientId}") { backStackEntry ->
+                                val patientId = backStackEntry.arguments?.getString("patientId")
+                                CreateEHRScreen(navController = navController, viewModel = viewModel, patientId = patientId.toString())
+                            }
+                            composable("profile") {
+                                ProfileScreen(navController = navController, viewModel = viewModel)
+                            }
+                            composable("viewAccessPermissionsScreen") {
+                                AccessPermissionsScreen(navController = navController, viewModel = viewModel)
+                            }
                         }
                     }
                 }

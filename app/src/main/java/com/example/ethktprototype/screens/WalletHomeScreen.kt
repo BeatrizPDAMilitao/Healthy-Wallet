@@ -67,12 +67,10 @@ fun TokenListScreen(
 
     LaunchedEffect(Unit) {
         viewModel.getBalances()
-        viewModel.getNftBalances()
     }
 
     LaunchedEffect(uiState.selectedNetwork) {
         viewModel.getBalances()
-        viewModel.getNftBalances()
     }
 
     Box(
@@ -199,23 +197,6 @@ fun TokenListScreen(
                 currentRoute = "tokenList"
             )
         }
-    }
-
-
-    if (uiState.showPayDialog) {
-        SendBottomSheet(
-            onDismiss = { viewModel.setShowPayDialog(false) },
-            onPay = { address, amount, contractAddress ->
-                viewModel.onPayConfirmed(
-                    address,
-                    amount.toDouble(),
-                    contractAddress
-                )
-            },
-            selectedNetwork = uiState.selectedNetwork,
-            tokens = uiState.tokens,
-            viewModel = viewModel
-        )
     }
 
     if (uiState.showWalletModal) {

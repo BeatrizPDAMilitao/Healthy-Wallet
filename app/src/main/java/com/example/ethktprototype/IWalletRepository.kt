@@ -18,21 +18,10 @@ interface IWalletRepository {
 
     fun getMnemonic(): String?
 
-    suspend fun sendTokens(
-        credentials: Credentials,
-        contractAddress: String,
-        toAddress: String,
-        value: BigDecimal
-    ): String
-
     fun clearTokenBlocklist(): List<TokenBalance>
 
     fun updateTokenBlockList(tokenBlocklist: List<TokenBalance>)
 
     fun getTokenBlocklist(): List<TokenBalance>
 
-    fun fetchNfts(
-        walletAddress: String,
-        selectedNetwork: Network
-    ): List<NftValue>
 }
