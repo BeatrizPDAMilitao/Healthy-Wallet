@@ -31,6 +31,9 @@ import androidx.navigation.NavHostController
 import com.example.ethktprototype.HealthyWalletApplication
 import com.example.ethktprototype.MedPlumAPI
 import com.example.ethktprototype.WalletViewModel
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 
 @Composable
 fun ProfileScreen(
@@ -99,6 +102,24 @@ fun ProfileScreen(
                     .padding(20.dp),
                 verticalArrangement = Arrangement.Bottom
             ) {
+                /*Button(
+                    onClick = {
+                        CoroutineScope(Dispatchers.Main).launch {
+                            viewModel.testStorage()
+                        }
+                    },
+                    modifier = Modifier
+                        .fillMaxWidth(0.6f)
+                        .height(50.dp),
+                    shape = MaterialTheme.shapes.medium
+                ) {
+                    Text(
+                        text = "Test Storage",
+                        style = MaterialTheme.typography.bodyLarge.copy(
+                            fontWeight = FontWeight.SemiBold
+                        )
+                    )
+                }*/
                 Button(
                     onClick = {
                         authManager.logout(context)

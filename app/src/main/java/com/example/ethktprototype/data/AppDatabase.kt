@@ -4,10 +4,11 @@ import androidx.room.Database
 import androidx.room.Room
 import androidx.room.RoomDatabase
 import android.content.Context
+import android.util.Log
 import androidx.room.TypeConverters
 import net.sqlcipher.database.SQLiteDatabase
 import net.sqlcipher.database.SupportFactory
-
+import java.io.File
 
 @Database(
     entities = [
@@ -54,5 +55,18 @@ abstract class AppDatabase : RoomDatabase() {
                 instance
             }
         }
+    }
+    fun clearDatabase() {
+        INSTANCE?.clearAllTables()
+    }
+    fun logDbSize(context: Context) {
+        val dbFile = context.getDatabasePath("app_database_encrypted")
+        val walFile = File(dbFile.parent, "app_database_encrypted-wal")
+        val shmFile = File(dbFile.parent, "app_database_encrypted-shm")
+
+        val totalSize = dbFile.length() + walFile.length() + shmFile.length()
+        val sizeInMB = totalSize / (1024.0 * 1024.0)
+
+        Log.d("DatabaseSize", "Total DB size including WAL: %.4f MB".format(sizeInMB))
     }
 }

@@ -355,7 +355,7 @@ fun TransactionScreen(
                                     .background(MaterialTheme.colorScheme.primary, shape = RoundedCornerShape(8.dp)),
                                 shape = RoundedCornerShape(8.dp)
                             ) {
-                                Text("Generate ZKP Proof")
+                                Text("Generate ZKP")
                             }
                             Button(onClick = {
                                 viewModel.getZkpTimes()

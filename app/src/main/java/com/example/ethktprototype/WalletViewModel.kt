@@ -80,7 +80,9 @@ class WalletViewModel(application: Application) : AndroidViewModel(application) 
     private val walletRepository = WalletRepository(application)
     private val medPlumAPI = MedPlumAPI(application, this)
 
-    private lateinit var transactionDao: TransactionDao  //AppDatabase.getDatabase(application).transactionDao()
+    private val db = AppDatabase.getDatabase(application, walletRepository.generateAndStorePassphrase())
+
+    private lateinit var transactionDao: TransactionDao
 
     private val sharedPreferences =
         application.getSharedPreferences("WalletPrefs", Context.MODE_PRIVATE)
@@ -111,7 +113,7 @@ class WalletViewModel(application: Application) : AndroidViewModel(application) 
 
 
     init {
-        transactionDao = AppDatabase.getDatabase(application, walletRepository.generateAndStorePassphrase()).transactionDao()
+        transactionDao = db.transactionDao()
         val savedWalletAddress = sharedPreferences.getString(walletAddressKey, "") ?: ""
         updateUiState { it.copy(walletAddress = savedWalletAddress) }
 
@@ -2387,6 +2389,97 @@ class WalletViewModel(application: Application) : AndroidViewModel(application) 
                 transactionDao.deleteAllTransactions()
             }
             updateUiState { it.copy(transactions = emptyList()) }
+        }
+    }
+
+    suspend fun testStorage() {
+        val context = getApplication<Application>().applicationContext
+
+        withContext(Dispatchers.IO) {
+            //db.query("PRAGMA wal_checkpoint(FULL)", null)
+            db.clearDatabase()
+        }
+        withContext(Dispatchers.IO) {
+            db.logDbSize(context)
+        }
+        //db.clearDatabase() // Clear the database before testing
+        val totalBatches = 2
+
+        ////////////////////////// Diagnostic Reports
+        val ehrBatch = withContext(Dispatchers.IO) {
+            medPlumAPI.fetchDiagnosticReports(getLoggedInUsertId().removePrefix("Patient/"), false)
+        }
+
+        for (i in 0 until totalBatches) {
+            val toInsert = ehrBatch?.subList(0, 10 * (i + 1))
+            if (toInsert != null) transactionDao.insertDiagnosticReports(toInsert)
+            //transactionDao.checkpoint()
+            //transactionDao.query("PRAGMA wal_checkpoint(FULL)", null)
+            withContext(Dispatchers.IO) {
+                db.logDbSize(context)
+            }
+            delay(500) // optional pause
+        }
+        ////////////////////////// Immunizations
+        val ehrBatch2 = withContext(Dispatchers.IO) {
+            medPlumAPI.fetchImmunizations(getLoggedInUsertId().removePrefix("Patient/"))
+        }
+
+        for (i in 0 until totalBatches) {
+            val toInsert = ehrBatch2?.subList(0, 10 * (i + 1))
+
+            if (toInsert != null) transactionDao.insertImmunizations(toInsert)
+            //transactionDao.checkpoint()
+            //transactionDao.query("PRAGMA wal_checkpoint(FULL)", null)
+            withContext(Dispatchers.IO) {
+                db.logDbSize(context)
+            }
+            delay(500) // optional pause
+        }
+        ////////////////////////// Medication Requests
+        val ehrBatch3 = withContext(Dispatchers.IO) {
+            medPlumAPI.fetchMedicationRequests(getLoggedInUsertId().removePrefix("Patient/"))
+        }
+        for (i in 0 until totalBatches) {
+            val toInsert = ehrBatch3?.subList(0, 10 * (i + 1))
+
+            if (toInsert != null) transactionDao.insertMedicationRequests(toInsert)
+            //transactionDao.checkpoint()
+            //transactionDao.query("PRAGMA wal_checkpoint(FULL)", null)
+            withContext(Dispatchers.IO) {
+                db.logDbSize(context)
+            }
+            delay(500) // optional pause
+        }
+        ////////////////////////// Procedures
+        val ehrBatch4 = withContext(Dispatchers.IO) {
+            medPlumAPI.fetchProcedures(getLoggedInUsertId().removePrefix("Patient/"))
+        }
+        for (i in 0 until totalBatches) {
+            val toInsert = ehrBatch4?.subList(0, 10 * (i + 1))
+
+            if (toInsert != null) transactionDao.insertProcedures(toInsert)
+            //transactionDao.checkpoint()
+            //transactionDao.query("PRAGMA wal_checkpoint(FULL)", null)
+            withContext(Dispatchers.IO) {
+                db.logDbSize(context)
+            }
+            delay(500) // optional pause
+        }
+        ////////////////////////// Observations
+        val ehrBatch5 = withContext(Dispatchers.IO) {
+            medPlumAPI.fetchObservations(getLoggedInUsertId().removePrefix("Patient/"))
+        }
+        for (i in 0 until totalBatches) {
+            val toInsert = ehrBatch5?.subList(0, 10 * (i + 1))
+
+            if (toInsert != null) transactionDao.insertObservations(toInsert)
+            //transactionDao.checkpoint()
+            //transactionDao.query("PRAGMA wal_checkpoint(FULL)", null)
+            withContext(Dispatchers.IO) {
+                db.logDbSize(context)
+            }
+            delay(500) // optional pause
         }
     }
 }
