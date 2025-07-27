@@ -60,6 +60,8 @@ import kotlinx.coroutines.launch
 import androidx.compose.material3.CircularProgressIndicator
 import com.example.ethktprototype.composables.BottomNavigationBar
 import com.example.ethktprototype.data.ConditionRequirement
+import com.example.ethktprototype.nexus.CallZkpApi
+import org.json.JSONObject
 
 /**
  * ActivityScreen is a Composable function that displays the activity screen of the wallet application.
@@ -252,6 +254,47 @@ fun ActivityScreen(
                 ) {
                     Text("Simulate ZKP Request")
                 }
+                /*Button(onClick = {
+                    val cond = viewModel.getConditionRequirement("Glucose")
+                    val dateTime = cond!!.effectiveDateTime.toString()
+                    for (i in 1..3) { //1M is too ambicious for my own Android
+                        viewModel.viewModelScope.launch {
+                            val startTime = System.currentTimeMillis()
+                            CallZkpApi.sendValue(
+                                value = i,
+                                min = 40,
+                                max = 500,
+                                timestamp = dateTime,
+                                onSuccess = { resultJson ->
+                                    val endTime = System.currentTimeMillis() - startTime
+                                    viewModel.addZkpTime(endTime)
+                                    val status = JSONObject(resultJson).getString("status")
+                                    val proofUrl = JSONObject(resultJson).getString("proof_url")
+                                    Log.d("ZKPServer", "Status: $status, Proof URL: $proofUrl")
+                                },
+                                onError = { error ->
+                                    Log.e("ZKPServer", error)
+                                }
+                            )
+                        }
+                    }
+                },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(8.dp)
+                        .background(
+                            MaterialTheme.colorScheme.primary,
+                            shape = RoundedCornerShape(8.dp)
+                        ),
+                    shape = RoundedCornerShape(8.dp)
+                ) {
+                    Text("Test ZKP Server")
+
+                Button(onClick = {
+                    viewModel.getZkpTimes()
+                }, modifier = Modifier.fillMaxWidth().padding(8.dp)) {
+                    Text("Get ZKP times")
+                }*/
                 /*Button(
                     onClick = {
                         viewModel.printCreateEHR()

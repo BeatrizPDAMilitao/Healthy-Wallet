@@ -683,6 +683,11 @@ class WalletViewModel(application: Application) : AndroidViewModel(application) 
 
     //////////////////////////ZKP Times ////////////////////////////////////////
     val zkpTimes = mutableListOf<Long>()
+
+    fun addZkpTime(time: Long) {
+        zkpTimes.add(time)
+    }
+
     fun startTimerForZKP() {
         viewModelScope.launch {
             val start = System.currentTimeMillis()
