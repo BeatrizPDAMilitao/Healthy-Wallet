@@ -18,6 +18,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ExpandLess
 import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -150,6 +151,7 @@ fun AccessPermissionsList(
     accessPermissions: List<ConsentDisplayItem>,
     viewModel: WalletViewModel,
 ) {
+    val uiState by viewModel.uiState.collectAsState()
     LazyColumn(
         modifier = Modifier
             .fillMaxSize()
@@ -157,6 +159,21 @@ fun AccessPermissionsList(
     ) {
         items(accessPermissions) { permission ->
             AccessPermissionCard(permission, viewModel)
+        }
+        item {
+            if (uiState.showSuccessModal) {
+                AlertDialog(
+                    onDismissRequest = { viewModel.setShowSuccessModal(false) },
+                    title = { Text("Revoke") },
+                    text = { Text("Successfully revoked permission!") },
+                    confirmButton = {
+                        Button(onClick = { viewModel.setShowSuccessModal(false) }) {
+                            Text("OK")
+                        }
+                    },
+                    containerColor = MaterialTheme.colorScheme.background,
+                )
+            }
         }
     }
 }
@@ -206,6 +223,7 @@ fun AccessPermissionCard(
                 Button(
                     onClick = {
                         viewModel.revokeAccessPermission(permission.id)
+                        isExpanded = false // Collapse after revoking
                     },
                     modifier = Modifier.fillMaxWidth()
                         .padding(top = 16.dp),

@@ -349,5 +349,173 @@ object GraphQLQueries {
     """.trimIndent()
     }
 
+    fun buildConsentListQuery(): String {
+        return """
+        query {
+          ConsentList(status: "active") {
+            id
+            status
+            patient {
+              reference
+            }
+            performer {
+              reference
+            }
+            policy {
+              uri
+              authority
+            }
+            provision {
+              type
+              actor {
+                reference {
+                  reference
+                }
+              }
+              data {
+                reference {
+                  reference
+                }
+              }
+            }
+            meta {
+              lastUpdated
+            }
+          }
+        }
+    """.trimIndent()
+    }
+
+    fun buildSharedResourcesText(): String {
+        return "Resource shared via active Consent are fetched individually by ID, based on the references listed in provision.data[].reference where the practitioner is listed as a provision.actor."
+    }
+
+    fun buildRevokeConsentMutation(consentId: String): String {
+        return """
+        mutation {
+          updateConsent(id: "$consentId", input: {
+            status: "inactive"
+          }) {
+            id
+            status
+          }
+        }
+    """.trimIndent()
+    }
+
+    fun buildConsentsForPatientQuery(patientId: String): String {
+        return """
+        query {
+          ConsentList(status: "active") {
+            id
+            status
+            patient {
+              reference
+            }
+            performer {
+              reference
+            }
+            policy {
+              uri
+            }
+            meta {
+              lastUpdated
+            }
+            provision {
+              data {
+                reference {
+                  reference
+                }
+              }
+            }
+          }
+        }
+    """.trimIndent()
+    }
+
+    fun buildCheckConsentExistsQuery(patientId: String): String {
+        return """
+        query {
+          ConsentList(status: "active", patient: "Patient/$patientId") {
+            id
+            status
+            patient {
+              reference
+            }
+            performer {
+              reference
+            }
+            provision {
+              actor {
+                reference {
+                  reference
+                }
+              }
+              data {
+                reference {
+                  reference
+                }
+              }
+            }
+          }
+        }
+    """.trimIndent()
+    }
+
+    fun buildCreateConsentMutation(
+        patientId: String,
+        practitionerId: String,
+        resourceId: String
+    ): String {
+        return """
+        mutation {
+          createConsent(input: {
+            status: "active"
+            patient: {
+              reference: "Patient/$patientId"
+            }
+            performer: [{
+              reference: "Practitioner/$practitionerId"
+            }]
+            scope: {
+              coding: [{
+                system: "http://terminology.hl7.org/CodeSystem/consentscope"
+                code: "patient-privacy"
+              }]
+            }
+            category: [{
+              coding: [{
+                system: "http://terminology.hl7.org/CodeSystem/consentcategorycodes"
+                code: "INFA"
+              }]
+            }]
+            provision: {
+              type: "permit"
+              actor: [{
+                role: {
+                  coding: [{
+                    system: "http://terminology.hl7.org/CodeSystem/consentactorrole"
+                    code: "PRCP"
+                  }]
+                }
+                reference: {
+                  reference: "Practitioner/$practitionerId"
+                }
+              }]
+              data: [{
+                meaning: "instance"
+                reference: {
+                  reference: "$resourceId"
+                }
+              }]
+            }
+          }) {
+            id
+            status
+          }
+        }
+    """.trimIndent()
+    }
+
 
 }

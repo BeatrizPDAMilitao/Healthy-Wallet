@@ -43,6 +43,10 @@ import java.util.Date
 import java.util.Locale
 import androidx.navigation.NavHostController
 import com.example.ethktprototype.data.ConsentDisplayItem
+import com.example.ethktprototype.data.GraphQLQueries.buildCheckConsentExistsQuery
+import com.example.ethktprototype.data.GraphQLQueries.buildConsentListQuery
+import com.example.ethktprototype.data.GraphQLQueries.buildConsentsForPatientQuery
+import com.example.ethktprototype.data.GraphQLQueries.buildCreateConsentMutation
 import com.example.ethktprototype.data.GraphQLQueries.buildGetPatientAllergiesQuery
 import com.example.ethktprototype.data.GraphQLQueries.buildGetPatientDevicesQuery
 import com.example.ethktprototype.data.GraphQLQueries.buildGetPatientDiagnosticReportQuery
@@ -54,6 +58,8 @@ import com.example.ethktprototype.data.GraphQLQueries.buildGetPatientProceduresQ
 import com.example.ethktprototype.data.GraphQLQueries.buildPatientCompleteQuery
 import com.example.ethktprototype.data.GraphQLQueries.buildPractitionerCompleteQuery
 import com.example.ethktprototype.data.GraphQLQueries.buildPractitionersListQuery
+import com.example.ethktprototype.data.GraphQLQueries.buildRevokeConsentMutation
+import com.example.ethktprototype.data.GraphQLQueries.buildSharedResourcesText
 import com.example.ethktprototype.data.HealthSummaryResult
 import com.example.ethktprototype.data.PractitionerEntity
 import com.example.ethktprototype.data.TransactionDao
@@ -292,7 +298,7 @@ class WalletViewModel(application: Application) : AndroidViewModel(application) 
 
                         Log.d("MedPlumGrant", "Granting policy...")
                         val granted = withContext(Dispatchers.IO) {
-                            medPlumAPI.grantFullDiagnosticReportAccess(recordId, practitionerId, projectId, getLoggedInUsertId())
+                            medPlumAPI.grantFullResourceAccess(recordId, practitionerId, projectId, getLoggedInUsertId())
                         }
                         Log.d("MedPlumGrant", "Policy granted: $granted")
                     } catch (e: Exception) {
@@ -594,7 +600,7 @@ class WalletViewModel(application: Application) : AndroidViewModel(application) 
 
         Log.d("AccessControl", "lastAccessTime = $lastAccessTime, now = $now")
         // Only send transaction if 24h passed
-        if ( uiState.value.hasFetched[screen] != true ||(now - lastAccessTime >= twentyFourHoursMillis) || lastAccessTime == 0L) {
+        if ( screen == "ALWAYS" || uiState.value.hasFetched[screen] != true ||(now - lastAccessTime >= twentyFourHoursMillis) || lastAccessTime == 0L) {
             return try {
                 walletRepository.loadAccessesContract(credentials)
                 Log.d("AccessControl", "[$screen] Loaded contract")
@@ -608,7 +614,7 @@ class WalletViewModel(application: Application) : AndroidViewModel(application) 
                 val gasFee = gasUsed * gasPrice
                 Log.d("AccessControl", "[$screen] Gas fee: $gasFee, Gas used: $gasUsed, Gas price: $gasPrice")
                 gasFees.add(gasFee)
-                walletRepository.updateLastAccessTime(key, now)
+                if (screen != "ALWAYS") walletRepository.updateLastAccessTime(key, now)
                 Log.d("AccessControl", "[$screen] Access logged: ${receipt.transactionHash}")
                 true
             } catch (e: Exception) {
@@ -1001,20 +1007,28 @@ class WalletViewModel(application: Application) : AndroidViewModel(application) 
     }
 
     fun shareAccessWithPractitioner(practitionerId: String, recordId: String) {
+        val patientId = getLoggedInUsertId()
+        val queries = listOf(
+            buildCheckConsentExistsQuery(patientId),
+            buildCreateConsentMutation(patientId, practitionerId, recordId)
+        )
         viewModelScope.launch {
             setTransactionProcessing(true)
             try {
-                Log.d("MedPlumGrant", "Granting policy...")
-                val granted = withContext(Dispatchers.IO) {
-                    medPlumAPI.grantFullDiagnosticReportAccess(
-                        recordId,
-                        practitionerId,
-                        projectId,
-                        getLoggedInUsertId()
-                    )
+                Log.d("MedPlumGrant", "Granting consent...")
+                val result = withContext(Dispatchers.IO) {
+                    var granted: Boolean? = null
+                    val success = withLoggedAccessPerScreen("ALWAYS", queries) {
+                        val data = medPlumAPI.grantFullResourceAccess(recordId, practitionerId, projectId, patientId)
+                        granted = data
+                    }
+                    if (success) granted else null
                 }
-                Log.d("MedPlumGrant", "Policy granted: $granted")
-            } catch (e: Exception) {
+                result?.let {
+                    Log.d("MedPlumGrant", "Consent granted: $result")
+                } ?: Log.e("MedPlumGrant", "Access denied or failed")
+            }
+            catch (e: Exception) {
                 Log.e("ShareAccess", "Exception caught", e)
             }
         }
@@ -1022,14 +1036,29 @@ class WalletViewModel(application: Application) : AndroidViewModel(application) 
     }
 
     fun revokeAccessPermission(permissionId: String) {
+        val query = buildRevokeConsentMutation(permissionId)
         viewModelScope.launch {
             setTransactionProcessing(true)
             try {
                 Log.d("MedPlumRevoke", "Revoking access permission: $permissionId")
-                val revoked = withContext(Dispatchers.IO) {
-                    medPlumAPI.revokeAccessPermission(permissionId)
+                val result = withContext(Dispatchers.IO) {
+                    var revoked: Boolean? = null
+                    val success = withLoggedAccessPerScreen("ALWAYS", listOf(query)) {
+                        val data = medPlumAPI.revokeAccessPermission(permissionId)
+                        revoked = data
+                    }
+                    if (success) revoked else null
                 }
-                Log.d("MedPlumRevoke", "Access permission revoked: $revoked")
+                result?.let {
+                    Log.d("MedPlumRevoke", "Access permission revoked: $result")
+                    updateUiState { state ->
+                        state.copy(
+                            showSuccessModal = true,
+                        )
+                    }
+                    //remove the permission from the UI
+                    removeAccessPermission(permissionId)
+                }
             } catch (e: Exception) {
                 Log.e("RevokeAccess", "Exception caught", e)
             } finally {
@@ -1447,14 +1476,22 @@ class WalletViewModel(application: Application) : AndroidViewModel(application) 
     private val _sharedEHR = MutableStateFlow(SharedEHRState())
     val sharedEHR: StateFlow<SharedEHRState> = _sharedEHR
     fun getSharedEHRs(subjectId: String = getLoggedInUsertId()) {
+        val queries = listOf(
+            buildConsentListQuery(),
+            buildSharedResourcesText()
+        )
         viewModelScope.launch {
             _uiState.update { it.copy(isSharedEHRLoading = true) }
             try {
-                //TODO: Log access to shared EHRs
-                val sharedEHRs = withContext(Dispatchers.IO) {
-                    medPlumAPI.loadSharedResourcesFromConsents(subjectId)
+                val result = withContext(Dispatchers.IO) {
+                    var sharedEHRs: Map<String, List<JSONObject>>? = null
+                    val success = withLoggedAccessPerScreen(SHARED_EHR_KEY, queries) {
+                        val data = medPlumAPI.loadSharedResourcesFromConsents(subjectId)
+                        sharedEHRs = data
+                    }
+                    if (success) sharedEHRs else null
                 }
-                sharedEHRs.let {
+                result?.let {
                      _sharedEHR.value = SharedEHRState(
                         diagnosticReports = (it["DiagnosticReport"] ?.map { json ->
                             val resultRefs = json.optJSONArray("result")?.let { results ->
@@ -1567,8 +1604,7 @@ class WalletViewModel(application: Application) : AndroidViewModel(application) 
                      )
                     //transactionDao.insertSharedEHRs(it)
                     updateHasFetched(SHARED_EHR_KEY, true)
-                }
-                Log.d("SharedEHRData", "Shared EHRs: $sharedEHRs")
+                } ?: Log.e("MedplumAuth", "Access denied or failed")
             } catch (e: Exception) {
                 Log.e("Exams", "Error fetching", e)
             } finally {
@@ -1580,25 +1616,33 @@ class WalletViewModel(application: Application) : AndroidViewModel(application) 
     private val _accessPermissions = MutableStateFlow<List<ConsentDisplayItem>>(emptyList())
     val accessPermissions: StateFlow< List<ConsentDisplayItem>> = _accessPermissions
     fun getAccessPermissions(patientId: String) {
+        val query = buildConsentsForPatientQuery(patientId)
         viewModelScope.launch {
             _uiState.update { it.copy(isAccessPermissionsLoading = true) }
             try {
-                val consents = withContext(Dispatchers.IO) {
-                    medPlumAPI.fetchConsentsByPatient(patientId)
+                val result = withContext(Dispatchers.IO) {
+                    var consents: List<ConsentDisplayItem>? = null
+                    val success = withLoggedAccessPerScreen(ACCESS_PERMISSIONS_KEY, listOf(query)) {
+                        val data = medPlumAPI.fetchConsentsByPatient(patientId)
+                        consents = data
+                    }
+                    if (success) consents else null
                 }
-
-                consents.let {
+                result?.let {
                     _accessPermissions.value = it
                     updateHasFetched(ACCESS_PERMISSIONS_KEY, true)
-                }
-
-                Log.d("AccessPermissions", "Consents: $consents")
+                    //Log.d("AccessPermissions", "Consents: $result")
+                } ?: Log.e("MedplumAuth", "Access denied or failed")
             } catch (e: Exception) {
                 Log.e("AccessPermissions", "Error fetching", e)
             } finally {
                 _uiState.update { it.copy(isAccessPermissionsLoading = false) }
             }
         }
+    }
+
+    fun removeAccessPermission(permissionId: String) {
+        _accessPermissions.value = _accessPermissions.value.filter { it.id != permissionId }
     }
 
 

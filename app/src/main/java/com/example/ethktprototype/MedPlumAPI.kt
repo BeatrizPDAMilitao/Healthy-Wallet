@@ -1427,7 +1427,7 @@ class MedPlumAPI(private val application: Application, private val viewModel: Wa
         return@withContext true
     }*/
 
-    suspend fun grantFullDiagnosticReportAccess(
+    suspend fun grantFullResourceAccess(
         resourceId: String,
         practitionerId: String,
         projectId: String,
