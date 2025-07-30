@@ -64,6 +64,7 @@ import com.example.ethktprototype.data.HealthSummaryResult
 import com.example.ethktprototype.data.PractitionerEntity
 import com.example.ethktprototype.data.TransactionDao
 import com.example.medplum.GetPatientDiagnosticReportQuery
+import com.example.ethktprototype.nexus.CallZkpApi
 import kotlinx.serialization.InternalSerializationApi
 import org.json.JSONObject
 import org.web3j.utils.Numeric
@@ -122,6 +123,7 @@ class WalletViewModel(application: Application) : AndroidViewModel(application) 
         transactionDao = db.transactionDao()
         val savedWalletAddress = sharedPreferences.getString(walletAddressKey, "") ?: ""
         updateUiState { it.copy(walletAddress = savedWalletAddress) }
+        CallZkpApi.init(application)
 
         val lastNetwork = walletRepository.getLastSelectedNetwork()
         updateUiState { it.copy(selectedNetwork = lastNetwork) }
@@ -414,12 +416,7 @@ class WalletViewModel(application: Application) : AndroidViewModel(application) 
                                 recordId = access.recordId,
                                 patientId = access.patientId,
                                 practitionerId = access.practitionerId,
-                                practitionerAddress = access.practitionerAddress,
-                                documentReferenceId = "", // Placeholder if unknown
-                                medicationRequestId = "",
-                                conditionId = "",
-                                encounterId = "",
-                                observationId = ""
+                                practitionerAddress = access.practitionerAddress
                             )
 
                             withContext(Dispatchers.IO) {
@@ -2340,11 +2337,6 @@ class WalletViewModel(application: Application) : AndroidViewModel(application) 
             patientId = transaction.patientId,
             practitionerAddress = transaction.practitionerAddress,
             practitionerId = transaction.practitionerId,
-            documentReferenceId = "",
-            medicationRequestId = "",
-            conditionId = "",
-            encounterId = "",
-            observationId = "",
             conditionsJson = Converters.fromConditionsList(transaction.conditions)
         )
         val zkpEntity = transaction.conditions?.let {

@@ -12,21 +12,6 @@ data class TransactionWithDetails(
     @Relation(parentColumn = "practitionerId", entityColumn = "id")
     val practitioner: PractitionerEntity,
 
-    @Relation(parentColumn = "documentReferenceId", entityColumn = "id")
-    val documentReference: DocumentReferenceEntity,
-
-    @Relation(parentColumn = "medicationRequestId", entityColumn = "id")
-    val medicationRequest: MedicationRequestEntity,
-
-    @Relation(parentColumn = "conditionId", entityColumn = "id")
-    val condition: ConditionEntity,
-
-    @Relation(parentColumn = "encounterId", entityColumn = "id")
-    val encounter: EncounterEntity,
-
-    @Relation(parentColumn = "observationId", entityColumn = "id")
-    val observation: ObservationEntity,
-
     //@Relation(parentColumn = "id", entityColumn = "id")
     //val zkpProof: ZkpEntity?
 )

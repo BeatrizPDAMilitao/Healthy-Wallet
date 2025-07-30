@@ -16,11 +16,6 @@ data class TransactionEntity(
     val patientId: String,
     val practitionerId: String,
     val practitionerAddress: String,
-    val documentReferenceId: String,
-    val medicationRequestId: String,
-    val conditionId: String,
-    val encounterId: String,
-    val observationId: String,
     val conditionsJson: String? = null
 )
 
