@@ -481,15 +481,15 @@ class WalletViewModel(application: Application) : AndroidViewModel(application) 
                         updateUiState { state ->
                             state.copy(
                                 transactionHash = receipt.transactionHash,
-                                showPayDialog = false,
-                                showDenyDialog = true,
-                                showSuccessModal = false,
-                                showWalletModal = false,
                             )
                         }
+                        setShowSuccessModal(true)
+                        setSuccessMessage("Record created successfully!")
                     } catch (e: Exception) {
                         // Handle errors
                         Log.e("CreateRecord", "Exception caught", e)
+                        setShowErrorModal(true)
+                        setErrorMessage("Error creating record: ${e.message}")
                     }
                 }
             } catch (e: Exception) {
@@ -616,6 +616,8 @@ class WalletViewModel(application: Application) : AndroidViewModel(application) 
                 true
             } catch (e: Exception) {
                 Log.e("AccessControl", "[$screen] Access log failed", e)
+                setShowErrorModal(true)
+                setErrorMessage("Failed to log access for $screen: ${e.message}")
                 false
             }
         }
@@ -809,10 +811,16 @@ class WalletViewModel(application: Application) : AndroidViewModel(application) 
                     walletRepository.updateLastAccessTime(PROCEDURES_KEY, timestamp)
                     walletRepository.updateLastAccessTime(DEVICES_KEY, timestamp)
                     walletRepository.updateLastAccessTime(IMMUNIZATIONS_KEY, timestamp)
-                } ?: Log.e("MedplumAccess", "Access or fetch failed")
+                } ?: {
+                    Log.e("MedplumAccess", "Access or fetch failed")
+                    setShowErrorModal(true)
+                    setErrorMessage("Failed to fetch health summary data. Please try again later.")
+                }
 
             } catch (e: Exception) {
                 Log.e("HealthSummary", "Unexpected error", e)
+                setShowErrorModal(true)
+                setErrorMessage("An unexpected error occurred while fetching health summary data.")
             } finally {
                 _uiState.update { it.copy(isHealthSummaryLoading = false, isAppLoading = false) }
             }
@@ -854,9 +862,15 @@ class WalletViewModel(application: Application) : AndroidViewModel(application) 
                     _patient.value = it
                     transactionDao.insertPatient(it)
                     updateHasFetched(PATIENT_KEY, true)
-                } ?: Log.e("MedplumAuth", "Access denied or failed")
+                } ?: {
+                    Log.e("MedplumAuth", "Access denied or failed")
+                    setShowErrorModal(true)
+                    setErrorMessage("Failed to fetch data. Please try again later.")
+                }
             } catch (e: Exception) {
                 Log.e("Exams", "Error fetching", e)
+                setShowErrorModal(true)
+                setErrorMessage("Failed to fetch data. Please try again later.")
             } finally {
                 _uiState.update {
                     it.copy(isPatientLoading = false, isAppLoading = false)
@@ -898,10 +912,16 @@ class WalletViewModel(application: Application) : AndroidViewModel(application) 
                     _patients.value = it
                     transactionDao.insertPatients(it)
                     updateHasFetched(PATIENT_KEY, true)
+                } ?: {
+                    Log.e("MedplumAuth", "Access denied or failed")
+                    setShowErrorModal(true)
+                    setErrorMessage("Failed to fetch patients. Please try again later.")
                 }
                 Log.d("PatientsListData", "Patients List: $result")
             } catch (e: Exception) {
                 Log.e("Exams", "Error fetching", e)
+                setShowErrorModal(true)
+                setErrorMessage("Failed to fetch patients. Please try again later.")
             } finally {
                 _uiState.update {
                     it.copy(isPatientLoading = false, isAppLoading = false)
@@ -950,9 +970,15 @@ class WalletViewModel(application: Application) : AndroidViewModel(application) 
                     }
                     transactionDao.insertPractitioner(it)
                     updateHasFetched(PRACTITIONER_KEY, true)
-                } ?: Log.e("MedplumAuth", "Access denied or failed")
+                } ?: {
+                    Log.e("MedplumAuth", "Access denied or failed")
+                    setShowErrorModal(true)
+                    setErrorMessage("Failed to fetch data. Please try again later.")
+                }
             } catch (e: Exception) {
                 Log.e("Exams", "Error fetching", e)
+                setShowErrorModal(true)
+                setErrorMessage("Failed to fetch data. Please try again later.")
             } finally {
                 _uiState.update {
                     it.copy(isPatientLoading = false, isAppLoading = false)
@@ -1023,10 +1049,18 @@ class WalletViewModel(application: Application) : AndroidViewModel(application) 
                 }
                 result?.let {
                     Log.d("MedPlumGrant", "Consent granted: $result")
-                } ?: Log.e("MedPlumGrant", "Access denied or failed")
+                    setShowSuccessModal(true)
+                    setSuccessMessage("Access permission granted successfully.")
+                } ?: {
+                    Log.e("MedPlumGrant", "Access denied or failed")
+                    setShowErrorModal(true)
+                    setErrorMessage("Failed to grant access permission. Please try again later.")
+                }
             }
             catch (e: Exception) {
                 Log.e("ShareAccess", "Exception caught", e)
+                setShowErrorModal(true)
+                setErrorMessage("An error occurred while granting access permission.")
             }
         }
         setTransactionProcessing(false)
@@ -1048,16 +1082,19 @@ class WalletViewModel(application: Application) : AndroidViewModel(application) 
                 }
                 result?.let {
                     Log.d("MedPlumRevoke", "Access permission revoked: $result")
-                    updateUiState { state ->
-                        state.copy(
-                            showSuccessModal = true,
-                        )
-                    }
                     //remove the permission from the UI
                     removeAccessPermission(permissionId)
+                    setShowSuccessModal(true)
+                    setSuccessMessage("Access permission revoked successfully.")
+                } ?: {
+                    Log.e("MedPlumRevoke", "Access denied or failed")
+                    setShowErrorModal(true)
+                    setErrorMessage("Failed to revoke access permission.")
                 }
             } catch (e: Exception) {
                 Log.e("RevokeAccess", "Exception caught", e)
+                setShowErrorModal(true)
+                setErrorMessage("An error occurred while revoking access permission.")
             } finally {
                 setTransactionProcessing(false)
             }
@@ -1136,6 +1173,8 @@ class WalletViewModel(application: Application) : AndroidViewModel(application) 
                 Log.d("DiagnosticReportsData", "Diagnostic Reports: $result")
             } catch (e: Exception) {
                 Log.e("Exams", "Error fetching", e)
+                setShowErrorModal(true)
+                setErrorMessage("Failed to fetch diagnostic reports. Please try again later.")
             } finally {
                 _uiState.update { it.copy(isDiagnosticReportsLoading = false) }
             }
@@ -1601,9 +1640,15 @@ class WalletViewModel(application: Application) : AndroidViewModel(application) 
                      )
                     //transactionDao.insertSharedEHRs(it)
                     updateHasFetched(SHARED_EHR_KEY, true)
-                } ?: Log.e("MedplumAuth", "Access denied or failed")
+                } ?: {
+                    Log.e("MedplumAuth", "Access denied or failed")
+                    setShowErrorModal(true)
+                    setErrorMessage("Failed to fetch shared EHRs. Please try again later.")
+                }
             } catch (e: Exception) {
                 Log.e("Exams", "Error fetching", e)
+                setShowErrorModal(true)
+                setErrorMessage("Failed to fetch shared EHRs. Please try again later.")
             } finally {
                 _uiState.update { it.copy(isSharedEHRLoading = false) }
             }
@@ -1629,8 +1674,16 @@ class WalletViewModel(application: Application) : AndroidViewModel(application) 
                     _accessPermissions.value = it
                     updateHasFetched(ACCESS_PERMISSIONS_KEY, true)
                     //Log.d("AccessPermissions", "Consents: $result")
-                } ?: Log.e("MedplumAuth", "Access denied or failed")
+                    setShowSuccessModal(true)
+                    setSuccessMessage("Access permissions fetched successfully.")
+                } ?: {
+                    setShowErrorModal(true)
+                    setErrorMessage("Failed to fetch access permissions.")
+                    Log.e("MedplumAuth", "Access denied or failed")
+                }
             } catch (e: Exception) {
+                setShowErrorModal(true)
+                setErrorMessage("Failed to fetch access permissions.")
                 Log.e("AccessPermissions", "Error fetching", e)
             } finally {
                 _uiState.update { it.copy(isAccessPermissionsLoading = false) }
@@ -1984,6 +2037,17 @@ class WalletViewModel(application: Application) : AndroidViewModel(application) 
         updateUiState { it.copy(showSuccessModal = show) }
     }
 
+    fun setShowErrorModal(show: Boolean) {
+        updateUiState { it.copy(showErrorModal = show) }
+    }
+
+    fun setErrorMessage(message: String) {
+        updateUiState { it.copy(errorMessage = message) }
+    }
+
+    fun setSuccessMessage(message: String) {
+        updateUiState { it.copy(successMessage = message) }
+    }
 
     /**
      * Checks for an ENS name for the given wallet address and updates the UI state.
@@ -2157,12 +2221,18 @@ class WalletViewModel(application: Application) : AndroidViewModel(application) 
                     )
                     simulateTransactionFees.add(gasFee)
                     Log.d("RequestAccess", "Access requested: ${receipt.transactionHash}")
+                    setShowSuccessModal(true)
+                    setSuccessMessage("Access requested successfully.")
                 } catch (e: Exception) {
                     Log.e("RequestAccess", "Exception caught", e)
+                    setShowErrorModal(true)
+                    setErrorMessage("Failed to request access: ${e.message}")
                 }
             }
         } catch (e: Exception) {
             Log.d("RequestAccess", "Error loading contract: ${e.message}")
+            setShowErrorModal(true)
+            setErrorMessage("Failed to load contract: ${e.message}")
         }
     }
 

@@ -12,15 +12,21 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Snackbar
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -113,6 +119,47 @@ fun SharedWithDoctorScreen(
                     ExamList(sharedEHRs.diagnosticReports, isPatient = false, viewModel, showName = true)
                 }
             }
+        }
+
+        if (uiState.showSuccessModal) {
+            AlertDialog(
+                onDismissRequest = {
+                    viewModel.setShowSuccessModal(false)
+                    viewModel.setSuccessMessage("")
+                },
+                title = { Text("Success") },
+                text = { Text(uiState.successMessage) },
+                confirmButton = {
+                    Button(onClick = {
+                        viewModel.setShowSuccessModal(false)
+                        viewModel.setSuccessMessage("")
+                    }) {
+                        Text("OK")
+                    }
+                },
+                containerColor = MaterialTheme.colorScheme.background,
+            )
+        }
+        if (uiState.showErrorModal) {
+            val snackbarHostState = remember { SnackbarHostState() }
+
+            LaunchedEffect(uiState.showErrorModal) {
+                snackbarHostState.showSnackbar(uiState.errorMessage)
+                viewModel.setShowErrorModal(false)
+            }
+
+            SnackbarHost(
+                hostState = snackbarHostState,
+                snackbar = { snackbarData ->
+                    Snackbar(
+                        containerColor = Color.Red,
+                        contentColor = Color.White,
+                        actionColor = Color.White,
+                        snackbarData = snackbarData
+                    )
+                },
+                modifier = Modifier.align(Alignment.TopCenter)
+            )
         }
 
         // Bottom Navigation Bar

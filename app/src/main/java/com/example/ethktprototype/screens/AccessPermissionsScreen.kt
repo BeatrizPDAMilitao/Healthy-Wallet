@@ -27,6 +27,9 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Snackbar
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -142,6 +145,46 @@ fun AccessPermissionsScreen(
                 currentRoute = "EHRs"
             )
         }
+        if (uiState.showSuccessModal) {
+            AlertDialog(
+                onDismissRequest = {
+                    viewModel.setShowSuccessModal(false)
+                    viewModel.setSuccessMessage("")
+                },
+                title = { Text("Permissions") },
+                text = { Text(uiState.successMessage) },
+                confirmButton = {
+                    Button(onClick = {
+                        viewModel.setShowSuccessModal(false)
+                        viewModel.setSuccessMessage("")
+                    }) {
+                        Text("OK")
+                    }
+                },
+                containerColor = MaterialTheme.colorScheme.background,
+            )
+        }
+        if (uiState.showErrorModal) {
+            val snackbarHostState = remember { SnackbarHostState() }
+
+            LaunchedEffect(uiState.showErrorModal) {
+                snackbarHostState.showSnackbar(uiState.errorMessage)
+                viewModel.setShowErrorModal(false)
+            }
+
+            SnackbarHost(
+                hostState = snackbarHostState,
+                snackbar = { snackbarData ->
+                    Snackbar(
+                        containerColor = Color.Red,
+                        contentColor = Color.White,
+                        actionColor = Color.White,
+                        snackbarData = snackbarData
+                    )
+                },
+                modifier = Modifier.align(Alignment.BottomCenter)
+            )
+        }
     }
 }
 
@@ -159,21 +202,6 @@ fun AccessPermissionsList(
     ) {
         items(accessPermissions) { permission ->
             AccessPermissionCard(permission, viewModel)
-        }
-        item {
-            if (uiState.showSuccessModal) {
-                AlertDialog(
-                    onDismissRequest = { viewModel.setShowSuccessModal(false) },
-                    title = { Text("Revoke") },
-                    text = { Text("Successfully revoked permission!") },
-                    confirmButton = {
-                        Button(onClick = { viewModel.setShowSuccessModal(false) }) {
-                            Text("OK")
-                        }
-                    },
-                    containerColor = MaterialTheme.colorScheme.background,
-                )
-            }
         }
     }
 }
