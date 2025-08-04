@@ -23,6 +23,9 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Snackbar
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -102,6 +105,27 @@ fun MedicationScreen(
                             tint = Color.White
                         )
                     }
+                }
+                if (uiState.showErrorModal) {
+                    val snackbarHostState = remember { SnackbarHostState() }
+
+                    LaunchedEffect(uiState.showErrorModal) {
+                        snackbarHostState.showSnackbar(uiState.errorMessage)
+                        viewModel.setShowErrorModal(false)
+                    }
+
+                    SnackbarHost(
+                        hostState = snackbarHostState,
+                        snackbar = { snackbarData ->
+                            Snackbar(
+                                containerColor = Color.Red,
+                                contentColor = Color.White,
+                                actionColor = Color.White,
+                                snackbarData = snackbarData
+                            )
+                        },
+                        modifier = Modifier.align(Alignment.TopCenter)
+                    )
                 }
             }
 

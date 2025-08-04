@@ -1125,9 +1125,15 @@ class WalletViewModel(application: Application) : AndroidViewModel(application) 
                     _conditions.update { currentMap -> currentMap.toMutableMap().apply { this[subjectId] = it } }
                     transactionDao.insertConditions(it)
                     updateHasFetched(CONDITIONS_KEY, true)
+                } ?: {
+                    Log.e("MedplumConditions", "Access denied or failed")
+                    setShowErrorModal(true)
+                    setErrorMessage("Failed to fetch conditions. Please try again later.")
                 }
             } catch (e: Exception) {
                 Log.e("Exams", "Error fetching", e)
+                setShowErrorModal(true)
+                setErrorMessage("Failed to fetch conditions. Please try again later.")
             } finally {
                 _uiState.update { it.copy(isConditionsLoading = false) }
             }
@@ -1169,6 +1175,10 @@ class WalletViewModel(application: Application) : AndroidViewModel(application) 
                     _diagnosticReports.update { currentMap -> currentMap.toMutableMap().apply { this[subjectId] = it } }
                     transactionDao.insertDiagnosticReports(it)
                     updateHasFetched(DIAGNOSTIC_REPORTS_KEY, true)
+                } ?: {
+                    Log.e("MedplumDiagnosticReports", "Access denied or failed")
+                    setShowErrorModal(true)
+                    setErrorMessage("Failed to fetch diagnostic reports. Please try again later.")
                 }
                 Log.d("DiagnosticReportsData", "Diagnostic Reports: $result")
             } catch (e: Exception) {
@@ -1212,10 +1222,16 @@ class WalletViewModel(application: Application) : AndroidViewModel(application) 
                     _medicationRequests.update { currentMap -> currentMap.toMutableMap().apply { this[subjectId] = it } }
                     transactionDao.insertMedicationRequests(it)
                     updateHasFetched(MEDICATION_REQUESTS_KEY, true)
+                } ?: {
+                    Log.e("MedplumMedicationRequests", "Access denied or failed")
+                    setShowErrorModal(true)
+                    setErrorMessage("Failed to fetch medication requests. Please try again later.")
                 }
                 Log.d("MedicationRequestsData", "Medication Requests: $result")
             } catch (e: Exception) {
                 Log.e("Exams", "Error fetching", e)
+                setShowErrorModal(true)
+                setErrorMessage("Failed to fetch medication requests. Please try again later.")
             } finally {
                 _uiState.update { it.copy(isMedicationRequestsLoading = false) }
             }
@@ -1295,10 +1311,16 @@ class WalletViewModel(application: Application) : AndroidViewModel(application) 
                     _medicationStatements.update { currentMap -> currentMap.toMutableMap().apply { this[subjectId] = it } }
                     transactionDao.insertMedicationStatements(it)
                     updateHasFetched(MEDICATION_STATEMENTS_KEY, true)
+                } ?: {
+                    Log.e("MedplumMedicationStatements", "Access denied or failed")
+                    setShowErrorModal(true)
+                    setErrorMessage("Failed to fetch medication statements. Please try again later.")
                 }
                 Log.d("MedicationStatementsData", "Medication Statements: $result")
             } catch (e: Exception) {
                 Log.e("Exams", "Error fetching", e)
+                setShowErrorModal(true)
+                setErrorMessage("Failed to fetch medication statements. Please try again later.")
             } finally {
                 _uiState.update { it.copy(isMedicationStatementsLoading = false) }
             }
@@ -1335,10 +1357,16 @@ class WalletViewModel(application: Application) : AndroidViewModel(application) 
                     _immunizations.update { currentMap -> currentMap.toMutableMap().apply { this[subjectId] = it } }
                     transactionDao.insertImmunizations(it)
                     updateHasFetched(IMMUNIZATIONS_KEY, true)
+                } ?: {
+                    Log.e("MedplumImmunizations", "Access denied or failed")
+                    setShowErrorModal(true)
+                    setErrorMessage("Failed to fetch immunizations. Please try again later.")
                 }
                 Log.d("ImmunizationsData", "Medication Requests: $result")
             } catch (e: Exception) {
                 Log.e("Exams", "Error fetching", e)
+                setShowErrorModal(true)
+                setErrorMessage("Failed to fetch immunizations. Please try again later.")
             } finally {
                 _uiState.update { it.copy(isImmunizationsLoading = false) }
             }
@@ -1374,10 +1402,15 @@ class WalletViewModel(application: Application) : AndroidViewModel(application) 
                     _allergies.update { currentMap -> currentMap.toMutableMap().apply { this[subjectId] = it } }
                     transactionDao.insertAllergies(it)
                     updateHasFetched(ALLERGIES_KEY, true)
+                } ?: {
+                    Log.e("MedplumAllergies", "Access denied or failed")
+                    setShowErrorModal(true)
+                    setErrorMessage("Failed to fetch allergies. Please try again later.")
                 }
                 Log.d("AllergiesData", "Allergies: $allergies")
             } catch (e: Exception) {
                 Log.e("Exams", "Error fetching", e)
+                setShowErrorModal(true)
             } finally {
                 _uiState.update { it.copy(isAllergiesLoading = false) }
             }
@@ -1413,10 +1446,16 @@ class WalletViewModel(application: Application) : AndroidViewModel(application) 
                     _devices.update { currentMap -> currentMap.toMutableMap().apply { this[subjectId] = it } }
                     transactionDao.insertDevices(it)
                     updateHasFetched(DEVICES_KEY, true)
+                } ?: {
+                    Log.e("MedplumDevices", "Access denied or failed")
+                    setShowErrorModal(true)
+                    setErrorMessage("Failed to fetch devices. Please try again later.")
                 }
                 Log.d("Devices", "Devices: $devices")
             } catch (e: Exception) {
                 Log.e("Exams", "Error fetching", e)
+                setShowErrorModal(true)
+                setErrorMessage("Failed to fetch devices. Please try again later.")
             } finally {
                 _uiState.update { it.copy(isDevicesLoading = false) }
             }
@@ -1452,10 +1491,16 @@ class WalletViewModel(application: Application) : AndroidViewModel(application) 
                     _procedures.update { currentMap -> currentMap.toMutableMap().apply { this[subjectId] = it } }
                     transactionDao.insertProcedures(it)
                     updateHasFetched(PROCEDURES_KEY, true)
+                } ?: {
+                    Log.e("MedplumProcedures", "Access denied or failed")
+                    setShowErrorModal(true)
+                    setErrorMessage("Failed to fetch procedures. Please try again later.")
                 }
                 Log.d("ProceduresData", "Procedures: $procedures")
             } catch (e: Exception) {
                 Log.e("Exams", "Error fetching", e)
+                setShowErrorModal(true)
+                setErrorMessage("Failed to fetch procedures. Please try again later.")
             } finally {
                 _uiState.update { it.copy(isProceduresLoading = false) }
             }
@@ -1490,10 +1535,16 @@ class WalletViewModel(application: Application) : AndroidViewModel(application) 
                     _observations.update { currentMap -> currentMap.toMutableMap().apply { this[subjectId] = it } }
                     transactionDao.insertObservations(it)
                     updateHasFetched(OBSERVATIONS_KEY, true)
+                } ?: {
+                    Log.e("MedplumObservations", "Access denied or failed")
+                    setShowErrorModal(true)
+                    setErrorMessage("Failed to fetch observations. Please try again later.")
                 }
                 Log.d("ObservationsData", "Observations: $observations")
             } catch (e: Exception) {
                 Log.e("Exams", "Error fetching", e)
+                setShowErrorModal(true)
+                setErrorMessage("Failed to fetch observations. Please try again later.")
             } finally {
                 _uiState.update { it.copy(isObservationsLoading = false) }
             }

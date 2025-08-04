@@ -315,7 +315,7 @@ fun HealthSummaryScreen(
                         snackbarData = snackbarData
                     )
                 },
-                modifier = Modifier.align(Alignment.BottomCenter)
+                modifier = Modifier.align(Alignment.TopCenter)
             )
         }
 
