@@ -1,5 +1,6 @@
 package com.example.ethktprototype
 
+import android.util.Log
 import androidx.biometric.BiometricPrompt
 import androidx.core.content.ContextCompat
 import androidx.fragment.app.FragmentActivity
@@ -21,6 +22,7 @@ fun showBiometricPrompt(
     val biometricPrompt = BiometricPrompt(activity, executor,
         object : BiometricPrompt.AuthenticationCallback() {
             override fun onAuthenticationSucceeded(result: BiometricPrompt.AuthenticationResult) {
+                Log.d("MainActivityOverlay", "Authentication succeeded")
                 onSuccess()
             }
 

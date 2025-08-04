@@ -19,6 +19,7 @@ import com.example.ethktprototype.screens.TokenListScreen
 import com.example.ethktprototype.ui.theme.EthKtPrototypeTheme
 import android.content.pm.PackageManager
 import android.util.Log
+import android.view.WindowManager
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.runtime.LaunchedEffect
 import androidx.core.content.ContextCompat
@@ -60,8 +61,35 @@ class MainActivity : FragmentActivity() {
         }
     }
 
+    override fun onResume() {
+        super.onResume()
+        val hasEncryptedMnemonic = viewModel.hasEncryptedMnemonic()
+
+        if (hasEncryptedMnemonic) { //No mather if biometric is enabled or not, we always need the biometric prompt
+            showBiometricPrompt(
+                activity = this,
+                onSuccess = {
+                    viewModel.loadMnemonicFromPrefs()
+                    viewModel.setBiometricUnlocked(true)
+                },
+                onError = {
+                    Log.e("Biometric", "Auth error: $it")
+                    viewModel.setBiometricUnlocked(false)
+                },
+                onFailed = {
+                    Log.w("Biometric", "Auth failed")
+                    viewModel.setBiometricUnlocked(false)
+                }
+            )
+        }
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        /*window.setFlags( // TODO: Uncomment this if you want to prevent screenshots, screen recording and screen previews
+            WindowManager.LayoutParams.FLAG_SECURE, // this flag prevents screenshots, screen recording and screen previews
+            WindowManager.LayoutParams.FLAG_SECURE
+        )*/
         val application = applicationContext as HealthyWalletApplication
         val factory = WalletViewModelFactory(application)
         viewModel = ViewModelProvider(this, factory)[WalletViewModel::class.java]
@@ -87,7 +115,7 @@ class MainActivity : FragmentActivity() {
         setContent {
             val navController = rememberNavController()
             val uiState by viewModel.uiState.collectAsState()
-            val hasEncryptedMnemonic = viewModel.hasEncryptedMnemonic() // You'll add this function
+            val hasEncryptedMnemonic = viewModel.hasEncryptedMnemonic()
             Log.d("MainActivity", "hasEncryptedMnemonic: $hasEncryptedMnemonic")
 
             LaunchedEffect(hasEncryptedMnemonic, uiState.biometricUnlocked) {
@@ -105,8 +133,8 @@ class MainActivity : FragmentActivity() {
             }
 
             val startPoint = when {
-                !hasEncryptedMnemonic -> "importWallet" // nothing to unlock
                 !uiState.biometricUnlocked -> null       // wait for biometric
+                !hasEncryptedMnemonic -> "importWallet" // nothing to unlock
                 //!uiState.mnemonicLoaded -> "importWallet"
                 !uiState.medPlumToken -> "loginScreen"
                 else -> "EHRs"
