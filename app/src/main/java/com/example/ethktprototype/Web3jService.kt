@@ -1,19 +1,14 @@
 package com.example.ethktprototype
 
-//import com.example.ethktprototype.Web3jService.env
 import org.web3j.protocol.Web3j
 import org.web3j.protocol.http.HttpService
 
 const val INFURA_API_KEY = "1e34aa8ed01747bfba701b541f69ea6f"
 
 object Web3jService {
-
-    //val env = EnvVars()
-
     fun build(selectedNetwork: Network): Web3j {
         return Web3j.build(HttpService(selectedNetwork.url))
     }
-
 }
 
 enum class Network(

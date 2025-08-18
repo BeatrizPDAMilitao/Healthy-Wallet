@@ -10,41 +10,11 @@ import android.content.Intent
 import android.os.Build
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
-import com.example.ethktprototype.data.Transaction
 import android.content.pm.PackageManager
 import androidx.core.content.ContextCompat
-import androidx.activity.result.ActivityResultLauncher
-import com.example.ethktprototype.data.ConditionRequirement
-import com.example.ethktprototype.data.ZkpExamRequestPayload
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
-import kotlinx.serialization.json.Json
-
-
-/*fun sendNotification(context: Context, viewModel: WalletViewModel, title: String, message: String, requestPermissionLauncher: ActivityResultLauncher<String>) {
-    if (ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED) {
-        val channelId = "transaction_channel"
-        val channelName = "Transaction Notifications"
-
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            val channel = NotificationChannel(channelId, channelName, NotificationManager.IMPORTANCE_DEFAULT)
-            val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-            notificationManager.createNotificationChannel(channel)
-        }
-
-        val notification = NotificationCompat.Builder(context, channelId)
-            .setSmallIcon(R.drawable.ic_launcher_foreground)
-            .setContentTitle(title)
-            .setContentText(message)
-            .setPriority(NotificationCompat.PRIORITY_DEFAULT)
-            .build()
-
-        NotificationManagerCompat.from(context).notify(1, notification)
-    } else {
-        requestPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
-    }
-}*/
 
 /**
  * This function sends a notification to the user when a new transaction is received.
@@ -100,21 +70,6 @@ suspend fun simulateTransactionReceived(context: Context, viewModel: WalletViewM
     CoroutineScope(Dispatchers.Main).launch {
         viewModel.onNotificationReceived(context, id) //Modifies the viewModel state, so needs to be called first
     }
-}
-
-suspend fun simulateZkpRequestJson(context: Context, viewModel: WalletViewModel) {
-    val payload = ZkpExamRequestPayload(
-        requestId = viewModel.getTransactionId().toString(),
-        examType = "X-Ray",
-        conditions = listOf(
-            ConditionRequirement("not_pregnant"),
-            ConditionRequirement("no_implants")
-        ),
-        issuer = "RadiologyCenter123"
-    )
-
-    val json = Json.encodeToString(ZkpExamRequestPayload.serializer(), payload)
-    viewModel.handleZkpRequestJson(json)
 }
 
 

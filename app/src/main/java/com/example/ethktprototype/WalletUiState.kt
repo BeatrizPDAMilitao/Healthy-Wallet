@@ -1,12 +1,14 @@
 package com.example.ethktprototype
 
-import android.graphics.Bitmap
 import com.example.ethktprototype.data.NftValue
-import com.example.ethktprototype.data.PatientEntity
 import com.example.ethktprototype.data.PractitionerEntity
 import com.example.ethktprototype.data.TokenBalance
 import com.example.ethktprototype.data.Transaction
 
+/**
+ * Represents the UI state for the wallet screen.
+ * This class holds all the necessary data to be displayed in the wallet UI,
+ */
 data class WalletUiState(
     val walletAddress: String = "",
     val userEnsName: String = "",

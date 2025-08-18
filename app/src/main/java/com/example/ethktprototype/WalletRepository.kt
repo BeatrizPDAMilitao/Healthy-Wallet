@@ -44,6 +44,11 @@ import java.security.SecureRandom
 import java.util.UUID
 import kotlin.collections.List
 
+/**
+ * Repository for managing wallet-related operations, including storing and retrieving data from EncryptedSharedPreferences and SharedPreferences.
+ * This repository handles mnemonic storage, network selection, and interaction with smart contracts.
+ * @param application The application context used for accessing resources and preferences.
+ */
 class WalletRepository(private val application: Application) : IWalletRepository {
     private val context = application.applicationContext
     private val sharedPreferences =
@@ -74,6 +79,10 @@ class WalletRepository(private val application: Application) : IWalletRepository
         return encryptedPrefs.getString("db_pass", null)
     }
 
+    /**
+     * Generates a secure passphrase for the database if it does not already exist in EncryptedSharedPreferences.
+     * @return The generated passphrase.
+     */
     fun generateAndStorePassphrase(): String {
         var passPhrase = getDbPassphrase()
         if (passPhrase != null) {
@@ -86,18 +95,32 @@ class WalletRepository(private val application: Application) : IWalletRepository
         return passPhrase
     }
 
+    /**
+     * Generates a secure passphrase using SecureRandom and encodes it in Base64 format.
+     * @return The generated passphrase as a Base64 encoded string.
+     */
     fun generateSecurePassphrase(): String {
         val bytes = ByteArray(32)
         SecureRandom().nextBytes(bytes)
         return Base64.encodeToString(bytes, Base64.NO_WRAP)
     }
 
+    /**
+     * Stores a value in EncryptedSharedPreferences with the specified key.
+     * @param key The key under which the value will be stored.
+     * @param value The value to be stored.
+     */
     fun storeInEncryptedPrefs(key: String, value: String) {
         encryptedPrefs.edit {
             putString(key, value)
         }
     }
 
+    /**
+     * Retrieves a value from EncryptedSharedPreferences using the specified key.
+     * @param key The key for which the value is to be retrieved.
+     * @return The value associated with the key, or null if it does not exist.
+     */
     fun getFromEncryptedPrefs(key: String): String? {
         return encryptedPrefs.getString(key, null)
     }
@@ -107,20 +130,11 @@ class WalletRepository(private val application: Application) : IWalletRepository
     }
 
     override fun storeMnemonic(mnemonic: String) {
-        /*encryptMnemonic(context, mnemonic)
-
-        val sharedPreferences = context.getSharedPreferences("WalletPrefs", Context.MODE_PRIVATE)
-        val encryptedMnemonic = getEncryptedMnemonic(context)
-        val encodedMnemonic = Base64.encodeToString(encryptedMnemonic, Base64.DEFAULT)
-        sharedPreferences.edit().putString("encrypted_mnemonic", encodedMnemonic).apply()*/
         storeInEncryptedPrefs("encrypted_mnemonic", mnemonic)
-
         mnemonicLoaded.value = true
     }
 
     override fun loadMnemonicFromPrefs(): String? {
-        /*val prefs = context.getSharedPreferences("WalletPrefs", Context.MODE_PRIVATE)
-        val storedMnemonic = prefs.getString("encrypted_mnemonic", null)*/
         val storedMnemonic = getFromEncryptedPrefs("encrypted_mnemonic")
         mnemonicLoaded.value = storedMnemonic != null
         return storedMnemonic
@@ -158,6 +172,10 @@ class WalletRepository(private val application: Application) : IWalletRepository
         return sharedPreferences.contains("medPlumToken")
     }
 
+    /**
+     * Gets the last access time for a specific key from SharedPreferences.
+     * This is used to only log accesses on the blockchain if the access was not logged in the last X hours.
+     */
     fun getLastAccessTime(key: String): Long {
         return sharedPreferences.getLong("access_time_$key", 0)
     }
@@ -175,11 +193,11 @@ class WalletRepository(private val application: Application) : IWalletRepository
     }
 
     override fun getMnemonic(): String? {
-        // Decrypt the mnemonic
-        //return getDecryptedMnemonic(context)
         return getFromEncryptedPrefs("encrypted_mnemonic")
     }
 
+
+    // Old functions that already existed
     override fun clearTokenBlocklist(): List<TokenBalance> {
         sharedPreferences.edit().putString("TOKEN_BLOCKLIST", null).apply()
         return getTokenBlocklist()
@@ -291,13 +309,8 @@ class WalletRepository(private val application: Application) : IWalletRepository
     }
 
 
+    ///////////////////////// New functions //////////////////////////////
 
-
-    //TODO: Add functions that interact with the healthyWallet contract
-    private val medskyAdress = "0xBca0fDc68d9b21b5bfB16D784389807017B2bbbc"
-    private lateinit var medskyContract: MedskyContract
-
-    private val healthyWalletAdressOld = "0x9A8ea6736DF00Af70D1cD70b1Daf3619C8c0D7F4"
     //private val healthyWalletAdress = "0x257F027faAc9eA80F8269a7024FE33a8730223D5" //"0x503Adf07dE6a7B1C23F793aa6b422A0C59Fa219e" //"0x6410E8e6321f46B7A34B9Ea9649a4c84563d8045"
     //0x8d91fa1054f8f53e01661f4147e450edd090336d
 
@@ -313,56 +326,23 @@ class WalletRepository(private val application: Application) : IWalletRepository
     private lateinit var healthyContract: MedicalRecordAccess2
 
 
-    fun loadMedSkyContract(credentials: Credentials) {
-        medskyContract = MedskyContract.load(medskyAdress, web3jService, credentials, DefaultGasProvider())
-    }
-
-    /*suspend fun createRecord(recordId: String, hash: String): TransactionReceipt {
-        return medskyContract.createRecord(recordId, hash).send()
-    }*/
-
-    suspend fun deleteRecord(recordId: String, actionId: String): TransactionReceipt {
-        return medskyContract.deleteRecord(recordId, actionId).send()
-    }
-
-    suspend fun recordExists(recordId: String): Boolean {
-        return medskyContract.recordExists(recordId).send()
-    }
-
-    suspend fun readRecords(recordIds: List<String>): List<MedskyContract.Record> {
-        return medskyContract.readRecords(recordIds).send() as List<MedskyContract.Record>
-    }
-
-    fun accessExists(accessId: String): Boolean {
-        return medskyContract.accessExists(accessId).send()
-    }
-
-
 
     fun loadHealthyContract(credentials: Credentials) {
         healthyContract = MedicalRecordAccess2.load(healthyWalletAdress, web3jService, credentials, DefaultGasProvider())
     }
-
-    // Fetch next 3 logs (sync batch)
-    /*suspend fun getNextAccessLogs(): TransactionReceipt {
-        return healthyContract.getNextAccessLogs().send()
-    }
-
-    // Preview logs before syncing
-    suspend fun previewNextAccessLogs(): List<MedicalRecordAccess.MedicalAccessLog> {
-        return healthyContract.previewNextAccessLogs().send() as List<MedicalRecordAccess.MedicalAccessLog>
-    }*/
-
-    // Log access to a record (simulate doctor accessing a patient record)
-    /*suspend fun logAccess(doctor: String, patient: String, recordType: String): TransactionReceipt {
-        return healthyContract.logAccess(doctor, address patient, string recordId, string recordType).send()
-    }*/
 
     // Reset the sync pointer (e.g. for testing)
     suspend fun resetSyncPointer(): TransactionReceipt {
         return healthyContract.resetSyncPointer().send()
     }
 
+    /**
+     * Deny access to a medical record for a specific requester.
+     * @param recordId The ID of the medical record.
+     * @param requester The address of the requester.
+     * @param credentials The credentials of the user performing the action.
+     * @return The transaction receipt for the denial of access.
+     */
     suspend fun denyAccess2(recordId: String, requester: String, credentials: Credentials): TransactionReceipt {
         val nonce = nonceManager.getNextNonce()
         val gasPrice = web3jService.ethGasPrice().send().gasPrice
@@ -415,6 +395,13 @@ class WalletRepository(private val application: Application) : IWalletRepository
         throw RuntimeException("Transaction receipt not generated after sending transaction")
     }
 
+    /**
+     * Accept access to a medical record for a specific requester.
+     * @param recordId The ID of the medical record.
+     * @param requester The address of the requester.
+     * @param credentials The credentials of the user performing the action.
+     * @return The transaction receipt for the acceptance of access.
+     */
     suspend fun acceptAccess2(recordId: String, requester: String, credentials: Credentials): TransactionReceipt {
         val nonce = nonceManager.getNextNonce()
         val gasPrice = web3jService.ethGasPrice().send().gasPrice
@@ -466,76 +453,15 @@ class WalletRepository(private val application: Application) : IWalletRepository
         throw RuntimeException("Transaction receipt not generated after sending transaction")
     }
 
-    /*suspend fun syncTransactionWithHealthyContract2(credentials: Credentials): List<com.example.ethktprototype.data.Transaction> {
-        val previewLogs = healthyContract.previewNextAccessRequests().send() as List<MedicalRecordAccess2.AccessRequest>
-
-        if (previewLogs.isEmpty()) {
-            return emptyList()
-        }
-
-        val nonce = web3jService.ethGetTransactionCount(credentials.address, DefaultBlockParameterName.LATEST).send().transactionCount
-        val gasPrice = web3jService.ethGasPrice().send().gasPrice
-        val gasLimit = BigInteger.valueOf(3000000)
-
-        val function = Function("getNextAccessRequests", emptyList(), emptyList())
-        val encodedFunction = FunctionEncoder.encode(function)
-
-        val rawTransaction = RawTransaction.createTransaction(
-            nonce,
-            gasPrice,
-            gasLimit,
-            healthyWalletAdress,
-            encodedFunction
-        )
-
-        val signedMessage = TransactionEncoder.signMessage(rawTransaction, selectedNetwork.value.chainId, credentials)
-        val hexValue = Numeric.toHexString(signedMessage)
-
-        val transactionResponse = web3jService.ethSendRawTransaction(hexValue).send()
-
-        if (transactionResponse.hasError()) {
-            throw RuntimeException("Transaction failed: ${transactionResponse.error.message}")
-        }
-
-        val txHash = transactionResponse.transactionHash
-
-        Log.d("SyncedLog", "Sent tx sync: ${transactionResponse.transactionHash}")
-
-
-        // Poll for the transaction receipt
-        val maxWaitMs = 60000L
-        val start = System.currentTimeMillis()
-
-        while (System.currentTimeMillis() - start < maxWaitMs) {
-            val receiptResp = web3jService.ethGetTransactionReceipt(txHash).send()
-            if (receiptResp.transactionReceipt.isPresent) {
-                val receipt = receiptResp.transactionReceipt.get()
-                if (receipt.status == "0x0") {
-                    Log.e("TxStatus", "Transaction reverted")
-                    throw RuntimeException("Transaction reverted")
-                }
-                return previewLogs.map { log ->
-                    val status = if (log.status.toString() == "0") "pending" else if (log.status.toString() == "1") "accepted" else "denied"
-                    val examTypes = listOf("MRI", "X-ray", "CT Scan", "Ultrasound", "Blood Test")
-                    val randomType = examTypes[Random.nextInt(examTypes.size)]
-                    com.example.ethktprototype.data.Transaction(
-                        id = "",
-                        date = log.timestamp.toString(),
-                        status = status,
-                        recordId = log.recordId,
-                        practitionerId = log.doctorMedplumId,
-                        practitionerAddress = log.doctorAddress,
-                        type = log.recordId.substringBefore("/"),
-                        patientId = "01968b59-76f3-7228-aea9-07db748ee2ca"
-                    )
-                }
-            }
-            delay(1000)
-        }
-
-        throw RuntimeException("Transaction receipt not generated after sending transaction")
-    }*/
-
+    /**
+     * Requests access to a medical record for a doctor.
+     * @param doctorAddress The address of the doctor requesting access.
+     * @param patientAddress The address of the patient whose record is being requested.
+     * @param doctorMedplumId The Medplum ID of the doctor.
+     * @param recordId The ID of the medical record being requested.
+     * @param credentials The credentials of the user performing the action.
+     * @return The transaction receipt for the access request.
+     */
     suspend fun requestAccess(doctorAddress: String, patientAddress: String, doctorMedplumId: String, recordId: String, credentials: Credentials): TransactionReceipt {
         val nonce = nonceManager.getNextNonce()
         val gasPrice = web3jService.ethGasPrice().send().gasPrice
@@ -585,6 +511,13 @@ class WalletRepository(private val application: Application) : IWalletRepository
         throw RuntimeException("Transaction receipt not generated after sending transaction")
     }
 
+    /**
+     * Creates a new medical record on the blockchain.
+     * @param recordId The ID of the medical record to be created.
+     * @param hash The hash of the medical record data.
+     * @param credentials The credentials of the user performing the action.
+     * @return The transaction receipt for the creation of the medical record.
+     */
     suspend fun createRecord(recordId: String, hash: String, credentials: Credentials): TransactionReceipt {
         val nonce = nonceManager.getNextNonce()
 
@@ -634,6 +567,10 @@ class WalletRepository(private val application: Application) : IWalletRepository
         throw RuntimeException("Transaction receipt not generated after sending transaction")
     }
 
+    /**
+     * Retrieves a list of access requests for medical records.
+     * @return A list of transactions representing the access requests.
+     */
     fun getPatientAccessRequests(): List<com.example.ethktprototype.data.Transaction> {
 
         val accessRequests = healthyContract.getPatientAccessRequests().send() as List<MedicalRecordAccess2.AccessRequest>
@@ -665,7 +602,7 @@ class WalletRepository(private val application: Application) : IWalletRepository
 
 
 
-    //////////////////// Accesse Con Functions ////////////////////
+    //////////////////// Accesses Contract Functions ////////////////////
 
     // val accessesContractAddress = "0xe9354B6CfEAaC38636AcACB397F8E5566dc559fD"//"0xcCbB217F782bBa59aAD9BdF0291E1B325461E146"
     private lateinit var accessesContract: RecordAccessContract
@@ -683,6 +620,12 @@ class WalletRepository(private val application: Application) : IWalletRepository
         accessesContract = RecordAccessContract.load(accessesContractAddress, web3jService, credentials, DefaultGasProvider())
     }
 
+    /**
+     * Logs access to a list of queries on the blockchain.
+     * @param recordIds The list of queries to log access for.
+     * @param credentials The credentials of the user performing the action.
+     * @return The transaction receipt for the logging of access.
+     */
     suspend fun logAccess(recordIds: List<String>, credentials: Credentials): TransactionReceipt {
         val nonce = nonceManager.getNextNonce()
 

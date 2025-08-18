@@ -192,20 +192,6 @@ class WalletViewModel(application: Application) : AndroidViewModel(application) 
         return walletRepository.getDbPassphrase().toString()
     }
 
-    fun callMedSkyContract2() {
-        //loadContract()
-        viewModelScope.launch {
-            try {
-                val exists = walletRepository.recordExists("sampleRecordId")
-                Log.d("MedskyContract", "Record exists: $exists")
-                // Handle the result as needed
-            } catch (e: Exception) {
-                // Handle errors
-                Log.e("MedskyContract", "Exception caught", e)
-            }
-        }
-    }
-
 
     suspend fun callDenyContract(transactionId: String, recordId: String, requester: String) {
         val mnemonic = getMnemonic()
@@ -1849,45 +1835,6 @@ class WalletViewModel(application: Application) : AndroidViewModel(application) 
                 Log.d("Reset Pointer", "Error loading contract: ${e.message}")
             }
             setTransactionProcessing(false)
-        }
-    }
-
-
-    fun callMedSkyContract() {
-        val mnemonic = getMnemonic()
-        viewModelScope.launch {
-            try {
-                if (!mnemonic.isNullOrEmpty()) {
-                    val credentials = loadBip44Credentials(mnemonic)
-                    credentials.let {
-                        val hash = withContext(Dispatchers.IO) {
-                            walletRepository.loadMedSkyContract(credentials)
-                        }
-
-                        /*updateUiState { state ->
-                            state.copy(
-                                transactionHash = hash.toString(),
-                                showPayDialog = false,
-                                showSuccessModal = true
-                            )
-                        }*/
-                    }
-                    try {
-                        val exists = withContext(Dispatchers.IO) {
-                            walletRepository.recordExists("sampleRecordId")
-                        }
-                        Log.d("MedskyContract", "Record exists: $exists")
-                        // Handle the result as needed
-                    } catch (e: Exception) {
-                        // Handle errors
-                        Log.e("MedskyContract", "Exception caught", e)
-                    }
-                }
-            } catch (e: Exception) {
-                // Handle errors
-                //updateUiState { it.copy(showPayDialog = false) }
-                Log.d("MedskyContract", "Error loading contract: ${e.message}")
-            }
         }
     }
 
