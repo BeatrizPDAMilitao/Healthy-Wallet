@@ -46,7 +46,6 @@ import kotlinx.coroutines.runBlocking
  * permission request for notifications.
  *
  * @author Beatriz Militão
- * @version 1.0
  */
 class MainActivity : FragmentActivity() {
     private lateinit var viewModel: WalletViewModel
@@ -86,7 +85,7 @@ class MainActivity : FragmentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        /*window.setFlags( // TODO: Uncomment this if you want to prevent screenshots, screen recording and screen previews
+        /*window.setFlags( // Uncomment this if you want to prevent screenshots, screen recording and screen previews
             WindowManager.LayoutParams.FLAG_SECURE, // this flag prevents screenshots, screen recording and screen previews
             WindowManager.LayoutParams.FLAG_SECURE
         )*/
@@ -97,7 +96,6 @@ class MainActivity : FragmentActivity() {
             viewModel.updateMedPlumToken()
         }
         viewModel.updateIsAppLoading(true)
-        //Log.d("MedplumAuth", "token: ${viewModel.uiState.value.medPlumToken}")
 
         when {
             ContextCompat.checkSelfPermission(

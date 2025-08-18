@@ -1,6 +1,5 @@
 package com.example.ethktprototype
 
-import ERC20
 import android.app.Application
 import android.content.Context
 import android.util.Base64
@@ -12,32 +11,21 @@ import androidx.lifecycle.MutableLiveData
 import androidx.security.crypto.EncryptedSharedPreferences
 import androidx.security.crypto.MasterKey
 import com.example.ethktprototype.contracts.MedskyContract
-import com.example.ethktprototype.data.GraphQLData
-import com.example.ethktprototype.data.GraphQLQueries
-import com.example.ethktprototype.data.GraphQLResponse
-import com.example.ethktprototype.data.NftValue
 import com.example.ethktprototype.data.TokenBalance
 //import io.sentry.Sentry
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
-import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.Request
-import okhttp3.RequestBody.Companion.toRequestBody
 import org.json.JSONObject
 import org.web3j.abi.FunctionEncoder
 import org.web3j.abi.datatypes.Address
 import org.web3j.abi.datatypes.Function
-import org.web3j.abi.datatypes.generated.Uint256
 import org.web3j.crypto.Credentials
 import org.web3j.crypto.RawTransaction
 import org.web3j.crypto.TransactionEncoder
 import org.web3j.protocol.core.DefaultBlockParameterName
-import org.web3j.protocol.core.methods.request.Transaction
 import org.web3j.protocol.core.methods.response.TransactionReceipt
-import org.web3j.tx.Transfer
 import org.web3j.tx.gas.DefaultGasProvider
 import org.web3j.utils.Convert
 import org.web3j.utils.Numeric
@@ -55,16 +43,6 @@ import utils.loadBip44Credentials
 import java.security.SecureRandom
 import java.util.UUID
 import kotlin.collections.List
-
-
-object JsonUtils {
-    val json = Json {
-        ignoreUnknownKeys = true
-        prettyPrint = true
-        isLenient = true
-    }
-}
-
 
 class WalletRepository(private val application: Application) : IWalletRepository {
     private val context = application.applicationContext

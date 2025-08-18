@@ -55,6 +55,11 @@ import org.json.JSONArray
 import java.security.MessageDigest
 import java.security.SecureRandom
 
+/**
+ * Class that handles all calls to the MedPlum API.
+ * @param application The application context, used to access shared preferences.
+ * @param viewModel The ViewModel instance, used to update UI state and manage data.
+ */
 class MedPlumAPI(private val application: Application, private val viewModel: WalletViewModel) : IMedPlumAPI {
     val sharedPreferences = application.getSharedPreferences("WalletPrefs", Context.MODE_PRIVATE)
 
@@ -285,46 +290,12 @@ class MedPlumAPI(private val application: Application, private val viewModel: Wa
 
     private lateinit var apolloClient: ApolloClient
 
-    override suspend fun fetchPatient(): PatientEntity? {
-        return try {
-            if (!ensureApolloClientInitialized()) return null
+    // Functions to get the data
 
-            val response = apolloClient.query(GetPatientQuery("01968b59-76f3-7228-aea9-07db748ee2ca")).execute()
-            Log.d("MedPlum", "GraphQL response: $response")
-
-            if (response.hasErrors()) {
-                Log.e("MedPlum", "GraphQL errors: ${response.errors}")
-                return null
-            }
-
-            val patient = response.data?.Patient ?: return null
-
-            val given = patient.name?.firstOrNull()?.given?.firstOrNull() ?: ""
-            val family = patient.name?.firstOrNull()?.family ?: ""
-            val name = "$given $family".trim()
-
-            return PatientEntity(
-                id = patient.id ?: "unknown",
-                name = name,
-                birthDate = patient.birthDate ?: "unknown",
-                gender = patient.gender ?: "unknown",
-                identifier = "", // not returned in this query yet
-                address = "",     // not returned in this query yet
-                healthUnit = "",  // not returned in this query yet
-                doctor = ""       // not returned in this query yet
-            )
-
-        } catch (e: ApolloHttpException) {
-            Log.e("MedPlum", "HTTP error ${e.statusCode}: ${e.message}", e)
-            val errorBody = e.body?.use { it.readUtf8() }
-            Log.e("MedPlum", "Error body: $errorBody")
-            null
-        } catch (e: Exception) {
-            Log.e("MedPlum", "Unexpected error", e)
-            null
-        }
-    }
-
+    /**
+     * Fetches a Patient object from the MedPlum API.
+     * @param patientId The ID of the patient to fetch.
+     */
     override suspend fun fetchPatientComplete(patientId: String): PatientEntity? {
         return try {
             Log.d("MedPlum", "Fetching full patient info for $patientId")
@@ -403,8 +374,11 @@ class MedPlumAPI(private val application: Application, private val viewModel: Wa
         }
     }
 
-
-
+    /**
+     * Fetches a Practitioner object from the MedPlum API.
+     * @param practitionerId The ID of the practitioner to fetch.
+     * @return A PractitionerEntity object or null if an error occurs.
+     */
     override suspend fun fetchPractitioner(practitionerId: String): PractitionerEntity? {
         return try {
             if (!ensureApolloClientInitialized()) return null
@@ -476,7 +450,12 @@ class MedPlumAPI(private val application: Application, private val viewModel: Wa
         }
     }
 
-    suspend fun fetchPractitionersList(name: String): List<PractitionerEntity>? {
+    /**
+     * Fetches a list of practitioners matching the given name.
+     * @param name The name to search for.
+     * @return A list of PractitionerEntity objects or null if an error occurs.
+     */
+    override suspend fun fetchPractitionersList(name: String): List<PractitionerEntity>? {
         return try {
             if (!ensureApolloClientInitialized()) return null
 
@@ -531,8 +510,12 @@ class MedPlumAPI(private val application: Application, private val viewModel: Wa
         }
     }
 
-
-    suspend fun fetchPatientListOfPractitioner(practitionerId: String): List<PatientEntity>? {
+    /**
+     * Fetches a list of patients associated with a given practitioner.
+     * @param practitionerId The ID of the practitioner.
+     * @return A list of PatientEntity objects or null if an error occurs.
+     */
+    override suspend fun fetchPatientListOfPractitioner(practitionerId: String): List<PatientEntity>? {
         return try {
             if (!ensureApolloClientInitialized()) return null
 
@@ -580,7 +563,12 @@ class MedPlumAPI(private val application: Application, private val viewModel: Wa
         }
     }
 
-    suspend fun fetchPatientName(patientId: String): String {
+    /**
+     * Fetches the name of a patient by their ID.
+     * @param patientId The ID of the patient.
+     * @return The patient's name or an empty string if not found or an error occurs.
+     */
+    override suspend fun fetchPatientName(patientId: String): String {
         return try {
             if (!ensureApolloClientInitialized()) return ""
 
@@ -609,13 +597,23 @@ class MedPlumAPI(private val application: Application, private val viewModel: Wa
         }
     }
 
-    suspend fun fetchPatientsNames(patientIds: List<String>): Map<String,String> {
+    /**
+     * Fetches names for a list of patient IDs.
+     * @param patientIds The list of patient IDs.
+     * @return A map of patient IDs to their names.
+     */
+    override suspend fun fetchPatientsNames(patientIds: List<String>): Map<String,String> {
         return patientIds.associateWith { patientId ->
             fetchPatientName(patientId)
         }
     }
 
-
+    /**
+     * Fetches an access token from MedPlum using client credentials.
+     * @param clientId The client ID for the MedPlum application.
+     * @param clientSecret The client secret for the MedPlum application.
+     * @return The access token as a String, or null if the request fails.
+     */
     override suspend fun getMedplumAccessToken(
         clientId: String,
         clientSecret: String
@@ -658,6 +656,12 @@ class MedPlumAPI(private val application: Application, private val viewModel: Wa
             return@withContext null
         }
     }
+
+    /**
+     * Fetches conditions for a given patient ID.
+     * @param subjectId The ID of the patient whose conditions to fetch.
+     * @return A list of ConditionEntity objects or null if an error occurs.
+     */
     override suspend fun fetchConditions(subjectId: String): List<ConditionEntity>? {
         return try {
             if (!ensureApolloClientInitialized()) return null
@@ -682,6 +686,11 @@ class MedPlumAPI(private val application: Application, private val viewModel: Wa
         }
     }
 
+    /**
+     * Fetches observations for a given patient ID.
+     * @param subjectId The ID of the patient whose observations to fetch.
+     * @return A list of ObservationEntity objects or null if an error occurs.
+     */
     override suspend fun fetchObservations(subjectId: String): List<ObservationEntity>? {
         return try {
             if (!ensureApolloClientInitialized()) return null
@@ -707,6 +716,11 @@ class MedPlumAPI(private val application: Application, private val viewModel: Wa
         }
     }
 
+    /**
+     * Fetches the diagnostic reports for a given subject ID.
+     * @param subjectId The ID of the patient whose diagnostic reports to fetch.
+     * @param isPractitioner Indicates if the request is made by a practitioner, used to check consent.
+     */
     override suspend fun fetchDiagnosticReports(subjectId: String, isPractitioner: Boolean): List<DiagnosticReportEntity>? {
         return try {
             if (!ensureApolloClientInitialized()) return null
@@ -778,6 +792,11 @@ class MedPlumAPI(private val application: Application, private val viewModel: Wa
         }
     }
 
+    /**
+     * Fetches medication requests for a given subject ID.
+     * @param subjectId The ID of the patient whose medication requests to fetch.
+     * @return A list of MedicationRequestEntity objects or null if an error occurs.
+     */
     override suspend fun fetchMedicationRequests(subjectId: String): List<MedicationRequestEntity>? {
         return try {
             if (!ensureApolloClientInitialized()) return null
@@ -802,6 +821,11 @@ class MedPlumAPI(private val application: Application, private val viewModel: Wa
         }
     }
 
+    /**
+     * Fetches medication statements for a given subject ID.
+     * @param subjectId The ID of the patient whose medication statements to fetch.
+     * @return A list of MedicationStatementEntity objects or null if an error occurs.
+     */
     override suspend fun fetchMedicationStatements(subjectId: String): List<MedicationStatementEntity>? {
         return try {
             if (!ensureApolloClientInitialized()) return null
@@ -826,6 +850,11 @@ class MedPlumAPI(private val application: Application, private val viewModel: Wa
         }
     }
 
+    /**
+     * Fetches immunizations for a given subject ID.
+     * @param subjectId The ID of the patient whose immunizations to fetch.
+     * @return A list of ImmunizationEntity objects or null if an error occurs.
+     */
     override suspend fun fetchImmunizations(subjectId: String): List<ImmunizationEntity>? {
         return try {
             if (!ensureApolloClientInitialized()) return null
@@ -850,6 +879,11 @@ class MedPlumAPI(private val application: Application, private val viewModel: Wa
         }
     }
 
+    /**
+     * Fetches allergies for a given subject ID.
+     * @param subjectId The ID of the patient whose allergies to fetch.
+     * @return A list of AllergyIntoleranceEntity objects or null if an error occurs.
+     */
     override suspend fun fetchAllergies(subjectId: String): List<AllergyIntoleranceEntity>? {
         return try {
             if (!ensureApolloClientInitialized()) return null
@@ -874,6 +908,11 @@ class MedPlumAPI(private val application: Application, private val viewModel: Wa
         }
     }
 
+    /**
+     * Fetches devices for a given subject ID.
+     * @param subjectId The ID of the patient whose devices to fetch.
+     * @return A list of DeviceEntity objects or null if an error occurs.
+     */
     override suspend fun fetchDevices(subjectId: String): List<DeviceEntity>? {
         return try {
             if (!ensureApolloClientInitialized()) return null
@@ -897,6 +936,11 @@ class MedPlumAPI(private val application: Application, private val viewModel: Wa
         }
     }
 
+    /**
+     * Fetches procedures for a given subject ID.
+     * @param subjectId The ID of the patient whose procedures to fetch.
+     * @return A list of ProcedureEntity objects or null if an error occurs.
+     */
     override suspend fun fetchProcedures(subjectId: String): List<ProcedureEntity>? {
         return try {
             if (!ensureApolloClientInitialized()) return null
@@ -920,6 +964,11 @@ class MedPlumAPI(private val application: Application, private val viewModel: Wa
         }
     }
 
+    /**
+     * Fetches an observation by its ID.
+     * @param observationId The ID of the observation to fetch.
+     * @return An ObservationEntity object or null if not found or an error occurs.
+     */
     override suspend fun fetchObservationByID(observationId: String): ObservationEntity? {
         return try {
             //if (!ensureApolloClientInitialized()) return null
@@ -947,7 +996,12 @@ class MedPlumAPI(private val application: Application, private val viewModel: Wa
         }
     }
 
-    suspend fun fetchHealthSummary(patientId: String): HealthSummaryResult {
+    /**
+     * Fetches a health summary for a given patient ID.
+     * @param patientId The ID of the patient whose health summary to fetch.
+     * @return A HealthSummaryResult object containing various health data or null if an error occurs.
+     */
+    override suspend fun fetchHealthSummary(patientId: String): HealthSummaryResult {
         val diagnostics = fetchDiagnosticReports(patientId)
         val allergies = fetchAllergies(patientId)
         val meds = fetchMedicationStatements(patientId)
@@ -958,7 +1012,13 @@ class MedPlumAPI(private val application: Application, private val viewModel: Wa
         return HealthSummaryResult(diagnostics, allergies, meds, procedures, devices, immunizations)
     }
 
-    suspend fun postRecordToMedplum(jsonBody: String, resourceType: String): String? = withContext(Dispatchers.IO) {
+    /**
+     * Posts a record to the MedPlum API.
+     * @param jsonBody The JSON body of the record to post.
+     * @param resourceType The type of the resource (e.g., "DiagnosticReport", "Immunization").
+     * @return The ID of the created resource or null if the request fails.
+     */
+    override suspend fun postRecordToMedplum(jsonBody: String, resourceType: String): String? = withContext(Dispatchers.IO) {
         val accessToken = getAccessToken()
         if (accessToken.isNullOrEmpty()) {
             Log.e("MedPlum", "Access token is missing.")
@@ -996,22 +1056,36 @@ class MedPlumAPI(private val application: Application, private val viewModel: Wa
         }
     }
 
+    /**
+     * Creates a MedPlum record based on the provided record type and data.
+     * @param recordType The type of the record to create (e.g., "DiagnosticReport", "Immunization").
+     * @param record The data for the record, which should match the specified type.
+     * @param patientId The ID of the patient associated with the record.
+     * @param performerId The ID of the performer (e.g., practitioner) associated with the record.
+     * @return The ID of the created record or throws an exception if creation fails.
+     */
+    override suspend fun createMedplumRecord(recordType: String, record: Any, patientId: String, performerId: String): String {
+        val jsonBody = when (recordType) {
+           "DiagnosticReport" -> createDiagnosticReport(record as DiagnosticReportEntity, patientId, performerId)
+           "Immunization" -> createImmunization(record as ImmunizationEntity)
+           "Allergy" -> createAllergy(record as AllergyIntoleranceEntity)
+           "Condition" -> createCondition(record as ConditionEntity)
+           "Observation" -> createObservation(record as ObservationEntity)
+           "MedicationRequest" -> createMedicationRequest(record as MedicationRequestEntity)
+           "Procedure" -> createProcedure(record as ProcedureEntity, patientId)
+           else -> throw IllegalArgumentException("Unsupported record type: $recordType")
+       }
+        return postRecordToMedplum(jsonBody, recordType) ?: throw Exception("Failed to create $recordType on MedPlum")
+    }
 
-     suspend fun createMedplumRecord(recordType: String, record: Any, patientId: String, performerId: String): String {
-         val jsonBody = when (recordType) {
-            "DiagnosticReport" -> createDiagnosticReport(record as DiagnosticReportEntity, patientId, performerId)
-            "Immunization" -> createImmunization(record as ImmunizationEntity)
-            "Allergy" -> createAllergy(record as AllergyIntoleranceEntity)
-            "Condition" -> createCondition(record as ConditionEntity)
-            "Observation" -> createObservation(record as ObservationEntity)
-            "MedicationRequest" -> createMedicationRequest(record as MedicationRequestEntity)
-            "Procedure" -> createProcedure(record as ProcedureEntity, patientId)
-            else -> throw IllegalArgumentException("Unsupported record type: $recordType")
-        }
-         return postRecordToMedplum(jsonBody, recordType) ?: throw Exception("Failed to create $recordType on MedPlum")
-     }
-
-    fun createDiagnosticReport(record: DiagnosticReportEntity, patientId: String, performerId: String): String {
+    /**
+     * Creates a DiagnosticReport JSON object for MedPlum.
+     * @param record The DiagnosticReportEntity containing the data.
+     * @param patientId The ID of the patient associated with the report.
+     * @param performerId The ID of the performer (e.g., practitioner) associated with the report.
+     * @return A JSON string representing the DiagnosticReport.
+     */
+    override fun createDiagnosticReport(record: DiagnosticReportEntity, patientId: String, performerId: String): String {
         Log.d("EffectiveDateTime", "Effective DateTime: ${record.effectiveDateTime}")
         val json = JSONObject().apply {
             put("resourceType", "DiagnosticReport")
@@ -1043,7 +1117,12 @@ class MedPlumAPI(private val application: Application, private val viewModel: Wa
         return json.toString()
     }
 
-    fun createImmunization(record: ImmunizationEntity): String {
+    /**
+     * Creates an Immunization JSON object for MedPlum.
+     * @param record The ImmunizationEntity containing the data.
+     * @return A JSON string representing the Immunization.
+     */
+    override fun createImmunization(record: ImmunizationEntity): String {
         val json = JSONObject().apply {
             put("resourceType", "Immunization")
             put("status", record.status)
@@ -1057,7 +1136,12 @@ class MedPlumAPI(private val application: Application, private val viewModel: Wa
         return json.toString()
     }
 
-    fun createAllergy(record: AllergyIntoleranceEntity): String {
+    /**
+     * Creates an AllergyIntolerance JSON object for MedPlum.
+     * @param record The AllergyIntoleranceEntity containing the data.
+     * @return A JSON string representing the AllergyIntolerance.
+     */
+    override fun createAllergy(record: AllergyIntoleranceEntity): String {
         val json = JSONObject().apply {
             put("resourceType", "AllergyIntolerance")
             put("clinicalStatus", JSONObject().apply {
@@ -1073,7 +1157,12 @@ class MedPlumAPI(private val application: Application, private val viewModel: Wa
         return json.toString()
     }
 
-    fun createCondition(record: ConditionEntity): String {
+    /**
+     * Creates a Condition JSON object for MedPlum.
+     * @param record The ConditionEntity containing the data.
+     * @return A JSON string representing the Condition.
+     */
+    override fun createCondition(record: ConditionEntity): String {
         val json = JSONObject().apply {
             put("resourceType", "Condition")
             put("clinicalStatus", JSONObject().apply {
@@ -1091,7 +1180,12 @@ class MedPlumAPI(private val application: Application, private val viewModel: Wa
         return json.toString()
     }
 
-    fun createObservation(record: ObservationEntity): String {
+    /**
+     * Creates an Observation JSON object for MedPlum.
+     * @param record The ObservationEntity containing the data.
+     * @return A JSON string representing the Observation.
+     */
+    override fun createObservation(record: ObservationEntity): String {
         val json = JSONObject().apply {
             put("resourceType", "Observation")
             put("status", record.status)
@@ -1111,7 +1205,12 @@ class MedPlumAPI(private val application: Application, private val viewModel: Wa
         return json.toString()
     }
 
-    fun createMedicationRequest(record: MedicationRequestEntity): String {
+    /**
+     * Creates a MedicationRequest JSON object for MedPlum.
+     * @param record The MedicationRequestEntity containing the data.
+     * @return A JSON string representing the MedicationRequest.
+     */
+    override fun createMedicationRequest(record: MedicationRequestEntity): String {
         val json = JSONObject().apply {
             put("resourceType", "MedicationRequest")
             put("status", record.status)
@@ -1129,7 +1228,13 @@ class MedPlumAPI(private val application: Application, private val viewModel: Wa
         return json.toString()
     }
 
-    fun createProcedure(record: ProcedureEntity, patientId: String): String {
+    /**
+     * Creates a Procedure JSON object for MedPlum.
+     * @param record The ProcedureEntity containing the data.
+     * @param patientId The ID of the patient associated with the procedure.
+     * @return A JSON string representing the Procedure.
+     */
+    override fun createProcedure(record: ProcedureEntity, patientId: String): String {
         val json = JSONObject().apply {
             put("resourceType", "Procedure")
             put("status", record.status)
@@ -1145,7 +1250,12 @@ class MedPlumAPI(private val application: Application, private val viewModel: Wa
         return json.toString()
     }
 
-    suspend fun getObservationIdsFromDiagnosticReport(
+    /**
+     * Fetches observation IDs from a DiagnosticReport resource.
+     * @param diagnosticReportId The ID of the DiagnosticReport resource.
+     * @return A list of observation IDs referenced in the DiagnosticReport.
+     */
+    override suspend fun getObservationIdsFromDiagnosticReport(
         diagnosticReportId: String
     ): List<String> = withContext(Dispatchers.IO) {
         val accessToken = getAccessToken()
@@ -1182,7 +1292,15 @@ class MedPlumAPI(private val application: Application, private val viewModel: Wa
         }
     }
 
-    suspend fun createConsentResource(
+    /**
+     * Creates a Consent resource in MedPlum.
+     * @param patientId The ID of the patient that is creating the consent.
+     * @param practitionerId The ID of the practitioner whom the consent grants access.
+     * @param resourceId The ID of the resource (e.g., DiagnosticReport) to be included in the consent.
+     * @param accessPolicyId The ID of the access policy to be applied.
+     * @return True if the consent was created successfully, false otherwise.
+     */
+    override suspend fun createConsentResource(
         patientId: String,
         practitionerId: String,
         resourceId: String,
@@ -1303,134 +1421,15 @@ class MedPlumAPI(private val application: Application, private val viewModel: Wa
         return practitioner?.identifier
     }
 
-
-    /*suspend fun grantFullDiagnosticReportAccess(
+    /**
+     * Grants access to a specific resource for a practitioner and patient, by creating a Consent resource if it doesn't already exist.
+     * @param resourceId The ID of the resource to grant access to (e.g., "DiagnosticReport/123").
+     * @param practitionerId The ID of the practitioner for whom the consent is being granted.
+     * @param patientId The ID of the patient to grant access.
+     */
+    override suspend fun grantFullResourceAccess(
         resourceId: String,
         practitionerId: String,
-        projectId: String,
-        patientId: String
-    ): Boolean = withContext(Dispatchers.IO) {
-        val accessToken = getAccessToken() ?: return@withContext false
-        val client = OkHttpClient()
-
-        // Step 1: Get existing AccessPolicy ID from ProjectMembership
-        val policyId = getAccessPolicyIdFromPractitioner(practitionerId)
-            ?: return@withContext false
-
-        Log.d("MedPlum", "Found AccessPolicy ID: $policyId")
-        // Step 2: Fetch the DiagnosticReport
-        val reportUrl = "https://api.medplum.com/fhir/R4/DiagnosticReport/$resourceId"
-
-        // Step 3: Fetch the current AccessPolicy
-        val getPolicyRequest = Request.Builder()
-            .url("https://api.medplum.com/fhir/R4/AccessPolicy/$policyId")
-            .addHeader("Authorization", "Bearer $accessToken")
-            .get()
-            .build()
-
-        val updatedPolicy = client.newCall(getPolicyRequest).execute().use { response ->
-            Log.d("MedPlum", "Response: ${response.body}")
-            if (!response.isSuccessful) {
-                Log.e("MedPlum", "Failed to fetch AccessPolicy: ${response.code}")
-                return@withContext false
-            }
-            response.body?.string()?.let { JSONObject(it) } ?: return@withContext false
-        }
-        // Step 4: Add DiagnosticReport and Observations to the policy if missing
-        val resourceArray = updatedPolicy.optJSONArray("resource") ?: JSONArray()
-
-        fun alreadyIncluded(resourceType: String, criteria: String?): Boolean {
-            return (0 until resourceArray.length()).any {
-                val obj = resourceArray.optJSONObject(it)
-                obj?.optString("resourceType") == resourceType &&
-                        (criteria == null || obj.optString("criteria") == criteria)
-            }
-        }
-
-        if (!alreadyIncluded("DiagnosticReport", "DiagnosticReport?_id=$resourceId")) {
-            /*resourceArray.put(JSONObject().apply {
-                put("resourceType", "DiagnosticReport")
-                put("criteria", "DiagnosticReport?_id=$resourceId")
-            })
-            updatedPolicy.put("resource", resourceArray)*/
-
-            if (createConsentResource(patientId, practitionerId, "DiagnosticReport/$resourceId", policyId)) {
-                Log.d("MedPlum", "Consent created successfully for DiagnosticReport")
-            } else {
-                Log.e("MedPlum", "Failed to create Consent for DiagnosticReport")
-                return@withContext false
-            }
-
-            // PUT now to ensure DR is visible before fetching result[]
-            /*val updateBody = updatedPolicy.toString().toRequestBody("application/fhir+json".toMediaType())
-            val putRequest = Request.Builder()
-                .url("https://api.medplum.com/fhir/R4/AccessPolicy/$policyId")
-                .addHeader("Authorization", "Bearer $accessToken")
-                .put(updateBody)
-                .build()
-
-            val response = client.newCall(putRequest).execute()
-            if (!response.isSuccessful) {
-                Log.e("MedPlum", "Failed to update AccessPolicy with DiagnosticReport access")
-                return@withContext false
-            }
-            Log.d("MedPlum", "AccessPolicy updated with DiagnosticReport access")*/
-        }
-
-        // Fetch DiagnosticReport again
-        val reportJson = client.newCall(Request.Builder()
-            .url(reportUrl)
-            .addHeader("Authorization", "Bearer $accessToken")
-            .get()
-            .build()).execute().use { it.body?.string()?.let(::JSONObject) }
-
-        val observationIds = mutableListOf<String>()
-        val results = reportJson?.optJSONArray("result")
-        if (results != null) {
-            for (i in 0 until results.length()) {
-                val ref = results.getJSONObject(i).optString("reference", "")
-                if (ref.startsWith("Observation/")) {
-                    observationIds.add(ref.removePrefix("Observation/"))
-                }
-            }
-        }
-        Log.d("MedPlum", "Observation IDs: $observationIds")
-
-        // Add each Observation to the policy
-        /*val resourceArrayPhase2 = updatedPolicy.optJSONArray("resource") ?: JSONArray()
-        observationIds.forEach { obsId ->
-            val criteria = "Observation?_id=$obsId"
-            if (!alreadyIncluded("Observation", criteria)) {
-                resourceArrayPhase2.put(JSONObject().apply {
-                    put("resourceType", "Observation")
-                    put("criteria", criteria)
-                })
-            }
-        }
-        updatedPolicy.put("resource", resourceArrayPhase2)
-
-        // Final PUT
-        val finalUpdate = updatedPolicy.toString().toRequestBody("application/fhir+json".toMediaType())
-        val finalRequest = Request.Builder()
-            .url("https://api.medplum.com/fhir/R4/AccessPolicy/$policyId")
-            .addHeader("Authorization", "Bearer $accessToken")
-            .put(finalUpdate)
-            .build()
-
-        val finalResponse = client.newCall(finalRequest).execute()
-        if (!finalResponse.isSuccessful) {
-            Log.e("MedPlum", "Failed to add Observations to AccessPolicy")
-            return@withContext false
-        }
-
-        Log.d("MedPlum", "AccessPolicy updated with Observations")*/
-        return@withContext true
-    }*/
-
-    suspend fun grantFullResourceAccess(
-        resourceId: String,
-        practitionerId: String,
-        projectId: String,
         patientId: String
     ): Boolean = withContext(Dispatchers.IO) {
         val accessToken = getAccessToken() ?: return@withContext false
@@ -1497,7 +1496,12 @@ class MedPlumAPI(private val application: Application, private val viewModel: Wa
         return@withContext true
     }
 
-    suspend fun loadSharedResourcesFromConsents(
+    /**
+     * Loads shared resources from consents for a given practitioner.
+     * @param practitionerId The ID of the practitioner to load consents for.
+     * @return A map of resource types to lists of JSON objects representing the shared resources.
+     */
+    override suspend fun loadSharedResourcesFromConsents(
         practitionerId: String,
     ): Map<String, List<JSONObject>> = withContext(Dispatchers.IO) {
         val accessToken = getAccessToken()
@@ -1588,7 +1592,13 @@ class MedPlumAPI(private val application: Application, private val viewModel: Wa
         return@withContext result
     }
 
-    suspend fun checkConsentExists(practitionerId: String, resourceId: String): Boolean = withContext(Dispatchers.IO) {
+    /**
+     * Checks if a consent exists, giving access to a specific resource for a practitioner.
+     * @param practitionerId The ID of the practitioner to check.
+     * @param resourceId The ID of the resource to check.
+     * @return True if a matching consent exists, false otherwise.
+     */
+    override suspend fun checkConsentExists(practitionerId: String, resourceId: String): Boolean = withContext(Dispatchers.IO) {
         val accessToken = getAccessToken() ?: return@withContext false
 
         Log.d("MedPlum", "Checking consent for $practitionerId and $resourceId")
@@ -1633,7 +1643,12 @@ class MedPlumAPI(private val application: Application, private val viewModel: Wa
         }
     }
 
-    suspend fun fetchConsentsByPatient(patientId: String): List<ConsentDisplayItem> = withContext(Dispatchers.IO) {
+    /**
+     * Fetches active consents for a given patient ID.
+     * @param patientId The ID of the patient whose consents to fetch.
+     * @return A list of ConsentDisplayItem objects representing the consents.
+     */
+    override suspend fun fetchConsentsByPatient(patientId: String): List<ConsentDisplayItem> = withContext(Dispatchers.IO) {
         val accessToken = getAccessToken() ?: return@withContext emptyList()
         val result = mutableListOf<ConsentEntity>()
 
@@ -1701,7 +1716,12 @@ class MedPlumAPI(private val application: Application, private val viewModel: Wa
         return@withContext resolveConsentDisplayItems(result)
     }
 
-    suspend fun resolveConsentDisplayItems(
+    /**
+     * Resolves consent display items by fetching additional details for each consent.
+     * @param consents The list of ConsentEntity objects to resolve.
+     * @return A list of ConsentDisplayItem objects with resolved details.
+     */
+    override suspend fun resolveConsentDisplayItems(
         consents: List<ConsentEntity>,
     ): List<ConsentDisplayItem> = withContext(Dispatchers.IO) {
         val accessToken = getAccessToken() ?: return@withContext emptyList()
@@ -1778,7 +1798,12 @@ class MedPlumAPI(private val application: Application, private val viewModel: Wa
         return@withContext result
     }
 
-    suspend fun revokeAccessPermission(permissionId: String): Boolean = withContext(Dispatchers.IO) {
+    /**
+     * Revokes access permission by updating the Consent status to inactive.
+     * @param permissionId The ID of the Consent resource to revoke.
+     * @return True if the revocation was successful, false otherwise.
+     */
+    override suspend fun revokeAccessPermission(permissionId: String): Boolean = withContext(Dispatchers.IO) {
         val accessToken = getAccessToken() ?: return@withContext false
         val client = OkHttpClient()
 

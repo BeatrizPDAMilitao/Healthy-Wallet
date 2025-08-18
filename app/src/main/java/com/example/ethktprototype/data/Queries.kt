@@ -3,6 +3,11 @@ package com.example.ethktprototype.data
 import org.json.JSONObject
 import org.json.JSONArray
 
+/**
+ * This object contains GraphQL queries for fetching data from MedPlum.
+ * These queries are used to log actions on the blockchain.
+ */
+
 object GraphQLQueries {
 
     fun buildPatientCompleteQuery(patientId: String): String {

@@ -3,19 +3,6 @@ package com.example.ethktprototype.data
 import androidx.room.Embedded
 import androidx.room.Relation
 
-data class TransactionWithDetails(
-    @Embedded val transaction: TransactionEntity,
-
-    @Relation(parentColumn = "patientId", entityColumn = "id")
-    val patient: PatientEntity,
-
-    @Relation(parentColumn = "practitionerId", entityColumn = "id")
-    val practitioner: PractitionerEntity,
-
-    //@Relation(parentColumn = "id", entityColumn = "id")
-    //val zkpProof: ZkpEntity?
-)
-
 data class TransactionWithProof(
     @Embedded val transaction: TransactionEntity,
     @Relation(parentColumn = "id", entityColumn = "id")

@@ -11,7 +11,7 @@ data class Transaction(
     val recordId: String,
     val practitionerId: String,
     val practitionerAddress: String,
-    val type: String, // "MRI" or "XRay" and so on. TODO: add more types and convert to enum
+    val type: String, // "DiagnosticReport", "Immunization" and so on.
     val patientId: String,
     val conditions: List<ConditionRequirement>? = null,
     var qrCodeFileName: String? = null,

@@ -13,6 +13,11 @@ import javax.net.ssl.SSLContext
 import javax.net.ssl.TrustManagerFactory
 import javax.net.ssl.X509TrustManager
 
+/**
+ * Object that provides methods to interact with the ZKP server.
+ * This includes sending a value for ZKP proof generation.
+ * It uses OkHttp for network requests and handles SSL pinning with a self-signed certificate.
+ */
 object CallZkpApi {
     private lateinit var client: OkHttpClient
 
@@ -42,7 +47,7 @@ object CallZkpApi {
             .toRequestBody("application/json".toMediaTypeOrNull())
 
         val request = Request.Builder()
-            .url("https://192.168.1.254:3000/prove")
+            .url("https://192.168.1.254:3000/prove") // Replace with your server URL
             .post(requestBody)
             .build()
 

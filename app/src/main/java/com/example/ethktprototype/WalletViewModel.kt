@@ -300,7 +300,7 @@ class WalletViewModel(application: Application) : AndroidViewModel(application) 
 
                         Log.d("MedPlumGrant", "Granting policy...")
                         val granted = withContext(Dispatchers.IO) {
-                            medPlumAPI.grantFullResourceAccess(recordId, practitionerId, projectId, getLoggedInUsertId())
+                            medPlumAPI.grantFullResourceAccess(recordId, practitionerId, getLoggedInUsertId())
                         }
                         Log.d("MedPlumGrant", "Policy granted: $granted")
                     } catch (e: Exception) {
@@ -1042,7 +1042,7 @@ class WalletViewModel(application: Application) : AndroidViewModel(application) 
                 val result = withContext(Dispatchers.IO) {
                     var granted: Boolean? = null
                     val success = withLoggedAccessPerScreen("ALWAYS", queries) {
-                        val data = medPlumAPI.grantFullResourceAccess(recordId, practitionerId, projectId, patientId)
+                        val data = medPlumAPI.grantFullResourceAccess(recordId, practitionerId, patientId)
                         granted = data
                     }
                     if (success) granted else null

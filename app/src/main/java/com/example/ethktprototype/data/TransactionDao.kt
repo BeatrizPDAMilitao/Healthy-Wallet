@@ -34,9 +34,6 @@ interface TransactionDao {
     @Query("SELECT COUNT(*) FROM transactions")
     suspend fun countTransactions(): Int
 
-    @Query("SELECT * FROM transactions WHERE id = :transactionId")
-    suspend fun getTransactionWithDetails(transactionId: String): TransactionWithDetails?
-
     @Query("SELECT * FROM transactions")
     suspend fun getTransactionsWithProof(): List<TransactionWithProof>
 
