@@ -57,7 +57,6 @@ fun HealthSummaryScreen(
 
     // Collecting patient and health data from the ViewModel
     val patient by viewModel.patient.collectAsState()
-    val conditions by viewModel.conditions.collectAsState()
 
     // Collecting diagnostic reports from the ViewModel
     val diagnosticReportsMap by viewModel.diagnosticReports.collectAsState()
