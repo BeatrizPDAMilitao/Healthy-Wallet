@@ -14,16 +14,34 @@ A secure digital wallet tailored for the healthcare industry. The wallet will al
 - **O5**: Resilience against attacks, ensuring robust defenses against potential threats to maintain trust and reliability;
 - **O6**: Usability and user experience, ensuring that the system is accessible, intuitive, and easy to navigate for all users.
 
+## Setup
 
-## ✨ Features
+To be able to run the project in need to:
+- Run the ZKP server
+- Have a MedPlum account so you can login via OAuth2
 
-- 🔓 Import wallets from Metamask via mnemonic phrase
-- 💰 View token balances across supported networks
-- 🔐 Secure encrypted phrase storage
-- 🌐 Multi-network support
-- 💸 Send and receive transactions
-- 🖼️ Token icon display
-- 🗑️ Easy wallet removal
+To run the ZKP server:
+### Run as Admin in Windows PowerShell
+
+To get the ipV4 Address
+```shell
+ipconfig
+```
+In the App change the (CallZkpApi.kt) ZKP server ip to what you retrieved from the ipconfig command. Also add that ip address to the network_security_config.xml file.
+
+```shell
+netsh interface portproxy add v4tov4 listenport=3000 listenaddress=0.0.0.0 connectport=3000 connectaddress=172.26.146.19
+```
+```shell
+New-NetFirewallRule -DisplayName "Allow ZKP Port 3000" -Direction Inbound -LocalPort 3000 -Protocol TCP -Action Allow
+```
+
+### To run the server
+```shell
+$ cargo run -r
+```
+
+On the server side change the url returned in `src/main.rs` to the correct address (The one retrieved from the first command - 192.168.1.something).
 
 ## 🛠️ Tech Stack
 
