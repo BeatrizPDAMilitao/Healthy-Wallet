@@ -357,11 +357,11 @@ fun TransactionScreen(
                             ) {
                                 Text("Generate ZKP")
                             }
-                            Button(onClick = {
+                            /*Button(onClick = {
                                 viewModel.getZkpTimes()
                             }, modifier = Modifier.fillMaxWidth().padding(8.dp)) {
                                 Text("Get ZKP times")
-                            }
+                            }*/
                         } else if (transaction.value!!.status == "pending") {
                             Spacer(modifier = Modifier.height(16.dp))
                             Row {

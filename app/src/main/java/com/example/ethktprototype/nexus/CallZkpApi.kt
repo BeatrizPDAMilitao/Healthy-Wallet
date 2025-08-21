@@ -9,6 +9,7 @@ import java.io.IOException
 import java.security.KeyStore
 import java.security.cert.CertificateFactory
 import java.time.ZonedDateTime
+import java.util.concurrent.TimeUnit
 import javax.net.ssl.SSLContext
 import javax.net.ssl.TrustManagerFactory
 import javax.net.ssl.X509TrustManager
@@ -47,7 +48,7 @@ object CallZkpApi {
             .toRequestBody("application/json".toMediaTypeOrNull())
 
         val request = Request.Builder()
-            .url("https://192.168.1.254:3000/prove") // Replace with your server URL
+            .url("https://192.168.1.10:3000/prove") // Replace with your server URL
             .post(requestBody)
             .build()
 
@@ -92,6 +93,10 @@ object CallZkpApi {
         return OkHttpClient.Builder()
             .sslSocketFactory(sslContext.socketFactory, tmf.trustManagers[0] as X509TrustManager)
             .hostnameVerifier { _, _ -> true } // Accept all hostnames (not recommended for production)
+            .connectTimeout(20, TimeUnit.SECONDS)
+            .readTimeout(60, TimeUnit.SECONDS)
+            .writeTimeout(60, TimeUnit.SECONDS)
+            .callTimeout(0, TimeUnit.SECONDS)
             .build()
     }
 }
