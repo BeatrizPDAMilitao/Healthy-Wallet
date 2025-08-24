@@ -74,6 +74,9 @@ class WalletRepository(private val application: Application) : IWalletRepository
 
     val nonceManager = NonceManager(web3jService, loadBip44Credentials(getMnemonic().toString()).address)
 
+    val robustNonceManager =
+        RobustNonceManager(web3jService, loadBip44Credentials(getMnemonic().toString()).address)
+
 
     fun getDbPassphrase(): String? {
         return encryptedPrefs.getString("db_pass", null)
@@ -627,62 +630,254 @@ class WalletRepository(private val application: Application) : IWalletRepository
      * @return The transaction receipt for the logging of access.
      */
     suspend fun logAccess(recordIds: List<String>, credentials: Credentials): TransactionReceipt {
-        val nonce = nonceManager.getNextNonce()
+        if (!rpcAlive(web3jService)) {
+            throw IOException("No network / RPC unavailable")
+        }
+        //val nonce = nonceManager.getNextNonce()
+        val nonce = robustNonceManager.allocate()
 
-        val baseGasPrice = web3jService.ethGasPrice().send().gasPrice
-        val gasPrice = baseGasPrice + (baseGasPrice / BigInteger.TEN) // +10%
+        try {
+            val baseGasPrice = web3jService.ethGasPrice().send().gasPrice
+            val gasPrice = baseGasPrice + (baseGasPrice / BigInteger.TEN) // +10%
 
-        val gasLimit = BigInteger.valueOf(3000000)
+            val gasLimit = BigInteger.valueOf(3000000)
 
-        val accessId = UUID.randomUUID().toString()
+            val accessId = UUID.randomUUID().toString()
 
-        Log.d("SyncedLog", "accessId: $accessId, recordIds: $recordIds")
-        val function = Function(
-            "logAccess",
-            listOf(
-                DynamicArray(Utf8String::class.java, recordIds.map { Utf8String(it) }),
-                Utf8String(accessId)
-            ),
-            emptyList()
-        )
-        Log.d("SyncedLog", "function input: ${function.inputParameters[0].value}")
+            Log.d("SyncedLog", "accessId: $accessId, recordIds: $recordIds")
+            val function = Function(
+                "logAccess",
+                listOf(
+                    DynamicArray(Utf8String::class.java, recordIds.map { Utf8String(it) }),
+                    Utf8String(accessId)
+                ),
+                emptyList()
+            )
+            Log.d("SyncedLog", "function input: ${function.inputParameters[0].value}")
 
-        val encodedFunction = FunctionEncoder.encode(function)
+            val encodedFunction = FunctionEncoder.encode(function)
 
-        val rawTransaction = RawTransaction.createTransaction(
-            nonce,
-            gasPrice,
-            gasLimit,
-            accessesContractAddress,
-            BigInteger.ZERO,
-            encodedFunction
-        )
+            val rawTransaction = RawTransaction.createTransaction(
+                nonce,
+                gasPrice,
+                gasLimit,
+                accessesContractAddress,
+                BigInteger.ZERO,
+                encodedFunction
+            )
 
-        val signedMessage = TransactionEncoder.signMessage(rawTransaction, selectedNetwork.value.chainId, credentials)
-        val hexValue = Numeric.toHexString(signedMessage)
+            val signedMessage = TransactionEncoder.signMessage(
+                rawTransaction,
+                selectedNetwork.value.chainId,
+                credentials
+            )
+            val hexValue = Numeric.toHexString(signedMessage)
 
-        val transactionResponse = web3jService.ethSendRawTransaction(hexValue).send()
-        Log.d("SyncedLog", "Sent logAccess tx: ${transactionResponse.transactionHash}")
-        if (transactionResponse.hasError()) {
-            throw RuntimeException("Transaction failed: ${transactionResponse.error.message}")
+            val transactionResponse = web3jService.ethSendRawTransaction(hexValue).send()
+            Log.d("SyncedLog", "Sent logAccess tx: ${transactionResponse.transactionHash}")
+
+            if (transactionResponse.hasError()) {
+                val msg = transactionResponse.error.message ?: "unknown error"
+                when {
+                    msg.contains("nonce too low", ignoreCase = true) -> {
+                        // Our local view is stale; refresh and retry once.
+                        robustNonceManager.release(nonce)
+                        robustNonceManager.reconcileFromChain()
+                        throw RuntimeException("Nonce too low; refreshed. Please retry.")
+                    }
+
+                    msg.contains("nonce too high", ignoreCase = true) -> {
+
+                    }
+
+                    msg.contains("replacement underpriced", ignoreCase = true) ||
+                            msg.contains("transaction underpriced", ignoreCase = true) -> {
+                        // Bump gas price and retry with the SAME nonce (caller can decide).
+                        robustNonceManager.release(nonce)
+                        throw RuntimeException("Underpriced; bump gas and retry with same nonce.")
+                    }
+
+                    else -> {
+                        robustNonceManager.release(nonce)
+                        throw RuntimeException("Transaction failed to broadcast: $msg")
+                    }
+                }
+            }
+
+            val maxWaitMs = 60000L
+            val start = System.currentTimeMillis()
+
+            while (System.currentTimeMillis() - start < maxWaitMs) {
+                val receipt =
+                    web3jService.ethGetTransactionReceipt(transactionResponse.transactionHash)
+                        .send().transactionReceipt
+                if (receipt.isPresent) {
+                    if (receipt.get().status == "0x0") {
+                        // Mined but reverted.
+                        robustNonceManager.markMined(nonce)
+                        Log.e("TxStatus", "Transaction reverted")
+                        throw RuntimeException("Transaction reverted")
+                    }
+                    robustNonceManager.markMined(nonce)
+                    return receipt.get()
+                }
+                delay(1000)
+            }
+
+            throw RuntimeException("Transaction receipt not generated after sending transaction")
+        }
+        catch (io: IOException) {
+            // Network/transport error before/at send: allow reuse.
+            robustNonceManager.release(nonce)
+            throw io
+        } catch (e: Exception) {
+            // If you want to be conservative, only release on *pre-broadcast* failures.
+            robustNonceManager.release(nonce)
+            throw e
+        }
+    }
+
+    suspend fun rpcAlive(web3j: Web3j): Boolean = withContext(Dispatchers.IO) {
+        try { web3j.ethChainId().send().chainId != null } catch (_: Exception) { false }
+    }
+
+    suspend fun logAccessWithReBroadcast(recordIds: List<String>, credentials: Credentials): TransactionReceipt {
+        if (!rpcAlive(web3jService)) {
+            throw IOException("No network / RPC unavailable")
         }
 
-        val maxWaitMs = 60000L
+        val nonce = robustNonceManager.allocate()
+        var rawHex: String? = null
+        var txHash: String? = null
+        var broadcasted = false
+
+        try {
+            val baseGas = web3jService.ethGasPrice().send().gasPrice
+            val gasPrice = baseGas + baseGas / BigInteger.TEN
+            val gasLimit = BigInteger.valueOf(3_000_000)
+
+            val function = Function(
+                "logAccess",
+                listOf(
+                    DynamicArray(Utf8String::class.java, recordIds.map { Utf8String(it) }),
+                    Utf8String(UUID.randomUUID().toString())
+                ),
+                emptyList()
+            )
+            val encoded = FunctionEncoder.encode(function)
+
+            val raw = RawTransaction.createTransaction(
+                nonce, gasPrice, gasLimit, accessesContractAddress, BigInteger.ZERO, encoded
+            )
+
+            val signed = TransactionEncoder.signMessage(raw, selectedNetwork.value.chainId, credentials)
+            rawHex = Numeric.toHexString(signed)
+            txHash = Numeric.toHexString(Hash.sha3(signed)) // compute locally
+
+            // Try to send
+            val resp = web3jService.ethSendRawTransaction(rawHex).send()
+            if (resp.hasError()) {
+                val msg = resp.error.message ?: "unknown"
+                // pre-broadcast failure -> safe to release
+                when {
+                    msg.contains("nonce too low", true) -> {
+                        robustNonceManager.release(nonce)
+                        robustNonceManager.reconcileFromChain()
+                        throw RuntimeException("Nonce too low; refreshed. Retry.")
+                    }
+                    msg.contains("replacement underpriced", true) ||
+                            msg.contains("transaction underpriced", true) -> {
+                        robustNonceManager.release(nonce)
+                        throw RuntimeException("Underpriced; bump gas and retry with same nonce.")
+                    }
+                    msg.contains("nonce too high", true) -> {
+                        // Fill/rebroadcast missing lower nonces or reconcile (omitted here for brevity)
+                        robustNonceManager.release(nonce)
+                        throw RuntimeException("Nonce too high; reconcile and retry.")
+                    }
+                    else -> {
+                        robustNonceManager.release(nonce)
+                        throw RuntimeException("Broadcast rejected: $msg")
+                    }
+                }
+            } else {
+                txHash = resp.transactionHash ?: txHash
+                broadcasted = true
+            }
+
+            // Await mined or keep pending with rebroadcasts
+            return awaitWithRebroadcast(
+                web3jService,
+                txHash!!,
+                rawHex!!,
+                nonce,
+                robustNonceManager,
+                maxWaitMs = 10 * 60_000L,      // give it more time than 60s
+                rebroadcastEveryMs = 15_000L
+            )
+        } catch (io: IOException) {
+            // Ambiguous: node might have received it. DO NOT release.
+            // Persist to outbox so a background worker can rebroadcast when online.
+            if (rawHex != null && txHash != null) {
+                //PendingOutbox.store(txHash!!, nonce, rawHex!!)
+            } else {
+                robustNonceManager.release(nonce)
+            }
+            throw io
+        } catch (e: Exception) {
+            // Only release if we are sure it was never broadcast
+            if (!broadcasted) robustNonceManager.release(nonce)
+            throw e
+        }
+    }
+
+
+
+    /** Polls receipt; if not found, checks pending; if unknown, re-broadcasts raw. */
+    suspend fun awaitWithRebroadcast(
+        web3j: Web3j,
+        txHash: String,
+        rawHex: String,
+        nonce: BigInteger,
+        nonceMgr: RobustNonceManager,
+        maxWaitMs: Long,
+        rebroadcastEveryMs: Long
+    ): TransactionReceipt {
         val start = System.currentTimeMillis()
+        var lastRebroadcast = 0L
 
         while (System.currentTimeMillis() - start < maxWaitMs) {
-            val receipt = web3jService.ethGetTransactionReceipt(transactionResponse.transactionHash).send().transactionReceipt
-            if (receipt.isPresent) {
-                if (receipt.get().status == "0x0") {
-                    Log.e("TxStatus", "Transaction reverted")
-                    throw RuntimeException("Transaction reverted")
+            // mined?
+            web3j.ethGetTransactionReceipt(txHash).send().transactionReceipt.let { opt ->
+                if (opt.isPresent) {
+                    val r = opt.get()
+                    if (r.status == "0x0") {
+                        nonceMgr.markMined(nonce)
+                        throw RuntimeException("Transaction reverted")
+                    }
+                    nonceMgr.markMined(nonce)
+                    return r
                 }
-                return receipt.get()
             }
-            delay(1000)
+
+            // pending?
+            val txOpt = web3j.ethGetTransactionByHash(txHash).send().transaction
+            if (txOpt.isPresent) {
+                delay(2000)
+                continue
+            }
+
+            // unknown -> re-broadcast occasionally
+            val now = System.currentTimeMillis()
+            if (now - lastRebroadcast > rebroadcastEveryMs) {
+                web3j.ethSendRawTransaction(rawHex).send() // ignore "already known" errors
+                lastRebroadcast = now
+            }
+            delay(2000)
         }
 
-        throw RuntimeException("Transaction receipt not generated after sending transaction")
+        // Timed out: leave in-flight; caller/background can keep watching.
+        throw RuntimeException("Transaction not confirmed yet; still pending or dropped")
     }
 
 }
