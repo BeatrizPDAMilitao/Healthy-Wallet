@@ -11,7 +11,7 @@ A secure digital wallet tailored for the healthcare industry. The wallet will al
 
 ## 📹 Demo Video
 
-[fullApp.mp4](fullApp.mp4)
+[fullApp.mp4](FullDEMO.mp4)
 
 ## Setup
 
