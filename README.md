@@ -8,6 +8,11 @@ A secure digital wallet tailored for the healthcare industry. The wallet will al
 - **O2**: A novel hybrid architecture for decentralized EHR storage that strategically combines blockchain technology with public cloud infrastructure to achieve both security and scalability in health data management;
 - **O3**: A seamless integration between the MedPlum medical platform and the Healthy Wallet application, demonstrating practical interoperability between existing healthcare systems and blockchain-based personal health record management solutions.
 
+
+## 📹 Demo Video
+
+[fullApp.mp4](fullApp.mp4)
+
 ## Setup
 
 To be able to run the project you need to:
@@ -42,4 +47,3 @@ On the server side change the url returned in `src/main.rs` to the correct addre
 - Kotlin
 - Jetpack Compose
 - Web3j
-
