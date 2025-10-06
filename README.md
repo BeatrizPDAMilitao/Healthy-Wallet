@@ -1,18 +1,12 @@
 # Healthy Wallet🩺💉🏥 🔐
 
-A lightweight, native Android wallet for Ethereum and Polygon networks, focused on simplicity and performance.
-
 A secure digital wallet tailored for the healthcare industry. The wallet will allow patients, medical staff, and authorized stakeholders to manage, view, and share Electronic Health Records with ease.
 
-## 🎯 Project Objectives
+## 🎯 Project Contributions
 
-- **O1**: The design and development of a wallet for a mobile device to store and share EHRs;
-- **O2**: Secure key management and user authentication in order to protect private keys and credentials;
-- **O3**: Ensuring data privacy and control, empowering users to maintain full authority over their personal
-  information;
-- **O4**: Promote interoperability and data sharing across platforms and institutions;
-- **O5**: Resilience against attacks, ensuring robust defenses against potential threats to maintain trust and reliability;
-- **O6**: Usability and user experience, ensuring that the system is accessible, intuitive, and easy to navigate for all users.
+- **O1**: A blockchain-enabled EHR wallet application that empowers users to securely share their EHRs through decentralized technology, providing enhanced control over personal medical data;
+- **O2**: A novel hybrid architecture for decentralized EHR storage that strategically combines blockchain technology with public cloud infrastructure to achieve both security and scalability in health data management;
+- **O3**: A seamless integration between the MedPlum medical platform and the Healthy Wallet application, demonstrating practical interoperability between existing healthcare systems and blockchain-based personal health record management solutions.
 
 ## Setup
 
@@ -49,5 +43,3 @@ On the server side change the url returned in `src/main.rs` to the correct addre
 - Jetpack Compose
 - Web3j
 
-## 📚 Documentation
-documentation for Simple Android Wallet is in progress at: https://simple-wallet-docs.vercel.app/
