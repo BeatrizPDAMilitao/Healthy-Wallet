@@ -4,10 +4,16 @@ A secure digital wallet tailored for the healthcare industry. The wallet will al
 
 ## 🎯 Project Contributions
 
-- **O1**: A blockchain-enabled EHR wallet application that empowers users to securely share their EHRs through decentralized technology, providing enhanced control over personal medical data;
-- **O2**: A novel hybrid architecture for decentralized EHR storage that strategically combines blockchain technology with public cloud infrastructure to achieve both security and scalability in health data management;
-- **O3**: A seamless integration between the MedPlum medical platform and the Healthy Wallet application, demonstrating practical interoperability between existing healthcare systems and blockchain-based personal health record management solutions.
-
+- **C1**: A blockchain-enabled EHRs wallet application that empowers users to securely share their EHRs
+ through decentralized technology, providing enhanced control over personal medical data;
+- **C2**: A novel hybrid architecture for decentralized EHRs storage that strategically combines blockchain
+ technology with public cloud infrastructure to achieve both security and scalability in health data
+ management;
+- **C3**: A seamless integration between the MedPlum medical platform and the Healthy Wallet applica
+tion, demonstrating practical interoperability between existing healthcare systems and blockchain
+based personal health record management solutions;
+- **C4**: Integration with a ZKP server capable of performing range proofs on EHRs. This allows patients
+ to prove that specific medical values fall within a valid range without revealing the actual data.
 
 ## 📹 Demo Video
 
