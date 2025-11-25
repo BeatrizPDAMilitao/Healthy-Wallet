@@ -2,8 +2,8 @@ package com.example.ethktprototype.screens
 
 import android.util.Log
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -16,7 +16,6 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBars
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.foundation.lazy.LazyColumn
@@ -28,6 +27,7 @@ import androidx.compose.material.BottomNavigationItem
 import androidx.compose.material.Divider
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.History
+import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Wallet
 import androidx.compose.material3.AlertDialog
@@ -50,7 +50,6 @@ import androidx.compose.ui.unit.sp
 import androidx.navigation.NavHostController
 import com.example.ethktprototype.WalletViewModel
 import com.example.ethktprototype.composables.ReceiveBottomSheet
-import com.example.ethktprototype.composables.SuccessDialogModal
 import java.text.DecimalFormat
 import androidx.compose.ui.graphics.Color
 import com.example.ethktprototype.data.Transaction
@@ -58,6 +57,11 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.viewModelScope
 import com.example.ethktprototype.simulateTransactionReceived
 import kotlinx.coroutines.launch
+import androidx.compose.material3.CircularProgressIndicator
+import com.example.ethktprototype.composables.BottomNavigationBar
+import com.example.ethktprototype.data.ConditionRequirement
+import com.example.ethktprototype.nexus.CallZkpApi
+import org.json.JSONObject
 
 /**
  * ActivityScreen is a Composable function that displays the activity screen of the wallet application.
@@ -77,6 +81,7 @@ fun ActivityScreen(
     val decimalFormatBalance = DecimalFormat("#.##")
     val showDialog = remember { mutableStateOf(false) }
     val selectedTransaction = remember { mutableStateOf<Transaction?>(null) }
+    var gotTransactions = remember { mutableStateOf(false) }
 
     LaunchedEffect(uiState.transactionHash) {
         if (uiState.transactionHash.isNotEmpty()) {
@@ -84,16 +89,15 @@ fun ActivityScreen(
         }
     }
 
-    LaunchedEffect(Unit) {
-        viewModel.getBalances()
-        viewModel.getNftBalances()
+    LaunchedEffect(gotTransactions.value) {
+        if (!gotTransactions.value && !viewModel.uiState.value.hasFetched.getOrDefault("AccessRequests", false)) {
+            Log.d("ExampleTestSample", "Calling getAccessRequestsContract")
+            viewModel.callGetAccessRequestsContract()
+            gotTransactions.value = true
+        }
     }
 
-    LaunchedEffect(uiState.selectedNetwork) {
-        viewModel.getBalances()
-        viewModel.getNftBalances()
-    }
-    LaunchedEffect(uiState.transactions) {
+    LaunchedEffect(gotTransactions.value) {
         viewModel.getTransactions()
     }
 
@@ -146,47 +150,60 @@ fun ActivityScreen(
                     .fillMaxSize()
                     .padding(bottom = 56.dp)
             ) {
-                Text(
-                    text = "Activity",
-                    style = MaterialTheme.typography.titleLarge,
-                    color = MaterialTheme.colorScheme.onSurface,
-                    fontWeight = FontWeight.Bold,
-                    modifier = Modifier.padding(bottom = 16.dp)
-                )
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Text(
+                        text = "Activity",
+                        style = MaterialTheme.typography.titleLarge,
+                        color = MaterialTheme.colorScheme.onSurface,
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier.padding(bottom = 16.dp)
+                    )
+                    IconButton(onClick = {
+                        viewModel.callGetAccessRequestsContract()
+                    }) {
+                        Icon(
+                            imageVector = Icons.Default.Refresh,
+                            contentDescription = "Refresh",
+                            tint = Color.White
+                        )
+                    }
+                }
                 Spacer(modifier = Modifier.height(2.dp))
 
                 Button(
                     onClick = {
                         viewModel.viewModelScope.launch {
-                            viewModel.syncTransactionWithHealthyContract()
+                            //viewModel.syncTransactionWithHealthyContract()
                         }
                     },
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(8.dp)
-                        .background(MaterialTheme.colorScheme.primary, shape = RoundedCornerShape(8.dp)),
+                        .background(
+                            MaterialTheme.colorScheme.primary,
+                            shape = RoundedCornerShape(8.dp)
+                        ),
                     shape = RoundedCornerShape(8.dp)
                 ) {
-                    Text("Sync Transactions")
+                    if (uiState.isTransactionProcessing) {
+                        CircularProgressIndicator(
+                            modifier = Modifier
+                                .size(20.dp)
+                                .padding(end = 8.dp),
+                            strokeWidth = 2.dp,
+                            color = MaterialTheme.colorScheme.onPrimary
+                        )
+                        Text("Syncing…")
+                    } else {
+                        Text("Sync Transactions")
+                    }
                 }
-
-                Spacer(modifier = Modifier.height(2.dp))
-
-                /*Button(
-                    onClick = {
-                        viewModel.viewModelScope.launch {
-                            viewModel.callMedSkyContract()
-                        }
-                    },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(8.dp)
-                        .background(MaterialTheme.colorScheme.primary, shape = RoundedCornerShape(8.dp)),
-                    shape = RoundedCornerShape(8.dp)
-                ) {
-                    Text("Call contract")
-                }
-                Spacer(modifier = Modifier.height(2.dp))*/
 
                 Button(
                     onClick = {
@@ -197,18 +214,117 @@ fun ActivityScreen(
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(8.dp)
-                        .background(MaterialTheme.colorScheme.primary, shape = RoundedCornerShape(8.dp)),
+                        .background(
+                            MaterialTheme.colorScheme.primary,
+                            shape = RoundedCornerShape(8.dp)
+                        ),
                     shape = RoundedCornerShape(8.dp)
                 ) {
                     Text("Simulate New Transaction")
                 }
+
+                Button(onClick = {
+                    viewModel.viewModelScope.launch {
+                        val mockRequest = Transaction(
+                            id = viewModel.getTransactionId().toString(),
+                            date = viewModel.getCurrentDate(),
+                            status = "pending",
+                            recordId = "999",
+                            practitionerId = "0xd0c4753de208449772e0a7e43f7ecda79df32bc7",
+                            practitionerAddress = viewModel.uiState.value.walletAddress,
+                            type = "X-Ray",
+                            patientId = viewModel.uiState.value.walletAddress,
+                            conditions = listOf(
+                                //ConditionRequirement("not_pregnant"),
+                                //ConditionRequirement("no_implants"),
+                                ConditionRequirement(value = "Glucose", min = 40, max = 100),
+                            )
+                        )
+                        viewModel.addTransaction(mockRequest)
+                    }
+                },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(8.dp)
+                        .background(
+                            MaterialTheme.colorScheme.primary,
+                            shape = RoundedCornerShape(8.dp)
+                        ),
+                    shape = RoundedCornerShape(8.dp)
+                ) {
+                    Text("Simulate ZKP Request")
+                }
+                /*Button(onClick = {
+                    val cond = viewModel.getConditionRequirement("Glucose")
+                    val dateTime = cond!!.effectiveDateTime.toString()
+                    for (i in 1..3) { //1M is too ambicious for my own Android
+                        viewModel.viewModelScope.launch {
+                            val startTime = System.currentTimeMillis()
+                            CallZkpApi.sendValue(
+                                value = i,
+                                min = 40,
+                                max = 500,
+                                timestamp = dateTime,
+                                onSuccess = { resultJson ->
+                                    val endTime = System.currentTimeMillis() - startTime
+                                    viewModel.addZkpTime(endTime)
+                                    val status = JSONObject(resultJson).getString("status")
+                                    val proofUrl = JSONObject(resultJson).getString("proof_url")
+                                    Log.d("ZKPServer", "Status: $status, Proof URL: $proofUrl")
+                                },
+                                onError = { error ->
+                                    Log.e("ZKPServer", error)
+                                }
+                            )
+                        }
+                    }
+                },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(8.dp)
+                        .background(
+                            MaterialTheme.colorScheme.primary,
+                            shape = RoundedCornerShape(8.dp)
+                        ),
+                    shape = RoundedCornerShape(8.dp)
+                ) {
+                    Text("Test ZKP Server")
+
+                Button(onClick = {
+                    viewModel.getZkpTimes()
+                }, modifier = Modifier.fillMaxWidth().padding(8.dp)) {
+                    Text("Get ZKP times")
+                }*/
+                /*Button(
+                    onClick = {
+                        viewModel.printCreateEHR()
+                    },
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text("Get times and fees")
+                }*/
+                /*Button(
+                    onClick = {
+                        viewModel.viewModelScope.launch {
+                            //viewModel.getPatientData("example")
+                        }
+                    },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(8.dp)
+                        .background(MaterialTheme.colorScheme.primary, shape = RoundedCornerShape(8.dp)),
+                    shape = RoundedCornerShape(8.dp)
+                ) {
+                    Text("Get Patient MedPlum")
+                }*/
+
                 Divider(color = Color.Gray, thickness = 1.dp)
                 Spacer(modifier = Modifier.height(8.dp))
 
                 LazyColumn(
                     modifier = Modifier.fillMaxSize()
                 ) {
-                    items(viewModel.getTransactions()) { transaction ->
+                    items(viewModel.getTransactions().reversed()) { transaction ->
                         TransactionItem(transaction, navController)
                         Spacer(modifier = Modifier.height(6.dp))
                     }
@@ -216,29 +332,18 @@ fun ActivityScreen(
             }
         }
 
-        BottomNavigation(
-            modifier = Modifier.align(Alignment.BottomCenter)
-                .fillMaxWidth(),
-            backgroundColor = MaterialTheme.colorScheme.inverseOnSurface,
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .align(Alignment.BottomCenter)
         ) {
-            BottomNavigationItem(
-                icon = { Icon(Icons.Filled.Wallet, contentDescription = "Wallet") },
-                label = { Text("Wallet") },
-                selected = false,
-                onClick = {
-                    navController.navigate("tokenList")
-                }
-            )
-            BottomNavigationItem(
-                icon = { Icon(Icons.Filled.History, contentDescription = "Activity") },
-                label = { Text("Activity") },
-                selected = true,
-                onClick = {
-                    // Do nothing. This is the current screen.
-                }
+            BottomNavigationBar(
+                navController = navController,
+                currentRoute = "activity"
             )
         }
     }
+    Log.d("SyncedLog", uiState.walletAddress)
     if (uiState.showRecordDialog) {
         AlertDialog(
             onDismissRequest = { viewModel.setShowRecordDialog(false) },
@@ -331,11 +436,20 @@ fun TransactionItem(transaction: Transaction, navController: NavHostController) 
                 modifier = Modifier.weight(1f)
             ) {
                 Spacer(modifier = Modifier.height(8.dp))
-                Text(
-                    text = "Request to access ${transaction.type}",
-                    style = MaterialTheme.typography.bodyLarge,
-                    fontWeight = FontWeight.Bold
-                )
+                if (!transaction.conditions.isNullOrEmpty()) {
+                    Text(
+                        text = "Requested proof for ${transaction.type}",
+                        style = MaterialTheme.typography.bodyLarge,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+                else {
+                    Text(
+                        text = "Request to access ${transaction.type}",
+                        style = MaterialTheme.typography.bodyLarge,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
                 Spacer(modifier = Modifier.height(8.dp))
                 Text(
                     text = "Date: ${transaction.date}",

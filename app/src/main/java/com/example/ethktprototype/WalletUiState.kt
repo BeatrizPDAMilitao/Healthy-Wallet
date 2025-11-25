@@ -1,9 +1,14 @@
 package com.example.ethktprototype
 
 import com.example.ethktprototype.data.NftValue
+import com.example.ethktprototype.data.PractitionerEntity
 import com.example.ethktprototype.data.TokenBalance
 import com.example.ethktprototype.data.Transaction
 
+/**
+ * Represents the UI state for the wallet screen.
+ * This class holds all the necessary data to be displayed in the wallet UI,
+ */
 data class WalletUiState(
     val walletAddress: String = "",
     val userEnsName: String = "",
@@ -13,13 +18,16 @@ data class WalletUiState(
     val totalBalanceUSD: Double = 0.0,
     val transactionHash: String = "",
     val selectedToken: TokenBalance? = null,
-    val selectedNetwork: Network = Network.ETH_MAINNET,
+    val selectedNetwork: Network = Network.SEPOLIA,
     val isTokensLoading: Boolean = false,
     val isNftsLoading: Boolean = false,
     val showPayDialog: Boolean = false,
     val showTokenBottomSheet: Boolean = false,
     val showWalletModal: Boolean = false,
     val showSuccessModal: Boolean = false,
+    val showErrorModal: Boolean = false,
+    var errorMessage: String = "",
+    var successMessage: String = "",
     val toAddress: String = "",
     val sentAmount: Double = 0.0,
     val sentCurrency: String = "",
@@ -27,6 +35,7 @@ data class WalletUiState(
     val hash: String = "",
     val ens: String = "",
     val mnemonicLoaded: Boolean = false,
+    val biometricUnlocked: Boolean = false,
     val tokensBlocked: List<TokenBalance> = emptyList(),
     val transactions: List<Transaction> = emptyList(),
     val showRecordDialog: Boolean = false,
@@ -34,4 +43,39 @@ data class WalletUiState(
     val showSyncSuccessDialog: Boolean = false,
     val showSyncErrorDialog: Boolean = false,
     var isTransactionProcessing: Boolean = false,
+    var showDataDialog: Boolean = false,
+    var practitionerData: PractitionerEntity? = null,
+    var medPlumToken: Boolean = false,
+    var patientId: String = "",
+    val hasFetched: Map<String, Boolean> = mapOf(
+        "Patient" to false,
+        "DiagnosticReports" to false,
+        "Conditions" to false,
+        "Observations" to false,
+        "MedicationRequests" to false,
+        "MedicationStatements" to false,
+        "Immunizations" to false,
+        "Allergies" to false,
+        "Devices" to false,
+        "Procedures" to false,
+        "HealthSummary" to false,
+        "Practitioner" to false,
+        "AccessRequests" to false,
+        "SharedEHR" to false,
+        "AccessPermissions" to false,
+    ),
+    var isAppLoading: Boolean = false,
+    var isPatientLoading: Boolean = false,
+    var isDiagnosticReportsLoading: Boolean = false,
+    var isConditionsLoading: Boolean = false,
+    var isObservationsLoading: Boolean = false,
+    var isMedicationRequestsLoading: Boolean = false,
+    var isMedicationStatementsLoading: Boolean = false,
+    var isImmunizationsLoading: Boolean = false,
+    var isAllergiesLoading: Boolean = false,
+    var isDevicesLoading: Boolean = false,
+    var isProceduresLoading: Boolean = false,
+    var isHealthSummaryLoading: Boolean = false,
+    var isSharedEHRLoading: Boolean = false,
+    var isAccessPermissionsLoading: Boolean = false,
     )

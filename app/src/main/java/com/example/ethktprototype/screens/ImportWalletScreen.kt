@@ -43,7 +43,10 @@ fun ImportWalletScreen(navController: NavHostController, viewModel: WalletViewMo
         if (!mnemonicLoaded) {
             ImportWallet(
                 navController,
-                onWalletImported = { address -> viewModel.storeWallet(address) },
+                onWalletImported = { address ->
+                    viewModel.storeWallet(address)
+                    navController.navigate("loginScreen")
+                },
                 viewModel,
             )
         }

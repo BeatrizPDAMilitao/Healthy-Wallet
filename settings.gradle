@@ -10,6 +10,8 @@ dependencyResolutionManagement {
     repositories {
         google()
         mavenCentral()
+        maven { url 'https://github.com/apollographql/apollo-kotlin/' }
+        maven { url 'https://jitpack.io' }
     }
 }
 rootProject.name = "EthKtPrototype"

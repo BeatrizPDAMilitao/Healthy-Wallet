@@ -9,7 +9,8 @@ data class ObservationEntity(
     val status: String,
     val code: String,
     val subjectId: String,
-    val encounter: String,
+    //val encounter: String,
     val effectiveDateTime: String,
-    val valueQuantity: Float
+    val valueQuantity: String,
+    val unit: String? = null,
 )

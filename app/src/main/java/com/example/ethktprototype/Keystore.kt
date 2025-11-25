@@ -14,6 +14,10 @@ import javax.crypto.KeyGenerator
 import javax.crypto.SecretKey
 import javax.crypto.spec.GCMParameterSpec
 
+/**
+ * This file is not used in the current version of the app.
+ */
+
 // Define a key name for the mnemonic in the Android Keystore
 private const val MNEMONIC_KEY_NAME = "encrypted_mnemonic"
 private const val MNEMONIC_IV_KEY_NAME = "mnemonic_iv_key"

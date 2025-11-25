@@ -8,8 +8,38 @@ data class Transaction(
     val id: String,
     val date: String,
     val status: String, // "pending", "accepted" or "denied"
+    val recordId: String,
     val practitionerId: String,
-    val type: String, // "MRI" or "XRay" and so on. TODO: add more types and convert to enum
+    val practitionerAddress: String,
+    val type: String, // "DiagnosticReport", "Immunization" and so on.
+    val patientId: String,
+    val conditions: List<ConditionRequirement>? = null,
+    var qrCodeFileName: String? = null,
+)
+
+@Serializable
+data class ConditionRequirement(
+    val type: String? = null, //e.g., "not_pregnant", "no_implants"
+    val value: String? = null, // e.g., "hemoglobin"
+    val min: Int? = null, // e.g., "hemoglobin" min value
+    val max: Int? = null, // e.g., "hemoglobin" max value
+)
+
+@Serializable
+data class ZkpExamRequestPayload(
+    val requestId: String,
+    val examType: String,
+    val conditions: List<ConditionRequirement>,
+    val issuer: String
+)
+
+data class HealthSummaryResult(
+    val diagnostics: List<DiagnosticReportEntity>?,
+    val allergies: List<AllergyIntoleranceEntity>?,
+    val meds: List<MedicationStatementEntity>?,
+    val procedures: List<ProcedureEntity>?,
+    val devices: List<DeviceEntity>?,
+    val immunizations: List<ImmunizationEntity>?
 )
 
 @Serializable
